@@ -2,6 +2,11 @@ const DISCORD_TOKEN = process.env.DISCORD_TOKEN
 const CREATOR_USER_ID = process.env.CREATOR_USER_ID
 const DISCORD_NICKNAME = process.env.DISCORD_NICKNAME
 
+const logfile = 'betabot.log'
+const endLogMessage = "logout"
+
+const isLocalProcess = process.argv[2] == "local"
+
 const Discord = require('discord.js')
 const client = new Discord.Client()
 
@@ -25,15 +30,10 @@ client.on('ready', () => {
   {
     if (loginMessage && loginChannelID && loginGuildID)
     {
-      console.log(loginMessage, loginChannelID, loginGuildID)
-      console.log(1)
       var guild = client.guilds.cache.get(loginGuildID)
       if (!guild) { break loginMessageBreak }
-      console.log(2)
       var channel = guild.channels.cache.get(loginChannelID)
-      console.log(channel, guild.channels.cache)
       if (!channel) { break loginMessageBreak }
-      console.log(3)
 
       channel.send(loginMessage)
     }
@@ -100,6 +100,14 @@ client.on('message', async msg => {
 
       case "logout":
       await prepareBotLogout("Bye bye for now!", msg)
+      console.log(endLogMessage)
+
+      if (isLocalProcess)
+      {
+        fs.unlinkSync(logfile)
+        fs.writeFileSync(logfile, endLogMessage + "\n")
+      }
+
       client.destroy()
       break
 
@@ -159,9 +167,16 @@ async function rebootBot(logoutMessage, loginMessage, msg)
 {
   await prepareBotLogout(logoutMessage, msg)
 
-  const logfile = 'betabot.log';
-  const out = fs.openSync(logfile, 'a');
-  const err = fs.openSync(logfile, 'a');
+  spawnBot(loginMessage, msg)
+
+  client.destroy()
+}
+
+function spawnBot(loginMessage, msg)
+{
+  fs.unlinkSync(logfile)
+  var out = fs.openSync(logfile, 'a')
+  var err = fs.openSync(logfile, 'a')
 
   var newProcessEnv = Object.assign(process.env, { process_restarting: 1, loginMessage: loginMessage, loginChannelID: msg.channel.id, loginGuildID: msg.guild.id })
 
@@ -170,16 +185,12 @@ async function rebootBot(logoutMessage, loginMessage, msg)
     env: newProcessEnv,
     stdio: ['ignore', out, err]
   }).unref()
-
-  client.destroy()
 }
 
 async function loginBot(message, channelID, guildID)
 {
-  console.log("login attmp")
   if (process.env.process_restarting)
   {
-    console.log("resetart")
     delete process.env.process_restarting
 
     var message = process.env.loginMessage
