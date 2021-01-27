@@ -4,20 +4,31 @@ const DISCORD_NICKNAME = process.env.DISCORD_NICKNAME
 
 const logfile = 'betabot.log'
 const endLogMessage = "logout"
-
 const isLocalProcess = process.argv[2] == "local"
+const spawn = require('child_process').spawn
+const fs = require('fs')
 
 const Discord = require('discord.js')
 const client = new Discord.Client()
 
-const spawn = require('child_process').spawn
-const fs = require('fs')
-
 var sql = require("./sql.js")
 
-var messageResponses = {
-  "(\\W|\\s+|^)[bruh]{4,}(\\W|\\s+|$)": "bruh"
-}
+var messageResponses = [
+  { pattern: "(\\W|\\s+|^)[bruh]{4,}(\\W|\\s+|$)", responses: ["bruh"] }
+]
+
+var messageCommands = [
+  { command: "cook", responses: ["🍕", "🍿", "🍤", "🍣", "🍪", "🍣", "🍔", "🥐", "🥓", "🍱", "🍩", "🍰", "🍳", "🧇", "🥨", "🥞", "🍉", "🥫", "🌮", "🌭", "🥪", "🍚", "🥠"] },
+  { command: "roast me", responses: ["nah bro"] },
+  { command: "thanks", responses: ["ofc bro", "np", "dont mention it", "thank you!", ":)", "you\'re welcome"] },
+  { command: "make it rain", responses: ["\\*in british\\* £££9739797210100000000", ":chart_with_upwards_trend: *støønks*"] },
+  { command: "sad", responses: ["\\:("] }
+]
+
+var dates = [
+  { name: "Misty Not Rated", timestamp: 1586139240000, command: "misty" },
+  { name: "Birthday", timestamp: 1597993200000, command: "birf" }
+]
 
 var loginMessage
 var loginChannelID
@@ -77,55 +88,80 @@ client.on('message', async msg => {
   }
 
   //console.log("message? -" + msg.content + "-" + msg.id)
-  if (!sendMessageResponses(msg))
+
+  if (sendMessageResponses(msg)) { return }
+
+  var messageContent = msg.content.toLowerCase()
+  if (messageContent.startsWith("$"))
   {
-    var messageContent = msg.content.toLowerCase()
-    if (messageContent.startsWith("$"))
+    messageContent = messageContent.substr(1)
+  }
+  else if (msg.mentions.members.has(client.user.id))
+  {
+    messageContent = messageContent.replace("<@!" + client.user.id + ">", "")
+  }
+  else { return }
+
+  messageContent = messageContent.replace(/^\s*/, "").replace(/\s*$/, "")
+
+  if (sendMessageCommands(msg, messageContent)) { return }
+  if (sendDateCommands(msg, messageContent)) { return }
+
+  if (/^repeat\s*(\d*)$/.test(messageContent))
+  {
+    var multiplier = parseInt(/^repeat\s*(\d*)$/.exec(messageContent)[1]) || 1 //parseInt(messageContent.replace("repeat", "")) || 1
+    var messageArray = msg.channel.messages.cache.array()
+    if (messageArray.length >= 2)
     {
-      messageContent = messageContent.substr(1)
-    }
-    else if (msg.mentions.members.has(client.user.id))
-    {
-      messageContent = messageContent.replace("<@!" + client.user.id + ">", "")
-    }
-    else { return }
-
-    messageContent = messageContent.replace(/^\s*/, "").replace(/\s*$/, "")
-
-    switch (messageContent)
-    {
-      case "info":
-      msg.channel.send(`βəτα Bot Dev 1.0\nCreated by <@${CREATOR_USER_ID}>\nwith some inspiration from We4therman`)
-      break
-
-      case "logout":
-      await prepareBotLogout("Bye bye for now!", msg)
-      console.log(endLogMessage)
-
-      if (isLocalProcess)
+      for (i=0; i < multiplier; i++)
       {
-        fs.unlinkSync(logfile)
-        fs.writeFileSync(logfile, endLogMessage + "\n")
+        msg.channel.send(messageArray[messageArray.length-2])
       }
-
-      client.destroy()
-      break
-
-      case "restart":
-      prepareBotLogout("Bye bye for now!", msg)
-        .then(client.destroy())
-        .then(loginBot("And we're back!", msg.channel.id, msg.guild.id))
-      break
-
-      case "reboot":
-      rebootBot("Bye bye for now!", "And we're back!", msg)
-      break
-
-      case "sleep":
-      msg.channel.send("zzz")
-      client.user.setPresence({status: "idle"})
-      break
+      return
     }
+  }
+
+  if (/^speak\s(.+)$/.test(messageContent))
+  {
+    var phraseToSay = /^speak\s(.+)$/.exec(messageContent)[1]
+    msg.channel.send(phraseToSay, {tts: true})
+    return
+  }
+
+  switch (messageContent)
+  {
+    case "info":
+    msg.channel.send(`βəτα Bot Dev 1.0\nCreated by <@${CREATOR_USER_ID}>\nwith inspiration from We4therman\n*\\*Powered By DELL OS\\**`)
+    break
+
+    case "logout":
+    await prepareBotLogout("Bye bye for now!", msg)
+    console.log(endLogMessage)
+
+    if (isLocalProcess && fs.existsSync(logfile))
+    {
+      fs.unlinkSync(logfile)
+      fs.writeFileSync(logfile, endLogMessage + "\n")
+      fs.unlinkSync(logfile)
+    }
+
+    client.destroy()
+    break
+
+    case "restart":
+    prepareBotLogout("Bye bye for now!", msg)
+      .then(client.destroy())
+      .then(loginBot("And we're back!", msg.channel.id, msg.guild.id))
+    break
+
+    case "reboot":
+    rebootBot("Bye bye for now!", "And we're back!", msg)
+    break
+
+    case "sleep":
+    msg.channel.send("zzz")
+    client.user.setPresence({status: "idle"})
+    break
   }
 })
 
@@ -133,12 +169,13 @@ function sendMessageResponses(msg)
 {
   var messageContent = msg.content.toLowerCase()
 
-  for (patternNum in Object.keys(messageResponses))
+  for (responseNum in messageResponses)
   {
-    var pattern = Object.keys(messageResponses)[patternNum]
+    var pattern = messageResponses[responseNum].pattern
     if (testRegex(messageContent, pattern))
     {
-      msg.channel.send(messageResponses[pattern])
+      var index = Math.floor((Math.random() * messageResponses[responseNum].responses.length))
+      msg.channel.send(messageResponses[responseNum].responses[index])
       return true
     }
   }
@@ -150,6 +187,40 @@ function testRegex(string, pattern)
 {
   var regex = new RegExp(pattern)
   return regex.test(string)
+}
+
+function sendDateCommands(msg, messageContent)
+{
+  for (dateNum in dates)
+  {
+    if (messageContent == dates[dateNum].command)
+    {
+      var millisDifference = Math.abs(Date.now()-dates[dateNum].timestamp)
+      var days = Math.floor(millisDifference/(1000*60*60*24))
+      var hours = Math.floor((millisDifference-days*1000*60*60*24)/(1000*60*60))
+      var minutes = Math.floor((millisDifference-days*1000*60*60*24-hours*1000*60*60)/(1000*60))
+      msg.channel.send(dates[dateNum].name + ": " + (Math.sign(Date.now()-dates[dateNum].timestamp) == -1 ? "-" : "") + days + " days, " + hours + " hours, and " + minutes + " minutes")
+
+      return true
+    }
+  }
+
+  return false
+}
+
+function sendMessageCommands(msg, messageContent)
+{
+  for (commandNum in messageCommands)
+  {
+    if (messageContent == messageCommands[commandNum].command)
+    {
+      var index = Math.floor((Math.random() * messageCommands[commandNum].responses.length))
+      msg.channel.send(messageCommands[commandNum].responses[index])
+      return true
+    }
+  }
+
+  return false
 }
 
 function prepareBotLogout(logoutMessage, msg)
@@ -174,7 +245,6 @@ async function rebootBot(logoutMessage, loginMessage, msg)
 
 function spawnBot(loginMessage, msg)
 {
-  fs.unlinkSync(logfile)
   var out = fs.openSync(logfile, 'a')
   var err = fs.openSync(logfile, 'a')
 
