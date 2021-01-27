@@ -11,7 +11,7 @@ const fs = require('fs')
 const Discord = require('discord.js')
 const client = new Discord.Client()
 
-var sql = require("./sql.js")
+//var sql = require("./sql.js")
 
 var messageResponses = [
   { pattern: "(\\W|\\s+|^)[bruh]{4,}(\\W|\\s+|$)", responses: ["bruh"] }
@@ -107,26 +107,8 @@ client.on('message', async msg => {
   if (sendMessageCommands(msg, messageContent)) { return }
   if (sendDateCommands(msg, messageContent)) { return }
 
-  if (/^repeat\s*(\d*)$/.test(messageContent))
-  {
-    var multiplier = parseInt(/^repeat\s*(\d*)$/.exec(messageContent)[1]) || 1 //parseInt(messageContent.replace("repeat", "")) || 1
-    var messageArray = msg.channel.messages.cache.array()
-    if (messageArray.length >= 2)
-    {
-      for (i=0; i < multiplier; i++)
-      {
-        msg.channel.send(messageArray[messageArray.length-2])
-      }
-      return
-    }
-  }
-
-  if (/^speak\s(.+)$/.test(messageContent))
-  {
-    var phraseToSay = /^speak\s(.+)$/.exec(messageContent)[1]
-    msg.channel.send(phraseToSay, {tts: true})
-    return
-  }
+  if (sendRepeatCommand(msg, messageContent)) { return }
+  if (sendSpeakCommand(msg, messageContent)) { return }
 
   switch (messageContent)
   {
@@ -223,6 +205,37 @@ function sendMessageCommands(msg, messageContent)
   return false
 }
 
+function sendRepeatCommand(msg, messageContent)
+{
+  if (/^repeat\s*(\d*)$/.test(messageContent))
+  {
+    var multiplier = parseInt(/^repeat\s*(\d*)$/.exec(messageContent)[1]) || 1 //parseInt(messageContent.replace("repeat", "")) || 1
+    var messageArray = msg.channel.messages.cache.array()
+    if (messageArray.length >= 2)
+    {
+      for (i=0; i < multiplier; i++)
+      {
+        msg.channel.send(messageArray[messageArray.length-2])
+      }
+    }
+    return true
+  }
+
+  return false
+}
+
+function sendSpeakCommand(msg, messageContent)
+{
+  if (/^speak\s(.+)$/.test(messageContent))
+  {
+    var phraseToSay = /^speak\s(.+)$/.exec(messageContent)[1]
+    msg.channel.send(phraseToSay, {tts: true})
+    return true
+  }
+
+  return false
+}
+
 function prepareBotLogout(logoutMessage, msg)
 {
   var logoutBotPromise = new Promise(async (resolve, reject) => {
@@ -236,6 +249,12 @@ function prepareBotLogout(logoutMessage, msg)
 
 async function rebootBot(logoutMessage, loginMessage, msg)
 {
+  if (!isLocalProcess)
+  {
+    msg.channel.send("Cannot reboot bot.")
+    return
+  }
+
   await prepareBotLogout(logoutMessage, msg)
 
   spawnBot(loginMessage, msg)
