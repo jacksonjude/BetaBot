@@ -7,11 +7,22 @@ const endLogMessage = "logout"
 const isLocalProcess = process.argv[2] == "local"
 const spawn = require('child_process').spawn
 const fs = require('fs')
+const { v4: uuidv4 } = require('uuid')
+const emojiConverter = require('node-emoji')
 
 const Discord = require('discord.js')
-const client = new Discord.Client()
+const client = new Discord.Client({ partials: ['USER'] })
+
+const technicianRoleName = "technician"
+const randomColorRoleName = "random"
+
+// PARTIALS: https://github.com/discordjs/discord.js/issues/4980#issuecomment-723519865
 
 //var sql = require("./sql.js")
+
+var botSettingsChannelIDs = [
+  "738578711510646856" // sekret in negativity ("704218896298934317")
+]
 
 var messageResponses = [
   { pattern: "(\\W|\\s+|^)[bruh]{4,}(\\W|\\s+|$)", responses: ["bruh"] }
@@ -30,11 +41,19 @@ var dates = [
   { name: "Birthday", timestamp: 1597993200000, command: "birf" }
 ]
 
+var roleAddMessageData = [
+  // { uuid: "4bf00a66-8b51-43d3-9e28-3d532c23a50f", messageID: null, name: "Color Roles", roleMap: {"red_circle":"red", "orange_circle":"orange", "yellow_circle":"yellow", "green_circle":"green", "blue_circle":"blue", "purple_circle":"purple", "grey_question":"random"} }
+]
+
+var roleReationCollectors = {
+
+}
+
 var loginMessage
 var loginChannelID
 var loginGuildID
 
-client.on('ready', () => {
+client.on('ready', async () => {
   console.log(`Logged in as ${client.user.tag}!`)
 
   loginMessageBreak:
@@ -56,7 +75,151 @@ client.on('ready', () => {
     var member = guild.member(client.user)
     updateNickname(member)
   })
+
+  for (channelNum in botSettingsChannelIDs)
+  {
+    var channel = client.channels.cache.get(botSettingsChannelIDs[channelNum])
+    var pinnedMessages = await channel.messages.fetchPinned()
+
+    pinnedMessages.sort((msg1, msg2) => msg1.createdTimestamp - msg2.createdTimestamp)
+
+    pinnedMessages.each(async message => {
+      if (message.author.id != client.user.id)
+      {
+        var newMessage = await message.channel.send(message.content)
+        newMessage.pin()
+        message.delete()
+        message = newMessage
+      }
+
+      if (await interpretRoleSetting(message)) { return }
+    })
+  }
+
+  startRandomColorRoleInterval()
 })
+
+const bbSettingPrefix = "%BetaBot"
+const bbRolePrefix = "role:"
+
+const kAddedReaction = 0
+const kRemovedReaction = 1
+
+async function interpretRoleSetting(message)
+{
+  if (!message.content.startsWith(bbSettingPrefix + " " + bbRolePrefix)) { return false }
+
+  var roleDataString = message.content.replace(bbSettingPrefix + " " + bbRolePrefix, "")
+  var roleDataJSON
+  try {
+    roleDataJSON = JSON.parse(roleDataString)
+  } catch (e) {
+    console.log(e)
+    return false
+  }
+
+  roleAddMessageData.push(roleDataJSON)
+
+  if (roleDataJSON.messageID == null && roleDataJSON.channelID != null)
+  {
+    await sendRoleAddMessage(roleDataJSON)
+
+    if (message.author.id == client.user.id)
+    {
+      message.edit(bbSettingPrefix + " " + bbRolePrefix + " " + JSON.stringify(roleDataJSON))
+    }
+  }
+
+  if (roleDataJSON.messageID != null && roleDataJSON.channelID != null)
+  {
+    var channel = client.channels.cache.get(roleDataJSON.channelID)
+    var memberCache = channel.guild.members.cache
+    var liveMessage = await channel.messages.fetch(roleDataJSON.messageID)
+
+    var reactionCollector = liveMessage.createReactionCollector(() => true, { dispose: true })
+    reactionCollector.on('collect', async (reaction, user) => {
+      await user.fetch()
+      console.log("Add", reaction.emoji.name, user.username)
+      handleRoleReaction(reaction, user, kAddedReaction)
+    })
+    reactionCollector.on('remove', async (reaction, user) => {
+      await user.fetch()
+      console.log("Remove", reaction.emoji.name, user.username)
+      handleRoleReaction(reaction, user, kRemovedReaction)
+    })
+
+    roleReationCollectors[roleDataJSON.uuid] = reactionCollector
+  }
+
+  return true
+}
+
+async function sendRoleAddMessage(roleDataJSON)
+{
+  var channel = client.channels.cache.get(roleDataJSON.channelID)
+
+  var messageContent = "**" + roleDataJSON.name + "**"
+  for (emoteName in roleDataJSON.roleMap)
+  {
+    messageContent += "\n"
+    var roleName = roleDataJSON.roleMap[emoteName]
+    messageContent += ":" + emoteName + ": \\: " + roleName
+  }
+
+  var sentMessage = await channel.send(messageContent)
+  roleDataJSON.messageID = sentMessage.id
+
+  for (emoteName in roleDataJSON.roleMap)
+  {
+    var emoteID = getEmoteID(emoteName)
+    if (emoteID == null) { continue }
+    sentMessage.react(emoteID)
+  }
+}
+
+function getEmoteID(emoteName)
+{
+  var emote = client.emojis.cache.find(emoji => emoji.name == emoteName)
+  if (emote != null)
+  {
+    return emote.id
+  }
+
+  emote = emojiConverter.get(":" + emoteName + ":")
+  if (emote != null && !emote.includes(":"))
+  {
+    return emote
+  }
+
+  return null
+}
+
+function startRandomColorRoleInterval()
+{
+  var now = new Date();
+  var millisTillMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 18, 0) - now;
+  if (millisTillMidnight < 1000) {
+    millisTillMidnight += 86400000
+  }
+  setTimeout(() => {
+    startRandomColorRoleInterval()
+  }, millisTillMidnight);
+}
+
+function updateRandomColorRole()
+{
+  var randomRGB = [Math.floor(Math.random()*256), Math.floor(Math.random()*256), Math.floor(Math.random()*256)]
+
+  client.guilds.cache.each(async guild => {
+    var roles = await guild.roles.fetch()
+    var randomRole = roles.cache.find(role => role.name == randomColorRoleName)
+    if (randomRole == null) { return }
+
+    randomRole.setColor(randomRGB)
+  })
+
+  console.log("Set @random to ", randomRGB)
+}
 
 client.on('guildMemberUpdate', (oldMember, newMember) => {
   var clientMember = newMember.guild.member(client.user)
@@ -75,6 +238,8 @@ function updateNickname(clientMember)
 }
 
 client.on('message', async msg => {
+  //console.log(msg.channel.id + " :: " + msg.content)
+
   if (msg.author.id == client.user.id)
   {
     console.log("Sent '" + msg.content + "' in " + msg.guild.name)
@@ -86,8 +251,6 @@ client.on('message', async msg => {
     client.user.setPresence({status: "online"})
     msg.channel.send("\\*yawn\\*")
   }
-
-  //console.log("message? -" + msg.content + "-" + msg.id)
 
   if (sendMessageResponses(msg)) { return }
 
@@ -110,10 +273,25 @@ client.on('message', async msg => {
   if (sendRepeatCommand(msg, messageContent)) { return }
   if (sendSpeakCommand(msg, messageContent)) { return }
 
+  if (sendExportCommand(msg, messageContent)) { return }
+
   switch (messageContent)
   {
     case "info":
     msg.channel.send(`βəτα Bot Dev 1.0\nCreated by <@${CREATOR_USER_ID}>\nwith inspiration from We4therman\n*\\*Powered By DELL OS\\**`)
+    break
+
+    case "ping":
+    msg.channel.send("pong")
+    break
+  }
+
+  if (!msg.member.roles.cache.find(role => role.name == technicianRoleName)) { return }
+
+  switch (messageContent)
+  {
+    case "randomize":
+    updateRandomColorRole()
     break
 
     case "logout":
@@ -235,6 +413,92 @@ function sendSpeakCommand(msg, messageContent)
 
   return false
 }
+
+function sendExportCommand(msg, messageContent)
+{
+  if (/^export\s(.+)$/.test(messageContent))
+  {
+    var settingToExport = /^export\s(.+)$/.exec(messageContent)[1]
+
+    switch (settingToExport)
+    {
+      case "roles":
+      for (roleNum in roleAddMessageData)
+      {
+        msg.channel.send(bbSettingPrefix + " " + bbRolePrefix + " " + JSON.stringify(roleAddMessageData[roleNum]))
+      }
+      return true
+    }
+  }
+
+  return false
+}
+
+async function handleRoleReaction(reaction, user, action)
+{
+  if (user.id == client.user.id) { return false }
+
+  var foundMessageID = false
+  var roleData
+  for (dataNum in roleAddMessageData)
+  {
+    roleData = roleAddMessageData[dataNum]
+    if (roleData.messageID == reaction.message.id)
+    {
+      foundMessageID = true
+      break
+    }
+  }
+
+  if (!foundMessageID) { return false }
+
+  var emoteName = emojiConverter.unemojify(reaction.emoji.name).replace(/:/g, '')
+
+  if (!Object.keys(roleData.roleMap).includes(emoteName))
+  {
+    if (action == kAddedReaction)
+    {
+      reaction.users.remove(user.id)
+    }
+    return false
+  }
+
+  var roleName = roleData.roleMap[emoteName]
+  var guildRoles = (await reaction.message.guild.roles.fetch()).cache
+
+  var roleObject
+
+  var rolesArray = Array.from(guildRoles.values())
+  for (roleNum in rolesArray)
+  {
+    var roleToTest = rolesArray[roleNum]
+    if (roleToTest.name == roleName)
+    {
+      roleObject = roleToTest
+      break
+    }
+  }
+
+  if (roleObject == null) { return false }
+
+  var guildMember = await reaction.message.guild.members.fetch(user)
+
+  switch (action)
+  {
+    case kAddedReaction:
+    guildMember.roles.add(roleObject)
+    break
+
+    case kRemovedReaction:
+    guildMember.roles.remove(roleObject)
+    break
+  }
+
+  return true
+}
+
+
+// Reboot Methods
 
 function prepareBotLogout(logoutMessage, msg)
 {
