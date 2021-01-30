@@ -12,7 +12,6 @@
     "child_process": "^1.0.2",
     "discord.js": "^12.2.0",
     "fs": "0.0.1-security",
-    "n": "^6.5.1",
     "node-emoji": "^1.10.0",
     "pg": "^8.2.1",
     "uuid": "^8.3.2"
