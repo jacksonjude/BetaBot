@@ -492,22 +492,23 @@ async function setRole(user, guild, roleName, shouldRemoveRole)
   return true
 }
 
-const voiceConnectionStatus = {
-  CONNECTED: 0,
-  CONNECTING: 1,
-  AUTHENTICATING: 2,
-  DISCONNECTED: 3
-}
-
 client.on('voiceStateUpdate', async (oldState, newState) => {
-  if (oldState.connection.status != voiceConnectionStatus.CONNECTED && newState.connection.status == voiceConnectionStatus.CONNECTED)
+  if (oldState.channelID == null && newState.channelID != null)
   {
-    console.log(oldState.member.user.username, oldState, newState, oldState.connection.status, newState.connection.status)
+    console.log("CONNECTED", oldState.member.user.username)
   }
-  else if (oldState.connection.status != voiceConnectionStatus.DISCONNECTED && newState.connection.status == voiceConnectionStatus.DISCONNECTED)
+  else if (oldState.channelID != null && newState.channelID == null)
   {
-    console.log(oldState.member.user.username, oldState, newState, oldState.connection.status, newState.connection.status)
+    console.log("DISCONNECTED", oldState.member.user.username)
   }
+  // if (oldState.connection.status != voiceConnectionStatus.CONNECTED && newState.connection.status == voiceConnectionStatus.CONNECTED)
+  // {
+  //   console.log(oldState.member.user.username, oldState, newState, oldState.connection.status, newState.connection.status)
+  // }
+  // else if (oldState.connection.status != voiceConnectionStatus.DISCONNECTED && newState.connection.status == voiceConnectionStatus.DISCONNECTED)
+  // {
+  //   console.log(oldState.member.user.username, oldState, newState, oldState.connection.status, newState.connection.status)
+  // }
 })
 
 
