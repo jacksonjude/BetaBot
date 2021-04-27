@@ -49,6 +49,8 @@ var roleReationCollectors = {
 
 }
 
+var voiceToTextChannelMap = {}
+
 var loginMessage
 var loginChannelID
 var loginGuildID
@@ -93,6 +95,7 @@ client.on('ready', async () => {
       }
 
       if (await interpretRoleSetting(message)) { return }
+      if (await interpretVoiceToTextChannelSetting(message)) { return }
     })
   }
 
@@ -101,6 +104,7 @@ client.on('ready', async () => {
 
 const bbSettingPrefix = "%BetaBot"
 const bbRolePrefix = "role:"
+const bbVoiceToTextChannelPrefix = "voicetotext:"
 
 const kAddedReaction = 0
 const kRemovedReaction = 1
@@ -219,6 +223,22 @@ function updateRandomColorRole()
   })
 
   console.log("Set @random to ", randomRGB)
+}
+
+async function interpretVoiceToTextChannelSetting(message)
+{
+  if (!message.content.startsWith(bbSettingPrefix + " " + bbVoiceToTextChannelPrefix)) { return false }
+
+  var voiceToTextChannelDataString = message.content.replace(bbSettingPrefix + " " + bbVoiceToTextChannelPrefix, "")
+  var voiceToTextChannelDataJSON
+  try {
+    voiceToTextChannelDataJSON = JSON.parse(voiceToTextChannelDataString)
+  } catch (e) {
+    console.log(e)
+    return false
+  }
+
+  voiceToTextChannelMap = voiceToTextChannelDataJSON
 }
 
 client.on('guildMemberUpdate', (oldMember, newMember) => {
@@ -464,12 +484,12 @@ async function handleRoleReaction(reaction, user, action)
   }
 
   var roleName = roleData.roleMap[emoteName]
-  await setRole(user, reaction.message.guild, roleName, action == kAddedReaction ? false : true)
+  await setRole(user, reaction.message.guild, roleName, action == kAddedReaction ? true : false)
 
   return true
 }
 
-async function setRole(user, guild, roleName, shouldRemoveRole)
+async function setRole(user, guild, roleName, shouldAddRole)
 {
   var guildRoles = (await guild.roles.fetch()).cache
 
@@ -480,7 +500,7 @@ async function setRole(user, guild, roleName, shouldRemoveRole)
 
   var guildMember = await guild.members.fetch(user)
 
-  if (!shouldRemoveRole)
+  if (shouldAddRole)
   {
     guildMember.roles.add(roleObject)
   }
@@ -493,22 +513,34 @@ async function setRole(user, guild, roleName, shouldRemoveRole)
 }
 
 client.on('voiceStateUpdate', async (oldState, newState) => {
-  if (oldState.channelID == null && newState.channelID != null)
+  var prevTextChannelName
+  if (oldState.channelID != null)
   {
-    console.log("CONNECTED", oldState.member.user.username)
+    var textChannelIDToFind = voiceToTextChannelMap[oldState.channelID]
+    var prevTextChannel = oldState.guild.channels.cache.get(textChannelIDToFind)
+    prevTextChannelName = prevTextChannel != null ? prevTextChannel.name : null
   }
-  else if (oldState.channelID != null && newState.channelID == null)
+  var newTextChannelName
+  if (newState.channelID != null)
   {
-    console.log("DISCONNECTED", oldState.member.user.username)
+    var textChannelIDToFind = voiceToTextChannelMap[newState.channelID]
+    var newTextChannel = newState.guild.channels.cache.get(textChannelIDToFind)
+    newTextChannelName = newTextChannel != null ? newTextChannel.name : null
   }
-  // if (oldState.connection.status != voiceConnectionStatus.CONNECTED && newState.connection.status == voiceConnectionStatus.CONNECTED)
-  // {
-  //   console.log(oldState.member.user.username, oldState, newState, oldState.connection.status, newState.connection.status)
-  // }
-  // else if (oldState.connection.status != voiceConnectionStatus.DISCONNECTED && newState.connection.status == voiceConnectionStatus.DISCONNECTED)
-  // {
-  //   console.log(oldState.member.user.username, oldState, newState, oldState.connection.status, newState.connection.status)
-  // }
+
+  if (oldState.channelID == null && newState.channelID != null && newTextChannelName != null)
+  {
+    setRole(newState.member.user, newState.guild, newTextChannelName, true)
+  }
+  else if (oldState.channelID != null && newState.channelID == null && prevTextChannelName != null)
+  {
+    setRole(oldState.member.user, oldState.guild, prevTextChannelName, false)
+  }
+  else if (oldState.channelID != newState.channelID && prevTextChannelName != null && newTextChannelName != null)
+  {
+    setRole(oldState.member.user, oldState.guild, prevTextChannelName, false)
+    setRole(newState.member.user, newState.guild, newTextChannelName, true)
+  }
 })
 
 
