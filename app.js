@@ -464,38 +464,51 @@ async function handleRoleReaction(reaction, user, action)
   }
 
   var roleName = roleData.roleMap[emoteName]
-  var guildRoles = (await reaction.message.guild.roles.fetch()).cache
+  await setRole(user, reaction.message.guild, roleName, action == kAddedReaction ? false : true)
 
-  var roleObject
+  return true
+}
+
+async function setRole(user, guild, roleName, shouldRemoveRole)
+{
+  var guildRoles = (await guild.roles.fetch()).cache
 
   var rolesArray = Array.from(guildRoles.values())
-  for (roleNum in rolesArray)
-  {
-    var roleToTest = rolesArray[roleNum]
-    if (roleToTest.name == roleName)
-    {
-      roleObject = roleToTest
-      break
-    }
-  }
+  var roleObject = rolesArray.find(roleToTest => roleToTest.name == roleName)
 
   if (roleObject == null) { return false }
 
-  var guildMember = await reaction.message.guild.members.fetch(user)
+  var guildMember = await guild.members.fetch(user)
 
-  switch (action)
+  if (!shouldRemoveRole)
   {
-    case kAddedReaction:
     guildMember.roles.add(roleObject)
-    break
-
-    case kRemovedReaction:
+  }
+  else
+  {
     guildMember.roles.remove(roleObject)
-    break
   }
 
   return true
 }
+
+const voiceConnectionStatus = {
+  CONNECTED: 0,
+  CONNECTING: 1,
+  AUTHENTICATING: 2,
+  DISCONNECTED: 3
+}
+
+client.on('voiceStateUpdate', async (oldState, newState) => {
+  if (oldState.connection.status != voiceConnectionStatus.CONNECTED && newState.connection.status == voiceConnectionStatus.CONNECTED)
+  {
+    console.log(oldState.member.user.username, oldState, newState, oldState.connection.status, newState.connection.status)
+  }
+  else if (oldState.connection.status != voiceConnectionStatus.DISCONNECTED && newState.connection.status == voiceConnectionStatus.DISCONNECTED)
+  {
+    console.log(oldState.member.user.username, oldState, newState, oldState.connection.status, newState.connection.status)
+  }
+})
 
 
 // Reboot Methods
