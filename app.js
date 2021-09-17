@@ -128,7 +128,7 @@ async function interpretRoleSetting(message)
 
   if (roleDataJSON.uuid == null)
   {
-    roleDataJSON.uuid = uuid()
+    roleDataJSON.uuid = uuidv4()
 
     editOriginalMessage = true
   }
