@@ -124,14 +124,25 @@ async function interpretRoleSetting(message)
 
   roleAddMessageData.push(roleDataJSON)
 
+  var editOriginalMessage = false
+
+  if (roleDataJSON.uuid == null)
+  {
+    roleDataJSON.uuid = uuid()
+
+    editOriginalMessage = true
+  }
+
   if (roleDataJSON.messageID == null && roleDataJSON.channelID != null)
   {
     await sendRoleAddMessage(roleDataJSON)
 
-    if (message.author.id == client.user.id)
-    {
-      message.edit(bbSettingPrefix + " " + bbRolePrefix + " " + JSON.stringify(roleDataJSON))
-    }
+    editOriginalMessage = true
+  }
+
+  if (editOriginalMessage && message.author.id == client.user.id)
+  {
+    message.edit(bbSettingPrefix + " " + bbRolePrefix + " " + JSON.stringify(roleDataJSON))
   }
 
   if (roleDataJSON.messageID != null && roleDataJSON.channelID != null)
