@@ -260,6 +260,8 @@ async function interpretStatsSetting(message)
 {
   if (!message.content.startsWith(bbSettingPrefix + " " + bbStatsPrefix)) { return false }
 
+  console.log("THIS SHOULD REALLY BE RUNNING AT THIS POINT: " + statsDataString)
+
   var statsDataString = message.content.replace(bbSettingPrefix + " " + bbStatsPrefix, "")
   var statsDataJSON
   try {
