@@ -603,7 +603,7 @@ client.on('guildMemberRemove', (member) => {
 client.on('presenceUpdate', (member) => {
   // Update online stat
   if (member == null || member.guild == null) { return }
-  updateOnlineMembersStat(member.guild)
+  // updateOnlineMembersStat(member.guild) // Not using this for updates
 })
 
 function updateTotalMembersStat(guild)
@@ -622,7 +622,7 @@ async function updateOnlineMembersStat(guild)
   if (guildStatsSettings == null || guildStatsSettings.onlineCountChannelID == null) { return }
 
   var guildMembers = await guild.members.fetch()
-  var onlineCount = guildMembers.filter(m => m.presence != null).size
+  var onlineCount = guildMembers.filter(m => m.presence != null && m.presence.status != "offline").size
 
   updateStatChannelName(guild, guildStatsSettings.onlineCountChannelID, onlineCount)
 }
@@ -639,12 +639,12 @@ function updateBoosterMembersStat(guild)
 
 async function updateStatChannelName(guild, channelID, statValue)
 {
-  var channelToUpdate = await guild.channels.fetch(channelID)
+  let channelToUpdate = await guild.channels.fetch(channelID)
   if (channelToUpdate == null) { return }
 
-  var currentChannelName = channelToUpdate.name
-  var newChannelName = currentChannelName.replace(/\d+/, statValue)
-  channelToUpdate.setName(newChannelName)
+  let currentChannelName = channelToUpdate.name
+  let newChannelName = currentChannelName.replace(/\d+/, statValue)
+  await channelToUpdate.setName(newChannelName)
 }
 
 
