@@ -71,9 +71,9 @@ client.on('ready', async () => {
   {
     if (loginMessage && loginChannelID && loginGuildID)
     {
-      var guild = client.guilds.cache.get(loginGuildID)
+      var guild = await client.guilds.fetch(loginGuildID)
       if (!guild) { break loginMessageBreak }
-      var channel = guild.channels.cache.get(loginChannelID)
+      var channel = await guild.channels.fetch(loginChannelID)
       if (!channel) { break loginMessageBreak }
 
       channel.send(loginMessage)
@@ -88,7 +88,7 @@ client.on('ready', async () => {
 
   for (channelNum in botSettingsChannelIDs)
   {
-    var channel = client.channels.cache.get(botSettingsChannelIDs[channelNum])
+    var channel = await client.channels.fetch(botSettingsChannelIDs[channelNum])
     var pinnedMessages = await channel.messages.fetchPinned()
 
     pinnedMessages.sort((msg1, msg2) => msg1.createdTimestamp - msg2.createdTimestamp)
@@ -157,11 +157,12 @@ async function interpretRoleSetting(message)
 
   if (roleDataJSON.messageID != null && roleDataJSON.channelID != null)
   {
-    var channel = client.channels.cache.get(roleDataJSON.channelID)
-    var memberCache = channel.guild.members.cache
+    var channel = await client.channels.fetch(roleDataJSON.channelID)
     var liveMessage = await channel.messages.fetch(roleDataJSON.messageID)
 
-    var reactionCollector = liveMessage.createReactionCollector(() => true, { dispose: true })
+    var catchAllFilter = () => true
+
+    var reactionCollector = liveMessage.createReactionCollector({ catchAllFilter, dispose: true })
     reactionCollector.on('collect', async (reaction, user) => {
       await user.fetch()
       console.log("Add", reaction.emoji.name, user.username)
@@ -181,7 +182,7 @@ async function interpretRoleSetting(message)
 
 async function sendRoleAddMessage(roleDataJSON)
 {
-  var channel = client.channels.cache.get(roleDataJSON.channelID)
+  var channel = await client.channels.fetch(roleDataJSON.channelID)
 
   var messageContent = "**" + roleDataJSON.name + "**"
   for (emoteName in roleDataJSON.roleMap)
@@ -284,8 +285,10 @@ async function interpretStatsSetting(message)
   }).catch(console.error)
 }
 
-client.on('guildMemberUpdate', (oldMember, newMember) => {
-  var clientMember = newMember.guild.member(client.user)
+client.on('guildMemberUpdate', async (oldMember, newMember) => {
+  updateBoosterMembersStat(oldMember.guild)
+
+  var clientMember = await newMember.guild.members.fetch(client.user)
   if (newMember.id !== clientMember.id) { return }
 
   updateNickname(clientMember)
@@ -534,9 +537,10 @@ async function handleRoleReaction(reaction, user, action)
 
 async function setRole(user, guild, roleName, shouldAddRole)
 {
-  var guildRoles = (await guild.roles.fetch()).cache
+  var guildRoles = await guild.roles.fetch()
 
   var rolesArray = Array.from(guildRoles.values())
+
   var roleObject = rolesArray.find(roleToTest => roleToTest.name == roleName)
 
   if (roleObject == null) { return false }
@@ -557,29 +561,29 @@ async function setRole(user, guild, roleName, shouldAddRole)
 
 client.on('voiceStateUpdate', async (oldState, newState) => {
   var prevTextChannelName
-  if (oldState.channelID != null)
+  if (oldState.channelId != null)
   {
-    var textChannelIDToFind = voiceToTextChannelMap[oldState.channelID]
-    var prevTextChannel = oldState.guild.channels.cache.get(textChannelIDToFind)
+    var textChannelIDToFind = voiceToTextChannelMap[oldState.channelId]
+    var prevTextChannel = await oldState.guild.channels.fetch(textChannelIDToFind)
     prevTextChannelName = prevTextChannel != null ? prevTextChannel.name : null
   }
   var newTextChannelName
-  if (newState.channelID != null)
+  if (newState.channelId != null)
   {
-    var textChannelIDToFind = voiceToTextChannelMap[newState.channelID]
-    var newTextChannel = newState.guild.channels.cache.get(textChannelIDToFind)
+    var textChannelIDToFind = voiceToTextChannelMap[newState.channelId]
+    var newTextChannel = await newState.guild.channels.fetch(textChannelIDToFind)
     newTextChannelName = newTextChannel != null ? newTextChannel.name : null
   }
 
-  if (oldState.channelID == null && newState.channelID != null && newTextChannelName != null)
+  if (oldState.channelId == null && newState.channelId != null && newTextChannelName != null)
   {
     setRole(newState.member.user, newState.guild, newTextChannelName, true)
   }
-  else if (oldState.channelID != null && newState.channelID == null && prevTextChannelName != null)
+  else if (oldState.channelId != null && newState.channelId == null && prevTextChannelName != null)
   {
     setRole(oldState.member.user, oldState.guild, prevTextChannelName, false)
   }
-  else if (oldState.channelID != newState.channelID && prevTextChannelName != null && newTextChannelName != null)
+  else if (oldState.channelId != newState.channelId && prevTextChannelName != null && newTextChannelName != null)
   {
     setRole(oldState.member.user, oldState.guild, prevTextChannelName, false)
     setRole(newState.member.user, newState.guild, newTextChannelName, true)
@@ -600,11 +604,6 @@ client.on('presenceUpdate', (member) => {
   // Update online stat
   if (member == null || member.guild == null) { return }
   updateOnlineMembersStat(member.guild)
-})
-
-client.on('guildMemberUpdate', (member) => {
-  // Update booster stat
-  updateBoosterMembersStat(member.guild)
 })
 
 function updateTotalMembersStat(guild)
