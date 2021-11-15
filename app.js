@@ -269,6 +269,12 @@ async function interpretStatsSetting(message)
   }
 
   statsData[statsDataJSON.id] = statsDataJSON
+
+  client.guilds.fetch(statsDataJSON.id).then(guild => {
+    updateTotalMembersStat(guild)
+    updateOnlineMembersStat(guild)
+    updateBoosterMembersStat(guild)
+  }).catch(console.error)
 }
 
 client.on('guildMemberUpdate', (oldMember, newMember) => {
@@ -598,7 +604,10 @@ function updateTotalMembersStat(guild)
   var guildStatsSettings = statsData[guild.id]
   if (guildStatsSettings == null || statsData.totalCountChannelID == null) { return }
 
-  updateStatChannelName(guild, statsData.totalCountChannelID, guild.memberCount)
+  var totalCount = guild.memberCount
+  console.log("Update total count in " + guild.name + ": " + totalCount)
+
+  updateStatChannelName(guild, statsData.totalCountChannelID, totalCount)
 }
 
 function updateOnlineMembersStat(guild)
@@ -606,7 +615,10 @@ function updateOnlineMembersStat(guild)
   var guildStatsSettings = statsData[guild.id]
   if (guildStatsSettings == null || statsData.onlineCountChannelID == null) { return }
 
-  updateStatChannelName(guild, statsData.onlineCountChannelID, guild.members.filter(m => m.presence.status === 'online').size)
+  var onlineCount = guild.members.filter(m => m.presence.status === 'online').size
+  console.log("Update online count in " + guild.name + ": " + onlineCount)
+
+  updateStatChannelName(guild, statsData.onlineCountChannelID, onlineCount)
 }
 
 function updateBoosterMembersStat(guild)
@@ -614,7 +626,10 @@ function updateBoosterMembersStat(guild)
   var guildStatsSettings = statsData[guild.id]
   if (guildStatsSettings == null || statsData.boosterCountChannelID == null) { return }
 
-  updateStatChannelName(guild, statsData.boosterCountChannelID, guild.premiumSubscriptionCount)
+  var boosterCount = guild.premiumSubscriptionCount
+  console.log("Update booster count in " + guild.name + ": " + boosterCount)
+
+  updateStatChannelName(guild, statsData.boosterCountChannelID, boosterCount)
 }
 
 async function updateStatChannelName(guild, channelID, statValue)
