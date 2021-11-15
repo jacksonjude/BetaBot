@@ -10,7 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "child_process": "^1.0.2",
-    "discord.js": "^12.2.0",
+    "discord.js": "^13.3.1",
     "fs": "0.0.1-security",
     "node-emoji": "^1.10.0",
     "pg": "^8.2.1",
