@@ -98,6 +98,7 @@ client.on('ready', async () => {
 
       if (await interpretRoleSetting(message)) { return }
       if (await interpretVoiceToTextChannelSetting(message)) { return }
+      if (await interpretStatsSetting(message)) { return }
     })
   }
 
