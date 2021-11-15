@@ -10,8 +10,15 @@ const fs = require('fs')
 const { v4: uuidv4 } = require('uuid')
 const emojiConverter = require('node-emoji')
 
-const Discord = require('discord.js')
-const client = new Discord.Client({ partials: ['USER'] })
+const { Client, Intents } = require('discord.js')
+const client = new Client({ intents: [
+  Intents.FLAGS.GUILDS,
+  Intents.FLAGS.GUILD_MEMBERS,
+  Intents.FLAGS.GUILD_VOICE_STATES,
+  Intents.FLAGS.GUILD_PRESENCES,
+  Intents.FLAGS.GUILD_MESSAGES,
+  Intents.FLAGS.GUILD_MESSAGE_REACTIONS
+], partials: ['USER'] })
 
 const technicianRoleName = "technician"
 const randomColorRoleName = "random"
@@ -76,8 +83,7 @@ client.on('ready', async () => {
   client.user.setPresence({status: "online"})
 
   client.guilds.cache.forEach((guild) => {
-    var member = guild.member(client.user)
-    updateNickname(member)
+    guild.members.fetch(client.user).then(member => updateNickname(member))
   })
 
   for (channelNum in botSettingsChannelIDs)
@@ -260,8 +266,6 @@ async function interpretStatsSetting(message)
 {
   if (!message.content.startsWith(bbSettingPrefix + " " + bbStatsPrefix)) { return false }
 
-  console.log("THIS SHOULD REALLY BE RUNNING AT THIS POINT: " + statsDataString)
-
   var statsDataString = message.content.replace(bbSettingPrefix + " " + bbStatsPrefix, "")
   var statsDataJSON
   try {
@@ -296,7 +300,7 @@ function updateNickname(clientMember)
   }
 }
 
-client.on('message', async msg => {
+client.on('messageCreate', async msg => {
   //console.log(msg.channel.id + " :: " + msg.content)
 
   if (msg.author.id == client.user.id)
@@ -584,69 +588,64 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
 
 client.on('guildMemberAdd', (member) => {
   // Update members stat
-  console.log("guildMemberAdd: " + member.guild.id)
   updateTotalMembersStat(member.guild)
 })
 
 client.on('guildMemberRemove', (member) => {
   // Update members stat
-  console.log("guildMemberRemove: " + member.guild.id)
   updateTotalMembersStat(member.guild)
 })
 
 client.on('presenceUpdate', (member) => {
   // Update online stat
-  console.log("presenceUpdate: " + member.guild.id)
+  if (member == null || member.guild == null) { return }
   updateOnlineMembersStat(member.guild)
 })
 
 client.on('guildMemberUpdate', (member) => {
   // Update booster stat
-  console.log("guildMemberUpdate: " + member.guild.id)
   updateBoosterMembersStat(member.guild)
 })
 
 function updateTotalMembersStat(guild)
 {
   var guildStatsSettings = statsData[guild.id]
-  if (guildStatsSettings == null || statsData.totalCountChannelID == null) { return }
+  if (guildStatsSettings == null || guildStatsSettings.totalCountChannelID == null) { return }
 
   var totalCount = guild.memberCount
-  console.log("Update total count in " + guild.name + ": " + totalCount)
 
-  updateStatChannelName(guild, statsData.totalCountChannelID, totalCount)
+  updateStatChannelName(guild, guildStatsSettings.totalCountChannelID, totalCount)
 }
 
-function updateOnlineMembersStat(guild)
+async function updateOnlineMembersStat(guild)
 {
   var guildStatsSettings = statsData[guild.id]
-  if (guildStatsSettings == null || statsData.onlineCountChannelID == null) { return }
+  if (guildStatsSettings == null || guildStatsSettings.onlineCountChannelID == null) { return }
 
-  var onlineCount = guild.members.filter(m => m.presence.status === 'online').size
-  console.log("Update online count in " + guild.name + ": " + onlineCount)
+  var guildMembers = await guild.members.fetch()
+  var onlineCount = guildMembers.filter(m => m.presence != null).size
 
-  updateStatChannelName(guild, statsData.onlineCountChannelID, onlineCount)
+  updateStatChannelName(guild, guildStatsSettings.onlineCountChannelID, onlineCount)
 }
 
 function updateBoosterMembersStat(guild)
 {
   var guildStatsSettings = statsData[guild.id]
-  if (guildStatsSettings == null || statsData.boosterCountChannelID == null) { return }
+  if (guildStatsSettings == null || guildStatsSettings.boosterCountChannelID == null) { return }
 
   var boosterCount = guild.premiumSubscriptionCount
-  console.log("Update booster count in " + guild.name + ": " + boosterCount)
 
-  updateStatChannelName(guild, statsData.boosterCountChannelID, boosterCount)
+  updateStatChannelName(guild, guildStatsSettings.boosterCountChannelID, boosterCount)
 }
 
 async function updateStatChannelName(guild, channelID, statValue)
 {
-  guild.channels.fetch(channelID)
-    .then(channel => {
-      var currentChannelName = channel.name
-      var newChannelName = currentChannelName.replace(/\d+/, statValue)
-      channel.setName(newChannelName)
-    }).catch(console.error)
+  var channelToUpdate = await guild.channels.fetch(channelID)
+  if (channelToUpdate == null) { return }
+
+  var currentChannelName = channelToUpdate.name
+  var newChannelName = currentChannelName.replace(/\d+/, statValue)
+  channelToUpdate.setName(newChannelName)
 }
 
 
