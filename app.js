@@ -603,7 +603,7 @@ client.on('guildMemberRemove', (member) => {
 client.on('presenceUpdate', (member) => {
   // Update online stat
   if (member == null || member.guild == null) { return }
-  // updateOnlineMembersStat(member.guild) // Not using this for updates
+  updateOnlineMembersStat(member.guild) // Not using this for updates
 })
 
 function updateTotalMembersStat(guild)
@@ -620,6 +620,12 @@ async function updateOnlineMembersStat(guild)
 {
   var guildStatsSettings = statsData[guild.id]
   if (guildStatsSettings == null || guildStatsSettings.onlineCountChannelID == null) { return }
+
+  if (guildStatsSettings.lastOnlineCountFetch != null && Date.now()-guildStatsSettings.lastOnlineCountFetch < 1000*60*10)
+  {
+    return
+  }
+  guildStatsSettings.lastOnlineCountFetch = Date.now()
 
   var guildMembers = await guild.members.fetch()
   var onlineCount = guildMembers.filter(m => m.presence != null && m.presence.status != "offline").size
