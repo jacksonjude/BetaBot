@@ -582,21 +582,25 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
 
 client.on('guildMemberAdd', (member) => {
   // Update members stat
+  console.log("guildMemberAdd: " + member.guild.id)
   updateTotalMembersStat(member.guild)
 })
 
 client.on('guildMemberRemove', (member) => {
   // Update members stat
+  console.log("guildMemberRemove: " + member.guild.id)
   updateTotalMembersStat(member.guild)
 })
 
 client.on('presenceUpdate', (member) => {
   // Update online stat
+  console.log("presenceUpdate: " + member.guild.id)
   updateOnlineMembersStat(member.guild)
 })
 
 client.on('guildMemberUpdate', (member) => {
   // Update booster stat
+  console.log("guildMemberUpdate: " + member.guild.id)
   updateBoosterMembersStat(member.guild)
 })
 
