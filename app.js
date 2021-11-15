@@ -51,6 +51,8 @@ var roleReationCollectors = {
 
 var voiceToTextChannelMap = {}
 
+var statsData = {}
+
 var loginMessage
 var loginChannelID
 var loginGuildID
@@ -105,6 +107,7 @@ client.on('ready', async () => {
 const bbSettingPrefix = "%BetaBot"
 const bbRolePrefix = "role:"
 const bbVoiceToTextChannelPrefix = "voicetotext:"
+const bbStatsPrefix = "stats:"
 
 const kAddedReaction = 0
 const kRemovedReaction = 1
@@ -250,6 +253,22 @@ async function interpretVoiceToTextChannelSetting(message)
   }
 
   voiceToTextChannelMap = voiceToTextChannelDataJSON
+}
+
+async function interpretStatsSetting(message)
+{
+  if (!message.content.startsWith(bbSettingPrefix + " " + bbStatsPrefix)) { return false }
+
+  var statsDataString = message.content.replace(bbSettingPrefix + " " + bbStatsPrefix, "")
+  var statsDataJSON
+  try {
+    statsDataJSON = JSON.parse(statsDataString)
+  } catch (e) {
+    console.log(e)
+    return false
+  }
+
+  statsData[statsDataJSON.id] = statsDataJSON
 }
 
 client.on('guildMemberUpdate', (oldMember, newMember) => {
@@ -553,6 +572,60 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
     setRole(newState.member.user, newState.guild, newTextChannelName, true)
   }
 })
+
+client.on('guildMemberAdd', (member) => {
+  // Update members stat
+  updateTotalMembersStat(member.guild)
+})
+
+client.on('guildMemberRemove', (member) => {
+  // Update members stat
+  updateTotalMembersStat(member.guild)
+})
+
+client.on('presenceUpdate', (member) => {
+  // Update online stat
+  updateOnlineMembersStat(member.guild)
+})
+
+client.on('guildMemberUpdate', (member) => {
+  // Update booster stat
+  updateBoosterMembersStat(member.guild)
+})
+
+function updateTotalMembersStat(guild)
+{
+  var guildStatsSettings = statsData[guild.id]
+  if (guildStatsSettings == null || statsData.totalCountChannelID == null) { return }
+
+  updateStatChannelName(guild, statsData.totalCountChannelID, guild.memberCount)
+}
+
+function updateOnlineMembersStat(guild)
+{
+  var guildStatsSettings = statsData[guild.id]
+  if (guildStatsSettings == null || statsData.onlineCountChannelID == null) { return }
+
+  updateStatChannelName(guild, statsData.onlineCountChannelID, guild.members.filter(m => m.presence.status === 'online').size)
+}
+
+function updateBoosterMembersStat(guild)
+{
+  var guildStatsSettings = statsData[guild.id]
+  if (guildStatsSettings == null || statsData.boosterCountChannelID == null) { return }
+
+  updateStatChannelName(guild, statsData.boosterCountChannelID, guild.premiumSubscriptionCount)
+}
+
+async function updateStatChannelName(guild, channelID, statValue)
+{
+  guild.channels.fetch(channelID)
+    .then(channel => {
+      var currentChannelName = channel.name
+      var newChannelName = currentChannelName.replace(/\d+/, statValue)
+      channel.setName(newChannelName)
+    }).catch(console.error)
+}
 
 
 // Reboot Methods
