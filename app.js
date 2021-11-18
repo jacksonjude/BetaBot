@@ -149,6 +149,10 @@ async function interpretRoleSetting(message)
 
     editOriginalMessage = true
   }
+  else if (roleDataJSON.messageID != null && roleDataJSON.channelID != null)
+  {
+    await editRoleAddMessage(roleDataJSON)
+  }
 
   if (editOriginalMessage && message.author.id == client.user.id)
   {
@@ -184,13 +188,7 @@ async function sendRoleAddMessage(roleDataJSON)
 {
   var channel = await client.channels.fetch(roleDataJSON.channelID)
 
-  var messageContent = "**" + roleDataJSON.name + "**"
-  for (emoteName in roleDataJSON.roleMap)
-  {
-    messageContent += "\n"
-    var roleName = roleDataJSON.roleMap[emoteName]
-    messageContent += ":" + emoteName + ": \\: " + roleName
-  }
+  var messageContent = getRoleAddMessageContent(roleDataJSON)
 
   var sentMessage = await channel.send(messageContent)
   roleDataJSON.messageID = sentMessage.id
@@ -201,6 +199,37 @@ async function sendRoleAddMessage(roleDataJSON)
     if (emoteID == null) { continue }
     sentMessage.react(emoteID)
   }
+}
+
+async function editRoleAddMessage(roleDataJSON)
+{
+  var channel = await client.channels.fetch(roleDataJSON.channelID)
+  var message = await channel.messages.fetch(roleDataJSON.messageID)
+  var messageContent = getRoleAddMessageContent(roleDataJSON)
+
+  if (message.content != messageContent)
+  {
+    await message.edit(messageContent)
+
+    for (emoteName in roleDataJSON.roleMap)
+    {
+      var emoteID = getEmoteID(emoteName)
+      if (emoteID == null) { continue }
+      message.react(emoteID)
+    }
+  }
+}
+
+function getRoleAddMessageContent(roleDataJSON)
+{
+  var messageContent = "**" + roleDataJSON.name + "**"
+  for (emoteName in roleDataJSON.roleMap)
+  {
+    messageContent += "\n"
+    var roleName = roleDataJSON.roleMap[emoteName]
+    messageContent += ":" + emoteName + ": \\: " + roleName
+  }
+  return messageContent
 }
 
 function getEmoteID(emoteName)
