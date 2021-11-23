@@ -1,84 +1,48 @@
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN
 const CREATOR_USER_ID = process.env.CREATOR_USER_ID
 const DISCORD_NICKNAME = process.env.DISCORD_NICKNAME
 
-const logfile = 'betabot.log'
-const endLogMessage = "logout"
-const isLocalProcess = process.argv[2] == "local"
-const spawn = require('child_process').spawn
-const fs = require('fs')
-const { v4: uuidv4 } = require('uuid')
-const emojiConverter = require('node-emoji')
-
-const { Client, Intents } = require('discord.js')
+import { Client, Intents } from 'discord.js'
 const client = new Client({ intents: [
   Intents.FLAGS.GUILDS,
   Intents.FLAGS.GUILD_MEMBERS,
   Intents.FLAGS.GUILD_VOICE_STATES,
   Intents.FLAGS.GUILD_PRESENCES,
   Intents.FLAGS.GUILD_MESSAGES,
-  Intents.FLAGS.GUILD_MESSAGE_REACTIONS
+  Intents.FLAGS.GUILD_MESSAGE_REACTIONS,
+  Intents.FLAGS.DIRECT_MESSAGES,
+  Intents.FLAGS.DIRECT_MESSAGE_REACTIONS
 ], partials: ['USER'] })
-
-const technicianRoleName = "technician"
-const randomColorRoleName = "random"
 
 // PARTIALS: https://github.com/discordjs/discord.js/issues/4980#issuecomment-723519865
 
-//var sql = require("./sql.js")
+import { loginBot, printLoginMessage, prepareBotLogout, rebootBot } from "./src/login.js"
+import { interpretRoleSetting, interpretVoiceToTextChannelSetting, setupVoiceChannelEventHandler, interpretStatsSetting, setupMemberStatsEventHandlers } from "./src/settings.js"
+import { sendDateCommands, sendMessageCommands, sendRepeatCommand, sendSpeakCommand } from "./src/commands.js"
 
-var botSettingsChannelIDs = [
+const technicianRoleName = "technician"
+
+const botSettingsChannelIDs = [
   "738578711510646856" // sekret in negativity ("704218896298934317")
 ]
+const HOME_GUILD_ID = "704218896298934317"
 
-var messageResponses = [
+const messageResponses = [
   { pattern: "(\\W|\\s+|^)[bruh]{4,}(\\W|\\s+|$)", responses: ["bruh"] }
 ]
 
-var messageCommands = [
-  { command: "cook", responses: ["🍕", "🍿", "🍤", "🍣", "🍪", "🍣", "🍔", "🥐", "🥓", "🍱", "🍩", "🍰", "🍳", "🧇", "🥨", "🥞", "🍉", "🥫", "🌮", "🌭", "🥪", "🍚", "🥠"] },
-  { command: "roast me", responses: ["nah bro"] },
-  { command: "thanks", responses: ["ofc bro", "np", "dont mention it", "thank you!", ":)", "you\'re welcome"] },
-  { command: "make it rain", responses: ["\\*in british\\* £££9739797210100000000", ":chart_with_upwards_trend: *støønks*"] },
-  { command: "sad", responses: ["\\:("] }
-]
+// Login Bot
 
-var dates = [
-  { name: "Misty Not Rated", timestamp: 1586139240000, command: "misty" },
-  { name: "Birthday", timestamp: 1597993200000, command: "birf" }
-]
+loginBot(client)
 
-var roleAddMessageData = [
-  // { uuid: "4bf00a66-8b51-43d3-9e28-3d532c23a50f", messageID: null, name: "Color Roles", roleMap: {"red_circle":"red", "orange_circle":"orange", "yellow_circle":"yellow", "green_circle":"green", "blue_circle":"blue", "purple_circle":"purple", "grey_question":"random"} }
-]
+setupVoiceChannelEventHandler(client)
+setupMemberStatsEventHandlers(client)
 
-var roleReationCollectors = {
-
-}
-
-var voiceToTextChannelMap = {}
-
-var statsData = {}
-
-var loginMessage
-var loginChannelID
-var loginGuildID
+// Client Init
 
 client.on('ready', async () => {
   console.log(`Logged in as ${client.user.tag}!`)
 
-  loginMessageBreak:
-  {
-    if (loginMessage && loginChannelID && loginGuildID)
-    {
-      var guild = await client.guilds.fetch(loginGuildID)
-      if (!guild) { break loginMessageBreak }
-      var channel = await guild.channels.fetch(loginChannelID)
-      if (!channel) { break loginMessageBreak }
-
-      channel.send(loginMessage)
-    }
-  }
+  printLoginMessage(client)
 
   client.user.setPresence({status: "online"})
 
@@ -86,7 +50,7 @@ client.on('ready', async () => {
     guild.members.fetch(client.user).then(member => updateNickname(member))
   })
 
-  for (channelNum in botSettingsChannelIDs)
+  for (let channelNum in botSettingsChannelIDs)
   {
     var channel = await client.channels.fetch(botSettingsChannelIDs[channelNum])
     var pinnedMessages = await channel.messages.fetchPinned()
@@ -102,221 +66,16 @@ client.on('ready', async () => {
         message = newMessage
       }
 
-      if (await interpretRoleSetting(message)) { return }
+      if (await interpretRoleSetting(client, message)) { return }
       if (await interpretVoiceToTextChannelSetting(message)) { return }
-      if (await interpretStatsSetting(message)) { return }
+      if (await interpretStatsSetting(client, message)) { return }
     })
   }
-
-  startRandomColorRoleInterval()
 })
 
-const bbSettingPrefix = "%BetaBot"
-const bbRolePrefix = "role:"
-const bbVoiceToTextChannelPrefix = "voicetotext:"
-const bbStatsPrefix = "stats:"
-
-const kAddedReaction = 0
-const kRemovedReaction = 1
-
-async function interpretRoleSetting(message)
-{
-  if (!message.content.startsWith(bbSettingPrefix + " " + bbRolePrefix)) { return false }
-
-  var roleDataString = message.content.replace(bbSettingPrefix + " " + bbRolePrefix, "")
-  var roleDataJSON
-  try {
-    roleDataJSON = JSON.parse(roleDataString)
-  } catch (e) {
-    console.log(e)
-    return false
-  }
-
-  roleAddMessageData.push(roleDataJSON)
-
-  var editOriginalMessage = false
-
-  if (roleDataJSON.uuid == null)
-  {
-    roleDataJSON.uuid = uuidv4()
-
-    editOriginalMessage = true
-  }
-
-  if (roleDataJSON.messageID == null && roleDataJSON.channelID != null)
-  {
-    await sendRoleAddMessage(roleDataJSON)
-
-    editOriginalMessage = true
-  }
-  else if (roleDataJSON.messageID != null && roleDataJSON.channelID != null)
-  {
-    await editRoleAddMessage(roleDataJSON)
-  }
-
-  if (editOriginalMessage && message.author.id == client.user.id)
-  {
-    message.edit(bbSettingPrefix + " " + bbRolePrefix + " " + JSON.stringify(roleDataJSON))
-  }
-
-  if (roleDataJSON.messageID != null && roleDataJSON.channelID != null)
-  {
-    var channel = await client.channels.fetch(roleDataJSON.channelID)
-    var liveMessage = await channel.messages.fetch(roleDataJSON.messageID)
-
-    var catchAllFilter = () => true
-
-    var reactionCollector = liveMessage.createReactionCollector({ catchAllFilter, dispose: true })
-    reactionCollector.on('collect', async (reaction, user) => {
-      await user.fetch()
-      console.log("Add", reaction.emoji.name, user.username)
-      handleRoleReaction(reaction, user, kAddedReaction)
-    })
-    reactionCollector.on('remove', async (reaction, user) => {
-      await user.fetch()
-      console.log("Remove", reaction.emoji.name, user.username)
-      handleRoleReaction(reaction, user, kRemovedReaction)
-    })
-
-    roleReationCollectors[roleDataJSON.uuid] = reactionCollector
-  }
-
-  return true
-}
-
-async function sendRoleAddMessage(roleDataJSON)
-{
-  var channel = await client.channels.fetch(roleDataJSON.channelID)
-
-  var messageContent = getRoleAddMessageContent(roleDataJSON)
-
-  var sentMessage = await channel.send(messageContent)
-  roleDataJSON.messageID = sentMessage.id
-
-  for (emoteName in roleDataJSON.roleMap)
-  {
-    var emoteID = getEmoteID(emoteName)
-    if (emoteID == null) { continue }
-    sentMessage.react(emoteID)
-  }
-}
-
-async function editRoleAddMessage(roleDataJSON)
-{
-  var channel = await client.channels.fetch(roleDataJSON.channelID)
-  var message = await channel.messages.fetch(roleDataJSON.messageID)
-  var messageContent = getRoleAddMessageContent(roleDataJSON)
-
-  if (message.content != messageContent)
-  {
-    await message.edit(messageContent)
-
-    for (emoteName in roleDataJSON.roleMap)
-    {
-      var emoteID = getEmoteID(emoteName)
-      if (emoteID == null) { continue }
-      message.react(emoteID)
-    }
-  }
-}
-
-function getRoleAddMessageContent(roleDataJSON)
-{
-  var messageContent = "**" + roleDataJSON.name + "**"
-  for (emoteName in roleDataJSON.roleMap)
-  {
-    messageContent += "\n"
-    var roleName = roleDataJSON.roleMap[emoteName]
-    messageContent += ":" + emoteName + ": \\: " + roleName
-  }
-  return messageContent
-}
-
-function getEmoteID(emoteName)
-{
-  var emote = client.emojis.cache.find(emoji => emoji.name == emoteName)
-  if (emote != null)
-  {
-    return emote.id
-  }
-
-  emote = emojiConverter.get(":" + emoteName + ":")
-  if (emote != null && !emote.includes(":"))
-  {
-    return emote
-  }
-
-  return null
-}
-
-function startRandomColorRoleInterval()
-{
-  var now = new Date();
-  var millisTillMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 18, 0) - now;
-  if (millisTillMidnight < 1000) {
-    millisTillMidnight += 86400000
-  }
-  setTimeout(() => {
-    startRandomColorRoleInterval()
-  }, millisTillMidnight);
-}
-
-function updateRandomColorRole()
-{
-  var randomRGB = [Math.floor(Math.random()*256), Math.floor(Math.random()*256), Math.floor(Math.random()*256)]
-
-  client.guilds.cache.each(async guild => {
-    var roles = await guild.roles.fetch()
-    var randomRole = roles.cache.find(role => role.name == randomColorRoleName)
-    if (randomRole == null) { return }
-
-    randomRole.setColor(randomRGB)
-  })
-
-  console.log("Set @random to ", randomRGB)
-}
-
-async function interpretVoiceToTextChannelSetting(message)
-{
-  if (!message.content.startsWith(bbSettingPrefix + " " + bbVoiceToTextChannelPrefix)) { return false }
-
-  var voiceToTextChannelDataString = message.content.replace(bbSettingPrefix + " " + bbVoiceToTextChannelPrefix, "")
-  var voiceToTextChannelDataJSON
-  try {
-    voiceToTextChannelDataJSON = JSON.parse(voiceToTextChannelDataString)
-  } catch (e) {
-    console.log(e)
-    return false
-  }
-
-  voiceToTextChannelMap = voiceToTextChannelDataJSON
-}
-
-async function interpretStatsSetting(message)
-{
-  if (!message.content.startsWith(bbSettingPrefix + " " + bbStatsPrefix)) { return false }
-
-  var statsDataString = message.content.replace(bbSettingPrefix + " " + bbStatsPrefix, "")
-  var statsDataJSON
-  try {
-    statsDataJSON = JSON.parse(statsDataString)
-  } catch (e) {
-    console.log(e)
-    return false
-  }
-
-  statsData[statsDataJSON.id] = statsDataJSON
-
-  client.guilds.fetch(statsDataJSON.id).then(guild => {
-    updateTotalMembersStat(guild)
-    updateOnlineMembersStat(guild)
-    updateBoosterMembersStat(guild)
-  }).catch(console.error)
-}
+// Nickname Enforcement
 
 client.on('guildMemberUpdate', async (oldMember, newMember) => {
-  updateBoosterMembersStat(oldMember.guild)
-
   var clientMember = await newMember.guild.members.fetch(client.user)
   if (newMember.id !== clientMember.id) { return }
 
@@ -331,6 +90,8 @@ function updateNickname(clientMember)
     clientMember.setNickname(DISCORD_NICKNAME)
   }
 }
+
+// Recieve Message
 
 client.on('messageCreate', async msg => {
   //console.log(msg.channel.id + " :: " + msg.content)
@@ -350,11 +111,7 @@ client.on('messageCreate', async msg => {
   if (sendMessageResponses(msg)) { return }
 
   var messageContent = msg.content.toLowerCase()
-  if (messageContent.startsWith("$"))
-  {
-    messageContent = messageContent.substr(1)
-  }
-  else if (msg.mentions.members.has(client.user.id))
+  if (msg.mentions.members.has(client.user.id))
   {
     messageContent = messageContent.replace("<@!" + client.user.id + ">", "")
   }
@@ -365,10 +122,7 @@ client.on('messageCreate', async msg => {
   if (sendMessageCommands(msg, messageContent)) { return }
   if (sendDateCommands(msg, messageContent)) { return }
 
-  if (sendRepeatCommand(msg, messageContent)) { return }
-  if (sendSpeakCommand(msg, messageContent)) { return }
-
-  if (sendExportCommand(msg, messageContent)) { return }
+  // if (sendVoteCommand(msg, messageContent)) { return }
 
   switch (messageContent)
   {
@@ -381,7 +135,10 @@ client.on('messageCreate', async msg => {
     break
   }
 
-  if (!msg.member.roles.cache.find(role => role.name == technicianRoleName)) { return }
+  if (!(msg.guildId == HOME_GUILD_ID && msg.member.roles.cache.find(role => role.name == technicianRoleName))) { return }
+
+  if (sendRepeatCommand(msg, messageContent)) { return }
+  if (sendSpeakCommand(msg, messageContent)) { return }
 
   switch (messageContent)
   {
@@ -393,14 +150,7 @@ client.on('messageCreate', async msg => {
     await prepareBotLogout("Bye bye for now!", msg)
     console.log(endLogMessage)
 
-    if (isLocalProcess && fs.existsSync(logfile))
-    {
-      fs.unlinkSync(logfile)
-      fs.writeFileSync(logfile, endLogMessage + "\n")
-      fs.unlinkSync(logfile)
-    }
-
-    client.destroy()
+    logoutBot()
     break
 
     case "restart":
@@ -424,10 +174,11 @@ function sendMessageResponses(msg)
 {
   var messageContent = msg.content.toLowerCase()
 
-  for (responseNum in messageResponses)
+  for (let responseNum in messageResponses)
   {
     var pattern = messageResponses[responseNum].pattern
-    if (testRegex(messageContent, pattern))
+    var regex = new RegExp(pattern)
+    if (regex.test(messageContent))
     {
       var index = Math.floor((Math.random() * messageResponses[responseNum].responses.length))
       msg.channel.send(messageResponses[responseNum].responses[index])
@@ -438,315 +189,16 @@ function sendMessageResponses(msg)
   return false
 }
 
-function testRegex(string, pattern)
-{
-  var regex = new RegExp(pattern)
-  return regex.test(string)
-}
-
-function sendDateCommands(msg, messageContent)
-{
-  for (dateNum in dates)
-  {
-    if (messageContent == dates[dateNum].command)
-    {
-      var millisDifference = Math.abs(Date.now()-dates[dateNum].timestamp)
-      var days = Math.floor(millisDifference/(1000*60*60*24))
-      var hours = Math.floor((millisDifference-days*1000*60*60*24)/(1000*60*60))
-      var minutes = Math.floor((millisDifference-days*1000*60*60*24-hours*1000*60*60)/(1000*60))
-      msg.channel.send(dates[dateNum].name + ": " + (Math.sign(Date.now()-dates[dateNum].timestamp) == -1 ? "-" : "") + days + " days, " + hours + " hours, and " + minutes + " minutes")
-
-      return true
-    }
-  }
-
-  return false
-}
-
-function sendMessageCommands(msg, messageContent)
-{
-  for (commandNum in messageCommands)
-  {
-    if (messageContent == messageCommands[commandNum].command)
-    {
-      var index = Math.floor((Math.random() * messageCommands[commandNum].responses.length))
-      msg.channel.send(messageCommands[commandNum].responses[index])
-      return true
-    }
-  }
-
-  return false
-}
-
-function sendRepeatCommand(msg, messageContent)
-{
-  if (/^repeat\s*(\d*)$/.test(messageContent))
-  {
-    var multiplier = parseInt(/^repeat\s*(\d*)$/.exec(messageContent)[1]) || 1 //parseInt(messageContent.replace("repeat", "")) || 1
-    var messageArray = msg.channel.messages.cache.array()
-    if (messageArray.length >= 2)
-    {
-      for (i=0; i < multiplier; i++)
-      {
-        msg.channel.send(messageArray[messageArray.length-2])
-      }
-    }
-    return true
-  }
-
-  return false
-}
-
-function sendSpeakCommand(msg, messageContent)
-{
-  if (/^speak\s(.+)$/.test(messageContent))
-  {
-    var phraseToSay = /^speak\s(.+)$/.exec(messageContent)[1]
-    msg.channel.send(phraseToSay, {tts: true})
-    return true
-  }
-
-  return false
-}
-
-function sendExportCommand(msg, messageContent)
-{
-  if (/^export\s(.+)$/.test(messageContent))
-  {
-    var settingToExport = /^export\s(.+)$/.exec(messageContent)[1]
-
-    switch (settingToExport)
-    {
-      case "roles":
-      for (roleNum in roleAddMessageData)
-      {
-        msg.channel.send(bbSettingPrefix + " " + bbRolePrefix + " " + JSON.stringify(roleAddMessageData[roleNum]))
-      }
-      return true
-    }
-  }
-
-  return false
-}
-
-async function handleRoleReaction(reaction, user, action)
-{
-  if (user.id == client.user.id) { return false }
-
-  var foundMessageID = false
-  var roleData
-  for (dataNum in roleAddMessageData)
-  {
-    roleData = roleAddMessageData[dataNum]
-    if (roleData.messageID == reaction.message.id)
-    {
-      foundMessageID = true
-      break
-    }
-  }
-
-  if (!foundMessageID) { return false }
-
-  var emoteName = emojiConverter.unemojify(reaction.emoji.name).replace(/:/g, '')
-
-  if (!Object.keys(roleData.roleMap).includes(emoteName))
-  {
-    if (action == kAddedReaction)
-    {
-      reaction.users.remove(user.id)
-    }
-    return false
-  }
-
-  var roleName = roleData.roleMap[emoteName]
-  await setRole(user, reaction.message.guild, roleName, action == kAddedReaction ? true : false)
-
-  return true
-}
-
-async function setRole(user, guild, roleName, shouldAddRole)
-{
-  var guildRoles = await guild.roles.fetch()
-
-  var rolesArray = Array.from(guildRoles.values())
-
-  var roleObject = rolesArray.find(roleToTest => roleToTest.name == roleName)
-
-  if (roleObject == null) { return false }
-
-  var guildMember = await guild.members.fetch(user)
-
-  if (shouldAddRole)
-  {
-    guildMember.roles.add(roleObject)
-  }
-  else
-  {
-    guildMember.roles.remove(roleObject)
-  }
-
-  return true
-}
-
-client.on('voiceStateUpdate', async (oldState, newState) => {
-  var prevTextChannelName
-  if (oldState.channelId != null)
-  {
-    var textChannelIDToFind = voiceToTextChannelMap[oldState.channelId]
-    var prevTextChannel = await oldState.guild.channels.fetch(textChannelIDToFind)
-    prevTextChannelName = prevTextChannel != null ? prevTextChannel.name : null
-  }
-  var newTextChannelName
-  if (newState.channelId != null)
-  {
-    var textChannelIDToFind = voiceToTextChannelMap[newState.channelId]
-    var newTextChannel = await newState.guild.channels.fetch(textChannelIDToFind)
-    newTextChannelName = newTextChannel != null ? newTextChannel.name : null
-  }
-
-  if (oldState.channelId == null && newState.channelId != null && newTextChannelName != null)
-  {
-    setRole(newState.member.user, newState.guild, newTextChannelName, true)
-  }
-  else if (oldState.channelId != null && newState.channelId == null && prevTextChannelName != null)
-  {
-    setRole(oldState.member.user, oldState.guild, prevTextChannelName, false)
-  }
-  else if (oldState.channelId != newState.channelId && prevTextChannelName != null && newTextChannelName != null)
-  {
-    setRole(oldState.member.user, oldState.guild, prevTextChannelName, false)
-    setRole(newState.member.user, newState.guild, newTextChannelName, true)
-  }
-})
-
-client.on('guildMemberAdd', (member) => {
-  // Update members stat
-  updateTotalMembersStat(member.guild)
-})
-
-client.on('guildMemberRemove', (member) => {
-  // Update members stat
-  updateTotalMembersStat(member.guild)
-})
-
-client.on('presenceUpdate', (member) => {
-  // Update online stat
-  if (member == null || member.guild == null) { return }
-  updateOnlineMembersStat(member.guild) // Not using this for updates
-})
-
-function updateTotalMembersStat(guild)
-{
-  var guildStatsSettings = statsData[guild.id]
-  if (guildStatsSettings == null || guildStatsSettings.totalCountChannelID == null) { return }
-
-  var totalCount = guild.memberCount
-
-  updateStatChannelName(guild, guildStatsSettings.totalCountChannelID, totalCount)
-}
-
-async function updateOnlineMembersStat(guild)
-{
-  var guildStatsSettings = statsData[guild.id]
-  if (guildStatsSettings == null || guildStatsSettings.onlineCountChannelID == null) { return }
-
-  if (guildStatsSettings.lastOnlineCountFetch != null && Date.now()-guildStatsSettings.lastOnlineCountFetch < 1000*60*10)
-  {
-    return
-  }
-  guildStatsSettings.lastOnlineCountFetch = Date.now()
-
-  var guildMembers = await guild.members.fetch()
-  var onlineCount = guildMembers.filter(m => m.presence != null && m.presence.status != "offline").size
-
-  updateStatChannelName(guild, guildStatsSettings.onlineCountChannelID, onlineCount)
-}
-
-function updateBoosterMembersStat(guild)
-{
-  var guildStatsSettings = statsData[guild.id]
-  if (guildStatsSettings == null || guildStatsSettings.boosterCountChannelID == null) { return }
-
-  var boosterCount = guild.premiumSubscriptionCount
-
-  updateStatChannelName(guild, guildStatsSettings.boosterCountChannelID, boosterCount)
-}
-
-async function updateStatChannelName(guild, channelID, statValue)
-{
-  let channelToUpdate = await guild.channels.fetch(channelID)
-  if (channelToUpdate == null) { return }
-
-  let currentChannelName = channelToUpdate.name
-  let newChannelName = currentChannelName.replace(/\d+/, statValue)
-  await channelToUpdate.setName(newChannelName)
-}
-
-
-// Reboot Methods
-
-function prepareBotLogout(logoutMessage, msg)
-{
-  var logoutBotPromise = new Promise(async (resolve, reject) => {
-    await msg.channel.send(logoutMessage)
-    await client.user.setPresence({status: "dnd"})
-    resolve()
-  })
-
-  return logoutBotPromise
-}
-
-async function rebootBot(logoutMessage, loginMessage, msg)
-{
-  if (!isLocalProcess)
-  {
-    msg.channel.send("Cannot reboot bot.")
-    return
-  }
-
-  await prepareBotLogout(logoutMessage, msg)
-
-  spawnBot(loginMessage, msg)
-
-  client.destroy()
-}
-
-function spawnBot(loginMessage, msg)
-{
-  var out = fs.openSync(logfile, 'a')
-  var err = fs.openSync(logfile, 'a')
-
-  var newProcessEnv = Object.assign(process.env, { process_restarting: 1, loginMessage: loginMessage, loginChannelID: msg.channel.id, loginGuildID: msg.guild.id })
-
-  spawn(process.argv[0], process.argv.slice(1), {
-    detached: true,
-    env: newProcessEnv,
-    stdio: ['ignore', out, err]
-  }).unref()
-}
-
-async function loginBot(message, channelID, guildID)
-{
-  if (process.env.process_restarting)
-  {
-    delete process.env.process_restarting
-
-    var message = process.env.loginMessage
-    var channelID = process.env.loginChannelID
-    var guildID = process.env.loginGuildID
-
-    setTimeout(function() {
-      loginBot(message, channelID, guildID)
-    }, 1000)
-
-    return
-  }
-
-  loginMessage = message
-  loginChannelID = channelID
-  loginGuildID = guildID
-
-  client.login(DISCORD_TOKEN)
-}
-
-loginBot()
+// function sendVoteCommand(msg, messageContent)
+// {
+//   if (/^vote\s(.+)$/.test(messageContent))
+//   {
+//     var pollToVoteOn = /^export\s(.+)$/.exec(messageContent)[1]
+//
+//
+//
+//     return true
+//   }
+//
+//   return false
+// }
