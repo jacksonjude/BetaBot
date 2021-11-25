@@ -18,7 +18,10 @@ const client = new Client({ intents: [
 import { loginBot, printLoginMessage, prepareBotLogout, rebootBot } from "./src/login.js"
 import { sendMessageResponses } from "./src/responses.js"
 import { sendDateCommands, sendMessageCommands, sendRepeatCommand, sendSpeakCommand } from "./src/commands.js"
-import { interpretRoleSetting, interpretVoiceToTextChannelSetting, setupVoiceChannelEventHandler, interpretStatsSetting, setupMemberStatsEventHandlers } from "./src/settings.js"
+
+import { interpretRoleSetting } from "./src/roleMessages.js"
+import { interpretVoiceToTextChannelSetting, setupVoiceChannelEventHandler } from "./src/linkedTextChannels.js"
+import { interpretStatsSetting, setupMemberStatsEventHandlers } from "./src/serverStats.js"
 
 import { initFirestore } from "./src/firebase.js"
 
@@ -82,28 +85,6 @@ client.on('ready', async () => {
     let statSettingsID = statSettingDoc.id
     await interpretStatsSetting(client, statSettingsID, statSettingsJSON)
   })
-
-  // for (let channelNum in botSettingsChannelIDs)
-  // {
-  //   var channel = await client.channels.fetch(botSettingsChannelIDs[channelNum])
-  //   var pinnedMessages = await channel.messages.fetchPinned()
-  //
-  //   pinnedMessages.sort((msg1, msg2) => msg1.createdTimestamp - msg2.createdTimestamp)
-  //
-  //   pinnedMessages.each(async message => {
-  //     if (message.author.id != client.user.id)
-  //     {
-  //       var newMessage = await message.channel.send(message.content)
-  //       newMessage.pin()
-  //       message.delete()
-  //       message = newMessage
-  //     }
-  //
-  //     if (await interpretRoleSetting(client, message)) { return }
-  //     if (await interpretVoiceToTextChannelSetting(message)) { return }
-  //     if (await interpretStatsSetting(client, message)) { return }
-  //   })
-  // }
 })
 
 // Nickname Enforcement

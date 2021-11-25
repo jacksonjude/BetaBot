@@ -12,8 +12,7 @@
     "child_process": "^1.0.2",
     "discord.js": "^13.3.1",
     "firebase-admin": "^10.0.0",
-    "node-emoji": "^1.10.0",
-    "uuid": "^8.3.2"
+    "node-emoji": "^1.10.0"
   },
   "engines": {
     "node": "17.0.1"
