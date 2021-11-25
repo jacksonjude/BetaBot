@@ -39,50 +39,29 @@ import emojiConverter from 'node-emoji'
 var roleAddMessageData = []
 var roleReationCollectors = {}
 
-export const interpretRoleSetting = async function(client, message)
+export const interpretRoleSetting = async function(client, roleSettingID, roleSettingJSON)
 {
-  if (!message.content.startsWith(bbSettingPrefix + " " + bbRolePrefix)) { return false }
+  if (roleSettingJSON.channelID == null) { return }
 
-  var roleDataString = message.content.replace(bbSettingPrefix + " " + bbRolePrefix, "")
-  var roleDataJSON
-  try {
-    roleDataJSON = JSON.parse(roleDataString)
-  } catch (e) {
-    console.log(e)
-    return false
+  roleAddMessageData.push(roleSettingJSON)
+
+  var updateSettingInDatabase = false
+
+  if (roleSettingJSON.messageID == null)
+  {
+    await sendRoleAddMessage(client, roleSettingJSON)
+
+    updateSettingInDatabase = true
+  }
+  else if (roleSettingJSON.messageID != null)
+  {
+    await editRoleAddMessage(client, roleSettingJSON)
   }
 
-  roleAddMessageData.push(roleDataJSON)
-
-  var editOriginalMessage = false
-
-  if (roleDataJSON.uuid == null)
+  if (roleSettingJSON.messageID != null)
   {
-    roleDataJSON.uuid = v4()
-
-    editOriginalMessage = true
-  }
-
-  if (roleDataJSON.messageID == null && roleDataJSON.channelID != null)
-  {
-    await sendRoleAddMessage(client, roleDataJSON)
-
-    editOriginalMessage = true
-  }
-  else if (roleDataJSON.messageID != null && roleDataJSON.channelID != null)
-  {
-    await editRoleAddMessage(client, roleDataJSON)
-  }
-
-  if (editOriginalMessage && message.author.id == client.user.id)
-  {
-    message.edit(bbSettingPrefix + " " + bbRolePrefix + " " + JSON.stringify(roleDataJSON))
-  }
-
-  if (roleDataJSON.messageID != null && roleDataJSON.channelID != null)
-  {
-    var channel = await client.channels.fetch(roleDataJSON.channelID)
-    var liveMessage = await channel.messages.fetch(roleDataJSON.messageID)
+    var channel = await client.channels.fetch(roleSettingJSON.channelID)
+    var liveMessage = await channel.messages.fetch(roleSettingJSON.messageID)
 
     var catchAllFilter = () => true
 
@@ -98,10 +77,10 @@ export const interpretRoleSetting = async function(client, message)
       handleRoleReaction(client, reaction, user, kRemovedReaction)
     })
 
-    roleReationCollectors[roleDataJSON.uuid] = reactionCollector
+    roleReationCollectors[roleSettingID] = reactionCollector
   }
 
-  return true
+  return updateSettingInDatabase
 }
 
 async function sendRoleAddMessage(client, roleDataJSON)
@@ -111,9 +90,9 @@ async function sendRoleAddMessage(client, roleDataJSON)
   var sentMessage = await channel.send(messageContent)
   roleDataJSON.messageID = sentMessage.id
 
-  for (let emoteName in roleDataJSON.roleMap)
+  for (let emoteRolePair of roleDataJSON.roleMap)
   {
-    var emoteID = getEmoteID(emoteName)
+    var emoteID = getEmoteID(client, emoteRolePair.emote)
     if (emoteID == null) { continue }
     sentMessage.react(emoteID)
   }
@@ -129,9 +108,9 @@ async function editRoleAddMessage(client, roleDataJSON)
   {
     await message.edit(messageContent)
 
-    for (let emoteName in roleDataJSON.roleMap)
+    for (let emoteRolePair of roleDataJSON.roleMap)
     {
-      var emoteID = getEmoteID(client, emoteName)
+      var emoteID = getEmoteID(client, emoteRolePair.emote)
       if (emoteID == null) { continue }
       message.react(emoteID)
     }
@@ -141,11 +120,10 @@ async function editRoleAddMessage(client, roleDataJSON)
 function getRoleAddMessageContent(roleDataJSON)
 {
   var messageContent = "**" + roleDataJSON.name + "**"
-  for (let emoteName in roleDataJSON.roleMap)
+  for (let emoteRolePair of roleDataJSON.roleMap)
   {
     messageContent += "\n"
-    var roleName = roleDataJSON.roleMap[emoteName]
-    messageContent += ":" + emoteName + ": \\: " + roleName
+    messageContent += ":" + emoteRolePair.emote + ": \\: " + emoteRolePair.role
   }
   return messageContent
 }
@@ -172,22 +150,14 @@ async function handleRoleReaction(client, reaction, user, action)
   if (user.id == client.user.id) { return false }
 
   var foundMessageID = false
-  var roleData
-  for (let dataNum in roleAddMessageData)
-  {
-    roleData = roleAddMessageData[dataNum]
-    if (roleData.messageID == reaction.message.id)
-    {
-      foundMessageID = true
-      break
-    }
-  }
+  var roleData = roleAddMessageData.find((roleData) => roleData.messageID == reaction.message.id)
 
-  if (!foundMessageID) { return false }
+  if (!roleData) { return false }
 
   var emoteName = emojiConverter.unemojify(reaction.emoji.name).replace(/:/g, '')
+  var roleForEmote = roleData.roleMap.find((emoteRolePair) => emoteRolePair.emote == emoteName)
 
-  if (!Object.keys(roleData.roleMap).includes(emoteName))
+  if (!roleForEmote)
   {
     if (action == kAddedReaction)
     {
@@ -196,8 +166,7 @@ async function handleRoleReaction(client, reaction, user, action)
     return false
   }
 
-  var roleName = roleData.roleMap[emoteName]
-  await setRole(user, reaction.message.guild, roleName, action == kAddedReaction ? true : false)
+  await setRole(user, reaction.message.guild, roleForEmote, action == kAddedReaction ? true : false)
 
   return true
 }
@@ -234,40 +203,37 @@ function updateRandomColorRole(client)
 
 // Voice to text channel
 
-var voiceToTextChannelMap = {}
+var voiceToTextChannelData = {}
 
-export const interpretVoiceToTextChannelSetting = async function(message)
+export const interpretVoiceToTextChannelSetting = async function(guildID, voiceToTextChannelMap)
 {
-  if (!message.content.startsWith(bbSettingPrefix + " " + bbVoiceToTextChannelPrefix)) { return false }
-
-  var voiceToTextChannelDataString = message.content.replace(bbSettingPrefix + " " + bbVoiceToTextChannelPrefix, "")
-  var voiceToTextChannelDataJSON
-  try {
-    voiceToTextChannelDataJSON = JSON.parse(voiceToTextChannelDataString)
-  } catch (e) {
-    console.log(e)
-    return false
-  }
-
-  voiceToTextChannelMap = voiceToTextChannelDataJSON
+  voiceToTextChannelData[guildID] = voiceToTextChannelMap
 }
 
 export const setupVoiceChannelEventHandler = function(client)
 {
   client.on('voiceStateUpdate', async (oldState, newState) => {
-    var prevTextChannelName
+    let prevTextChannelName
     if (oldState.channelId != null)
     {
-      var textChannelIDToFind = voiceToTextChannelMap[oldState.channelId]
-      var prevTextChannel = await oldState.guild.channels.fetch(textChannelIDToFind)
-      prevTextChannelName = prevTextChannel != null ? prevTextChannel.name : null
+      let voiceTextChannelPair = voiceToTextChannelData[oldState.guild.id].find((voiceTextChannelPair) => voiceTextChannelPair.voiceChannel == oldState.channelId)
+      if (voiceTextChannelPair != null)
+      {
+        let textChannelIDToFind = voiceTextChannelPair.textChannel
+        let prevTextChannel = await oldState.guild.channels.fetch(textChannelIDToFind)
+        prevTextChannelName = prevTextChannel != null ? prevTextChannel.name : null
+      }
     }
-    var newTextChannelName
+    let newTextChannelName
     if (newState.channelId != null)
     {
-      var textChannelIDToFind = voiceToTextChannelMap[newState.channelId]
-      var newTextChannel = await newState.guild.channels.fetch(textChannelIDToFind)
-      newTextChannelName = newTextChannel != null ? newTextChannel.name : null
+      let voiceTextChannelPair = voiceToTextChannelData[newState.guild.id].find((voiceTextChannelPair) => voiceTextChannelPair.voiceChannel == newState.channelId)
+      if (voiceTextChannelPair != null)
+      {
+        let textChannelIDToFind = voiceTextChannelPair.textChannel
+        let newTextChannel = await newState.guild.channels.fetch(textChannelIDToFind)
+        newTextChannelName = newTextChannel != null ? newTextChannel.name : null
+      }
     }
 
     if (oldState.channelId == null && newState.channelId != null && newTextChannelName != null)
@@ -291,22 +257,11 @@ export const setupVoiceChannelEventHandler = function(client)
 
 var statsData = {}
 
-export const interpretStatsSetting = async function(client, message)
+export const interpretStatsSetting = async function(client, guildID, statsDataJSON)
 {
-  if (!message.content.startsWith(bbSettingPrefix + " " + bbStatsPrefix)) { return false }
+  statsData[guildID] = statsDataJSON
 
-  var statsDataString = message.content.replace(bbSettingPrefix + " " + bbStatsPrefix, "")
-  var statsDataJSON
-  try {
-    statsDataJSON = JSON.parse(statsDataString)
-  } catch (e) {
-    console.log(e)
-    return false
-  }
-
-  statsData[statsDataJSON.id] = statsDataJSON
-
-  client.guilds.fetch(statsDataJSON.id).then(guild => {
+  client.guilds.fetch(guildID).then(guild => {
     updateTotalMembersStat(guild)
     updateOnlineMembersStat(guild)
     updateBoostMembersStat(guild)

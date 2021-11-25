@@ -1,7 +1,7 @@
 import { initializeApp, applicationDefault, cert } from 'firebase-admin/app'
 import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore'
 
-function initFirebase()
+export const initFirestore = function()
 {
   const serviceAccount = JSON.parse(process.env.FIRESTORE_KEY_JSON)
 
@@ -9,5 +9,5 @@ function initFirebase()
     credential: cert(serviceAccount)
   })
 
-  export const db = getFirestore()
+  return getFirestore()
 }

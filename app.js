@@ -20,12 +20,20 @@ import { sendMessageResponses } from "./src/responses.js"
 import { sendDateCommands, sendMessageCommands, sendRepeatCommand, sendSpeakCommand } from "./src/commands.js"
 import { interpretRoleSetting, interpretVoiceToTextChannelSetting, setupVoiceChannelEventHandler, interpretStatsSetting, setupMemberStatsEventHandlers } from "./src/settings.js"
 
+import { initFirestore } from "./src/firebase.js"
+
 const technicianRoleName = "technician"
 
 const botSettingsChannelIDs = [
   "738578711510646856" // sekret in negativity ("704218896298934317")
 ]
+const roleMessageCollectionID = "roleMessageConfigurations"
+const voiceToTextCollectionID = "voiceToTextConfigurations"
+const statChannelsCollectionID = "statsConfigurations"
+
 const HOME_GUILD_ID = "704218896298934317"
+
+var firestoreDB
 
 // Login Bot
 
@@ -47,27 +55,55 @@ client.on('ready', async () => {
     guild.members.fetch(client.user).then(member => updateNickname(member))
   })
 
-  for (let channelNum in botSettingsChannelIDs)
-  {
-    var channel = await client.channels.fetch(botSettingsChannelIDs[channelNum])
-    var pinnedMessages = await channel.messages.fetchPinned()
+  firestoreDB = await initFirestore()
 
-    pinnedMessages.sort((msg1, msg2) => msg1.createdTimestamp - msg2.createdTimestamp)
+  var roleMessageSettings = await firestoreDB.collection(roleMessageCollectionID).get()
+  var voiceToTextChannelSettings = await firestoreDB.collection(voiceToTextCollectionID).get()
+  var statChannelsSettings = await firestoreDB.collection(statChannelsCollectionID).get()
 
-    pinnedMessages.each(async message => {
-      if (message.author.id != client.user.id)
-      {
-        var newMessage = await message.channel.send(message.content)
-        newMessage.pin()
-        message.delete()
-        message = newMessage
-      }
+  roleMessageSettings.forEach(async (roleSettingDoc) => {
+    let roleSettingJSON = roleSettingDoc.data()
+    let roleSettingID = roleSettingDoc.id
 
-      if (await interpretRoleSetting(client, message)) { return }
-      if (await interpretVoiceToTextChannelSetting(message)) { return }
-      if (await interpretStatsSetting(client, message)) { return }
-    })
-  }
+    if (await interpretRoleSetting(client, roleSettingID, roleSettingJSON))
+    {
+      roleSettingDoc.set(roleSettingJSON)
+    }
+  })
+
+  voiceToTextChannelSettings.forEach(async (voiceToTextSettingDoc) => {
+    let voiceToTextSettingJSON = voiceToTextSettingDoc.data()
+    let voiceToTextGuildID = voiceToTextSettingDoc.id
+    await interpretVoiceToTextChannelSetting(voiceToTextGuildID, voiceToTextSettingJSON["voiceToTextMap"])
+  })
+
+  statChannelsSettings.forEach(async (statSettingDoc) => {
+    let statSettingsJSON = statSettingDoc.data()
+    let statSettingsID = statSettingDoc.id
+    await interpretStatsSetting(client, statSettingsID, statSettingsJSON)
+  })
+
+  // for (let channelNum in botSettingsChannelIDs)
+  // {
+  //   var channel = await client.channels.fetch(botSettingsChannelIDs[channelNum])
+  //   var pinnedMessages = await channel.messages.fetchPinned()
+  //
+  //   pinnedMessages.sort((msg1, msg2) => msg1.createdTimestamp - msg2.createdTimestamp)
+  //
+  //   pinnedMessages.each(async message => {
+  //     if (message.author.id != client.user.id)
+  //     {
+  //       var newMessage = await message.channel.send(message.content)
+  //       newMessage.pin()
+  //       message.delete()
+  //       message = newMessage
+  //     }
+  //
+  //     if (await interpretRoleSetting(client, message)) { return }
+  //     if (await interpretVoiceToTextChannelSetting(message)) { return }
+  //     if (await interpretStatsSetting(client, message)) { return }
+  //   })
+  // }
 })
 
 // Nickname Enforcement
