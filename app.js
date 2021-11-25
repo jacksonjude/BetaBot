@@ -16,8 +16,9 @@ const client = new Client({ intents: [
 // PARTIALS: https://github.com/discordjs/discord.js/issues/4980#issuecomment-723519865
 
 import { loginBot, printLoginMessage, prepareBotLogout, rebootBot } from "./src/login.js"
-import { interpretRoleSetting, interpretVoiceToTextChannelSetting, setupVoiceChannelEventHandler, interpretStatsSetting, setupMemberStatsEventHandlers } from "./src/settings.js"
+import { sendMessageResponses } from "./src/responses.js"
 import { sendDateCommands, sendMessageCommands, sendRepeatCommand, sendSpeakCommand } from "./src/commands.js"
+import { interpretRoleSetting, interpretVoiceToTextChannelSetting, setupVoiceChannelEventHandler, interpretStatsSetting, setupMemberStatsEventHandlers } from "./src/settings.js"
 
 const technicianRoleName = "technician"
 
@@ -25,10 +26,6 @@ const botSettingsChannelIDs = [
   "738578711510646856" // sekret in negativity ("704218896298934317")
 ]
 const HOME_GUILD_ID = "704218896298934317"
-
-const messageResponses = [
-  { pattern: "(\\W|\\s+|^)[bruh]{4,}(\\W|\\s+|$)", responses: ["bruh"] }
-]
 
 // Login Bot
 
@@ -169,25 +166,6 @@ client.on('messageCreate', async msg => {
     break
   }
 })
-
-function sendMessageResponses(msg)
-{
-  var messageContent = msg.content.toLowerCase()
-
-  for (let responseNum in messageResponses)
-  {
-    var pattern = messageResponses[responseNum].pattern
-    var regex = new RegExp(pattern)
-    if (regex.test(messageContent))
-    {
-      var index = Math.floor((Math.random() * messageResponses[responseNum].responses.length))
-      msg.channel.send(messageResponses[responseNum].responses[index])
-      return true
-    }
-  }
-
-  return false
-}
 
 // function sendVoteCommand(msg, messageContent)
 // {
