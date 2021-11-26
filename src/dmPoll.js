@@ -60,7 +60,6 @@ export const sendVoteDM = async function(client, user, pollID, uploadPollRespons
 
   var pollData = pollsData[pollID]
   var pollMessageIDs = {}
-  pollData.messageIDs = pollMessageIDs
 
   var titleMessage = await dmChannel.send("__**" + pollData.name + "**__")
   pollMessageIDs["title"] = titleMessage.id
@@ -81,7 +80,7 @@ export const sendVoteDM = async function(client, user, pollID, uploadPollRespons
       if (user.id == client.user.id) { return }
       await user.fetch()
 
-      let { currentPollID, currentQuestionID, currentOptionData } = getCurrentOptionDataFromReaction(reaction)
+      let { currentPollID, currentQuestionID, currentOptionData } = getCurrentOptionDataFromReaction(reaction, user)
       if (!currentOptionData)
       {
         // await reaction.users.remove(user.id)
@@ -117,7 +116,7 @@ export const sendVoteDM = async function(client, user, pollID, uploadPollRespons
       if (user.id == client.user.id) { return }
       await user.fetch()
 
-      let { currentPollID, currentQuestionID, currentOptionData } = getCurrentOptionDataFromReaction(reaction)
+      let { currentPollID, currentQuestionID, currentOptionData } = getCurrentOptionDataFromReaction(reaction, user)
       if (!currentOptionData) { return }
 
       let currentOptionID = currentOptionData.id
@@ -165,7 +164,7 @@ export const sendVoteDM = async function(client, user, pollID, uploadPollRespons
 
     await user.fetch()
 
-    let { currentPollID } = getCurrentPollQuestionIDFromMessageID(reaction.message.id)
+    let { currentPollID } = getCurrentPollQuestionIDFromMessageID(reaction.message.id, user.id)
     if (pollResponses[currentPollID] == null || pollResponses[currentPollID][user.id] == null) { return }
 
     await uploadPollResponse(currentPollID, user.id, pollResponses[currentPollID][user.id])
@@ -218,15 +217,18 @@ export const sendVoteDM = async function(client, user, pollID, uploadPollRespons
   return pollMessageIDs
 }
 
-function getCurrentPollQuestionIDFromMessageID(messageID)
+function getCurrentPollQuestionIDFromMessageID(messageID, userID)
 {
   var currentQuestionID
-  var currentPollID = Object.keys(pollsData).find((pollID) => {
-    let questionID = Object.keys(pollsData[pollID].messageIDs).find((questionID) => pollsData[pollID].messageIDs[questionID] == messageID)
-    if (questionID)
+  var currentPollID = Object.keys(pollsMessageIDs).find((pollID) => {
+    if (pollsMessageIDs[pollID][userID])
     {
-      currentQuestionID = questionID
-      return true
+      let questionID = Object.keys(pollsMessageIDs[pollID][userID]).find((questionID) => pollsMessageIDs[pollID][userID][questionID] == messageID)
+      if (questionID)
+      {
+        currentQuestionID = questionID
+        return true
+      }
     }
     return false
   })
@@ -234,11 +236,11 @@ function getCurrentPollQuestionIDFromMessageID(messageID)
   return { currentQuestionID: currentQuestionID, currentPollID: currentPollID }
 }
 
-function getCurrentOptionDataFromReaction(reaction)
+function getCurrentOptionDataFromReaction(reaction, user)
 {
   var emoteName = emojiConverter.unemojify(reaction.emoji.name).replace(/:/g, '')
 
-  var { currentPollID, currentQuestionID } = getCurrentPollQuestionIDFromMessageID(reaction.message.id)
+  var { currentPollID, currentQuestionID } = getCurrentPollQuestionIDFromMessageID(reaction.message.id, user.id)
   var currentQuestionData = pollsData[currentPollID].questions.find(questionData => questionData.id == currentQuestionID)
   var currentOptionData = currentQuestionData.options.find(optionData => optionData.emote == emoteName)
 
