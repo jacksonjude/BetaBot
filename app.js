@@ -152,7 +152,7 @@ client.on('messageCreate', async msg => {
   if (pollID)
   {
     var uploadPollResponse = async (pollID, userID, questionIDToOptionIDMap) => {
-      await firestoreDB.doc(pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID + "/" + msg.author.id).set(questionIDToOptionIDMap)
+      await firestoreDB.doc(pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID + "/" + msg.author.id).set({responseMap: questionIDToOptionIDMap})
     }
 
     let pollResponsePath = pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID + "/" + msg.author.id
