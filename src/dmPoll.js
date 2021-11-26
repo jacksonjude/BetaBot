@@ -48,6 +48,8 @@ export const sendVoteCommand = async function(msg, messageContent)
       return false
     }
 
+    console.log("Init vote " + pollID + " in " + msg.guild.name)
+
     return pollID
   }
 
