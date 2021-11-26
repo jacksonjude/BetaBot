@@ -1,5 +1,5 @@
 const messageCommands = [
-  { command: "hi", responses: ["hello :wave:"] }
+  { command: "hi", responses: ["hello :wave:"] },
   { command: "cook", responses: ["🍕", "🍿", "🍤", "🍣", "🍪", "🍣", "🍔", "🥐", "🥓", "🍱", "🍩", "🍰", "🍳", "🧇", "🥨", "🥞", "🍉", "🥫", "🌮", "🌭", "🥪", "🍚", "🥠"] },
   { command: "roast me", responses: ["nah bro"] },
   { command: "thanks", responses: ["ofc bro", "np", "dont mention it", "thank you!", ":)", "you\'re welcome"] },
