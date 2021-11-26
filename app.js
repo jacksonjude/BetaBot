@@ -163,8 +163,15 @@ client.on('messageCreate', async msg => {
       previousPollResponseMessageIDs = pollResponseDoc.data().messageIDs
     }
 
-    let newPollResponseMessageIDs = await sendVoteDM(client, msg.author, pollID, uploadPollResponse, previousPollResponseMessageIDs)
-    await firestoreDB.doc(pollResponsePath).set({messageIDs: newPollResponseMessageIDs})
+    try
+    {
+      let newPollResponseMessageIDs = await sendVoteDM(client, msg.author, pollID, uploadPollResponse, previousPollResponseMessageIDs)
+      await firestoreDB.doc(pollResponsePath).set({messageIDs: newPollResponseMessageIDs})
+    }
+    catch (error)
+    {
+      console.log("Vote DM Error: " + error)
+    }
 
     return
   }
