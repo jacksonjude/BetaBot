@@ -1,4 +1,5 @@
 const messageCommands = [
+  { command: "hi", responses: ["hello :wave:"] }
   { command: "cook", responses: ["🍕", "🍿", "🍤", "🍣", "🍪", "🍣", "🍔", "🥐", "🥓", "🍱", "🍩", "🍰", "🍳", "🧇", "🥨", "🥞", "🍉", "🥫", "🌮", "🌭", "🥪", "🍚", "🥠"] },
   { command: "roast me", responses: ["nah bro"] },
   { command: "thanks", responses: ["ofc bro", "np", "dont mention it", "thank you!", ":)", "you\'re welcome"] },
@@ -40,6 +41,26 @@ export const sendMessageCommands = function(msg, messageContent)
       msg.channel.send(messageCommands[commandNum].responses[index])
       return true
     }
+  }
+
+  return false
+}
+
+export const sendClearCommand = async function(client, msg, messageContent)
+{
+  var dmChannel = msg.author.dmChannel || await msg.author.createDM()
+
+  if (/^clear$/.test(messageContent))
+  {
+    let dmMessages = await dmChannel.messages.fetch()
+    dmMessages.forEach((message) => {
+      if (message.author.id == client.user.id)
+      {
+        message.delete()
+      }
+    })
+
+    return true
   }
 
   return false
