@@ -17,7 +17,8 @@ const client = new Client({ intents: [
 
 import { loginBot, printLoginMessage, prepareBotLogout, rebootBot } from "./src/login.js"
 import { sendMessageResponses } from "./src/responses.js"
-import { sendDateCommands, sendMessageCommands, sendRepeatCommand, sendSpeakCommand } from "./src/commands.js"
+import { sendDateCommands, sendMessageCommands, sendClearCommand, sendRepeatCommand, sendSpeakCommand } from "./src/commands.js"
+import { interpretPollSetting, sendVoteCommand, sendVoteDM } from "./src/dmPoll.js"
 
 import { interpretRoleSetting } from "./src/roleMessages.js"
 import { interpretVoiceToTextChannelSetting, setupVoiceChannelEventHandler } from "./src/linkedTextChannels.js"
@@ -33,6 +34,8 @@ const botSettingsChannelIDs = [
 const roleMessageCollectionID = "roleMessageConfigurations"
 const voiceToTextCollectionID = "voiceToTextConfigurations"
 const statChannelsCollectionID = "statsConfigurations"
+const pollsCollectionID = "pollConfigurations"
+const pollResponsesCollectionID = "responses"
 
 const HOME_GUILD_ID = "704218896298934317"
 
@@ -63,6 +66,7 @@ client.on('ready', async () => {
   var roleMessageSettings = await firestoreDB.collection(roleMessageCollectionID).get()
   var voiceToTextChannelSettings = await firestoreDB.collection(voiceToTextCollectionID).get()
   var statChannelsSettings = await firestoreDB.collection(statChannelsCollectionID).get()
+  var pollsSettings = await firestoreDB.collection(pollsCollectionID).get()
 
   roleMessageSettings.forEach(async (roleSettingDoc) => {
     let roleSettingJSON = roleSettingDoc.data()
@@ -84,6 +88,12 @@ client.on('ready', async () => {
     let statSettingsJSON = statSettingDoc.data()
     let statSettingsID = statSettingDoc.id
     await interpretStatsSetting(client, statSettingsID, statSettingsJSON)
+  })
+
+  pollsSettings.forEach(async (pollSettingDoc) => {
+    let pollSettingJSON = pollSettingDoc.data()
+    let pollSettingID = pollSettingDoc.id
+    await interpretPollSetting(pollSettingID, pollSettingJSON)
   })
 })
 
@@ -108,11 +118,11 @@ function updateNickname(clientMember)
 // Recieve Message
 
 client.on('messageCreate', async msg => {
-  //console.log(msg.channel.id + " :: " + msg.content)
+  // console.log(msg.channel.id + " :: " + msg.content)
 
   if (msg.author.id == client.user.id)
   {
-    console.log("Sent '" + msg.content + "' in " + msg.guild.name)
+    msg.guild && console.log("Sent '" + msg.content + "' in " + msg.guild.name)
     return
   }
 
@@ -125,7 +135,7 @@ client.on('messageCreate', async msg => {
   if (sendMessageResponses(msg)) { return }
 
   var messageContent = msg.content.toLowerCase()
-  if (msg.mentions.members.has(client.user.id))
+  if (msg.mentions.members && msg.mentions.members.has(client.user.id))
   {
     messageContent = messageContent.replace("<@!" + client.user.id + ">", "")
   }
@@ -136,7 +146,28 @@ client.on('messageCreate', async msg => {
   if (sendMessageCommands(msg, messageContent)) { return }
   if (sendDateCommands(msg, messageContent)) { return }
 
-  // if (sendVoteCommand(msg, messageContent)) { return }
+  if (await sendClearCommand(client, msg, messageContent)) { return }
+
+  let pollID = await sendVoteCommand(msg, messageContent)
+  if (pollID)
+  {
+    var uploadPollResponse = async (pollID, userID, questionIDToOptionIDMap) => {
+      await firestoreDB.doc(pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID + "/" + msg.author.id).set(questionIDToOptionIDMap)
+    }
+
+    let pollResponsePath = pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID + "/" + msg.author.id
+    let pollResponseDoc = await firestoreDB.doc(pollResponsePath).get()
+    let previousPollResponseMessageIDs
+    if (pollResponseDoc != null && pollResponseDoc.data() != null && pollResponseDoc.data().messageIDs != null)
+    {
+      previousPollResponseMessageIDs = pollResponseDoc.data().messageIDs
+    }
+
+    let newPollResponseMessageIDs = await sendVoteDM(client, msg.author, pollID, uploadPollResponse, previousPollResponseMessageIDs)
+    await firestoreDB.doc(pollResponsePath).set({messageIDs: newPollResponseMessageIDs})
+
+    return
+  }
 
   switch (messageContent)
   {
@@ -183,17 +214,3 @@ client.on('messageCreate', async msg => {
     break
   }
 })
-
-// function sendVoteCommand(msg, messageContent)
-// {
-//   if (/^vote\s(.+)$/.test(messageContent))
-//   {
-//     var pollToVoteOn = /^export\s(.+)$/.exec(messageContent)[1]
-//
-//
-//
-//     return true
-//   }
-//
-//   return false
-// }
