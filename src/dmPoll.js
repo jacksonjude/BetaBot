@@ -64,19 +64,20 @@ async function sendVoteMessage(client, voteMessageSettings)
 async function editVoteMessage(client, voteMessageSettings)
 {
   var channel = await client.channels.fetch(voteMessageSettings.channelID)
-  if (!channel.messages.cache.has((message) => message.id == voteMessageSettings.messageID))
+  try
+  {
+    var message = await channel.messages.fetch(voteMessageSettings.messageID)
+    var messageContent = voteMessageSettings.messageText
+
+    if (message.content != messageContent)
+    {
+      await message.edit(messageContent)
+      message.react(voteMessageEmoji)
+    }
+  }
+  catch
   {
     await sendVoteMessage(client, voteMessageSettings)
-    return
-  }
-  
-  var message = await channel.messages.fetch(voteMessageSettings.messageID)
-  var messageContent = voteMessageSettings.messageText
-
-  if (message.content != messageContent)
-  {
-    await message.edit(messageContent)
-    message.react(voteMessageEmoji)
   }
 }
 
