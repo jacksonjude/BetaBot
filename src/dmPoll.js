@@ -1,15 +1,103 @@
+const voteMessageEmoji = "🗳"
+const submitResponseEmote = "white_check_mark"
+
 const pollsCollectionID = "pollConfigurations"
+const pollResponsesCollectionID = "responses"
 
 var pollsData = {}
 var pollResponses = {}
 var pollResponseReactionCollectors = {}
 var pollsMessageIDs = {}
+var pollVoteMessageReactionCollectors = {}
 
 const catchAllFilter = () => true
 
-export const interpretPollSetting = function(pollID, pollDataJSON)
+import emojiConverter from 'node-emoji'
+
+export const interpretPollSetting = async function(client, pollID, pollDataJSON, firestoreDB)
 {
   pollsData[pollID] = pollDataJSON
+
+  if (pollDataJSON.voteMessageSettings != null && pollDataJSON.voteMessageSettings.channelID != null)
+  {
+    if (pollDataJSON.voteMessageSettings.messageID == null)
+    {
+      await sendVoteMessage(client, pollDataJSON.voteMessageSettings)
+    }
+    else
+    {
+      await editVoteMessage(client, pollDataJSON.voteMessageSettings)
+    }
+
+    if (pollDataJSON.voteMessageSettings.messageID != null)
+    {
+      var channel = await client.channels.fetch(pollDataJSON.voteMessageSettings.channelID)
+      var voteMessage = await channel.messages.fetch(pollDataJSON.voteMessageSettings.messageID)
+
+      var voteReactionCollector = voteMessage.createReactionCollector({ catchAllFilter })
+      voteReactionCollector.on('collect', async (reaction, user) => {
+        if (user.id == client.user.id) { return }
+        if (reaction.emoji.name != voteMessageEmoji) { return }
+
+        await user.fetch()
+        if (!checkVoteRequirements(pollDataJSON, channel.guildId, channel.members.get(user.id))) { return }
+        executeVoteCommand(client, user, pollID, firestoreDB)
+      })
+
+      pollVoteMessageReactionCollectors[pollDataJSON.id] = voteReactionCollector
+    }
+  }
+
+  return pollDataJSON
+}
+
+async function sendVoteMessage(client, voteMessageSettings)
+{
+  var channel = await client.channels.fetch(voteMessageSettings.channelID)
+  var messageContent = voteMessageSettings.messageText
+  var sentMessage = await channel.send(messageContent)
+  voteMessageSettings.messageID = sentMessage.id
+
+  sentMessage.react(voteMessageEmoji)
+}
+
+async function editVoteMessage(client, voteMessageSettings)
+{
+  var channel = await client.channels.fetch(voteMessageSettings.channelID)
+  if (!channel.messages.cache.has((message) => message.id == voteMessageSettings.messageID))
+  {
+    await sendVoteMessage(client, voteMessageSettings)
+    return
+  }
+  
+  var message = await channel.messages.fetch(voteMessageSettings.messageID)
+  var messageContent = voteMessageSettings.messageText
+
+  if (message.content != messageContent)
+  {
+    await message.edit(messageContent)
+    message.react(voteMessageEmoji)
+  }
+}
+
+export const cleanPollResponseMessages = async function(client, userID, pollResponseData)
+{
+  if (!("messageIDs" in pollResponseData)) { return }
+
+  var user = await client.users.fetch(userID)
+  if (!user) { return }
+
+  var dmChannel = user.dmChannel || await user.createDM()
+  if (!dmChannel) { return }
+
+  for (let messageID of Object.values(pollResponseData.messageIDs))
+  {
+    try
+    {
+      await user.dmChannel.messages.delete(messageID)
+    }
+    catch {}
+  }
 }
 
 export const sendVoteCommand = async function(msg, messageContent)
@@ -28,27 +116,7 @@ export const sendVoteCommand = async function(msg, messageContent)
 
     var pollData = pollsData[pollID]
 
-    var isWithinPollTimeRange = Date.now() >= pollData.openTime.toMillis() && Date.now() <= pollData.closeTime.toMillis()
-    var inRequiredServer = pollData.serverID ? msg.channel.guildId == pollData.serverID : true
-    var hasRequiredRoles = pollData.roleName ? msg.member.roles.cache.find(role => role.name == pollData.roleName) : true
-
-    if (!isWithinPollTimeRange)
-    {
-      msg.channel.send(pollData.name + " has " + (Date.now() < pollData.openTime.toMillis() ? "not opened" : "closed"))
-      return false
-    }
-    if (!inRequiredServer)
-    {
-      msg.channel.send("Cannot vote on " + pollData.name + " in this server")
-      return false
-    }
-    if (!hasRequiredRoles)
-    {
-      msg.channel.send("Cannot vote on " + pollData.name + " without the " + pollData.roleName + " role")
-      return false
-    }
-
-    console.log("Init vote " + pollID + " in " + msg.guild.name)
+    if (!checkVoteRequirements(pollData, msg.channel.guildId, msg.member)) { return }
 
     return pollID
   }
@@ -56,7 +124,59 @@ export const sendVoteCommand = async function(msg, messageContent)
   return false
 }
 
-export const sendVoteDM = async function(client, user, pollID, uploadPollResponse, previousPollResponseMessageIDs)
+function checkVoteRequirements(pollData, serverID, member)
+{
+  var isWithinPollTimeRange = Date.now() >= pollData.openTime.toMillis() && Date.now() <= pollData.closeTime.toMillis()
+  var inRequiredServer = pollData.serverID ? serverID == pollData.serverID : true
+  var hasRequiredRoles = pollData.roleName ? member.roles.cache.find(role => role.name == pollData.roleName) : true
+
+  if (!isWithinPollTimeRange)
+  {
+    msg.channel.send(pollData.name + " has " + (Date.now() < pollData.openTime.toMillis() ? "not opened" : "closed"))
+    return false
+  }
+  if (!inRequiredServer)
+  {
+    msg.channel.send("Cannot vote on " + pollData.name + " in this server")
+    return false
+  }
+  if (!hasRequiredRoles)
+  {
+    msg.channel.send("Cannot vote on " + pollData.name + " without the " + pollData.roleName + " role")
+    return false
+  }
+
+  return true
+}
+
+export const executeVoteCommand = async function(client, user, pollID, firestoreDB)
+{
+  console.log("Init vote " + pollID + " for " + user.id)
+
+  var uploadPollResponse = async (pollID, userID, questionIDToOptionIDMap) => {
+    await firestoreDB.doc(pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID + "/" + userID).set({responseMap: questionIDToOptionIDMap, updatedAt: Date.now()})
+  }
+
+  let pollResponsePath = pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID + "/" + user.id
+  let pollResponseDoc = await firestoreDB.doc(pollResponsePath).get()
+  let previousPollResponseMessageIDs
+  if (pollResponseDoc != null && pollResponseDoc.data() != null && pollResponseDoc.data().messageIDs != null)
+  {
+    previousPollResponseMessageIDs = pollResponseDoc.data().messageIDs
+  }
+
+  try
+  {
+    let newPollResponseMessageIDs = await sendVoteDM(client, user, pollID, uploadPollResponse, previousPollResponseMessageIDs)
+    await firestoreDB.doc(pollResponsePath).set({messageIDs: newPollResponseMessageIDs})
+  }
+  catch (error)
+  {
+    console.log("Vote DM Error: " + error)
+  }
+}
+
+async function sendVoteDM(client, user, pollID, uploadPollResponse, previousPollResponseMessageIDs)
 {
   var dmChannel = user.dmChannel || await user.createDM()
 
@@ -77,76 +197,7 @@ export const sendVoteDM = async function(client, user, pollID, uploadPollRespons
     let questionMessage = await dmChannel.send(questionString)
     pollMessageIDs[questionData.id] = questionMessage.id
 
-    let questionReactionCollector = questionMessage.createReactionCollector({ catchAllFilter, dispose: true })
-    questionReactionCollector.on('collect', async (reaction, user) => {
-      if (user.id == client.user.id) { return }
-      await user.fetch()
-
-      let { currentPollID, currentQuestionID, currentOptionData } = getCurrentOptionDataFromReaction(reaction, user)
-      if (!currentOptionData)
-      {
-        // await reaction.users.remove(user.id)
-        return
-      }
-
-      let currentOptionID = currentOptionData.id
-
-      if (!(currentPollID in pollResponses))
-      {
-        pollResponses[currentPollID] = {}
-      }
-      if (!(user.id in pollResponses[currentPollID]))
-      {
-        pollResponses[currentPollID][user.id] = {}
-      }
-      pollResponses[currentPollID][user.id][currentQuestionID] = currentOptionID
-
-      // await reaction.message.reactions.fetch()
-      //
-      // for (let otherReaction in reaction.message.reactions)
-      // {
-      //   if (otherReaction.emoji.name == reaction.emoji.name) { return }
-      //
-      //   await otherReaction.users.fetch()
-      //   if (otherReaction.users.cache.has(user.id))
-      //   {
-      //     otherReaction.users.remove(user.id)
-      //   }
-      // }
-    })
-    questionReactionCollector.on('remove', async (reaction, user) => {
-      if (user.id == client.user.id) { return }
-      await user.fetch()
-
-      let { currentPollID, currentQuestionID, currentOptionData } = getCurrentOptionDataFromReaction(reaction, user)
-      if (!currentOptionData) { return }
-
-      let currentOptionID = currentOptionData.id
-
-      if (!(currentPollID in pollResponses))
-      {
-        pollResponses[currentPollID] = {}
-      }
-      if (!(user.id in pollResponses[currentPollID]))
-      {
-        pollResponses[currentPollID][user.id] = {}
-      }
-      if (pollResponses[currentPollID][user.id][currentQuestionID] == currentOptionID)
-      {
-        delete pollResponses[currentPollID][user.id][currentQuestionID]
-      }
-    })
-
-    if (!(pollID in pollResponseReactionCollectors))
-    {
-      pollResponseReactionCollectors[pollID] = {}
-    }
-    if (!(user.id in pollResponseReactionCollectors[pollID]))
-    {
-      pollResponseReactionCollectors[pollID][user.id] = []
-    }
-
-    pollResponseReactionCollectors[pollID][user.id].push(questionReactionCollector)
+    await setupPollQuestionReactionCollector(client, pollID, user.id, questionMessage.id)
 
     for (let optionData of questionData.options)
     {
@@ -159,43 +210,9 @@ export const sendVoteDM = async function(client, user, pollID, uploadPollRespons
   var submitMessage = await dmChannel.send("**" + ":arrow_down: Submit below :arrow_down:" + "**")
   pollMessageIDs["submit"] = submitMessage.id
 
-  var submitReactionCollector = submitMessage.createReactionCollector({ catchAllFilter })
-  submitReactionCollector.on('collect', async (reaction, user) => {
-    if (user.id == client.user.id) { return }
-    if (emojiConverter.unemojify(reaction.emoji.name).replace(/:/g, '') != "white_check_mark") { return }
+  await setupPollSubmitReactionCollector(client, pollID, user.id, submitMessage.id, uploadPollResponse)
 
-    await user.fetch()
-
-    let { currentPollID } = getCurrentPollQuestionIDFromMessageID(reaction.message.id, user.id)
-    if (pollResponses[currentPollID] == null || pollResponses[currentPollID][user.id] == null) { return }
-
-    await uploadPollResponse(currentPollID, user.id, pollResponses[currentPollID][user.id])
-
-    for (let reactionCollector of pollResponseReactionCollectors[currentPollID][user.id])
-    {
-      reactionCollector.stop()
-    }
-    delete pollResponseReactionCollectors[currentPollID][user.id]
-
-    if (!(currentPollID in pollsMessageIDs && user.id in pollsMessageIDs[currentPollID])) { return }
-
-    for (let questionKey of Object.keys(pollsMessageIDs[currentPollID][user.id]))
-    {
-      if (questionKey == "submit")
-      {
-        let message = await user.dmChannel.messages.fetch(pollsMessageIDs[currentPollID][user.id][questionKey])
-        await message.edit(":white_check_mark: Submitted " + pollsData[pollID].name)
-      }
-      else
-      {
-        await user.dmChannel.messages.delete(pollsMessageIDs[currentPollID][user.id][questionKey])
-      }
-    }
-  })
-
-  pollResponseReactionCollectors[pollID][user.id].push(submitReactionCollector)
-
-  var submitEmoteID = getEmoteID(client, "white_check_mark")
+  var submitEmoteID = getEmoteID(client, submitResponseEmote)
   await submitMessage.react(submitEmoteID)
 
   if (previousPollResponseMessageIDs)
@@ -217,6 +234,137 @@ export const sendVoteDM = async function(client, user, pollID, uploadPollRespons
   pollsMessageIDs[pollID][user.id] = pollMessageIDs
 
   return pollMessageIDs
+}
+
+async function setupPollQuestionReactionCollector(client, pollID, userID, messageID)
+{
+  var user = await client.users.fetch(userID)
+  if (!user) { return }
+
+  var dmChannel = user.dmChannel || await user.createDM()
+  if (!dmChannel) { return }
+
+  var questionMessage = await dmChannel.messages.fetch(messageID)
+  if (!questionMessage) { return }
+
+  var questionReactionCollector = questionMessage.createReactionCollector({ catchAllFilter, dispose: true })
+  questionReactionCollector.on('collect', async (reaction, user) => {
+    if (user.id == client.user.id) { return }
+    await user.fetch()
+
+    let { currentPollID, currentQuestionID, currentOptionData } = getCurrentOptionDataFromReaction(reaction, user)
+    if (!currentOptionData)
+    {
+      // await reaction.users.remove(user.id)
+      return
+    }
+
+    let currentOptionID = currentOptionData.id
+
+    if (!(currentPollID in pollResponses))
+    {
+      pollResponses[currentPollID] = {}
+    }
+    if (!(user.id in pollResponses[currentPollID]))
+    {
+      pollResponses[currentPollID][user.id] = {}
+    }
+    pollResponses[currentPollID][user.id][currentQuestionID] = currentOptionID
+
+    // await reaction.message.reactions.fetch()
+    //
+    // for (let otherReaction in reaction.message.reactions)
+    // {
+    //   if (otherReaction.emoji.name == reaction.emoji.name) { return }
+    //
+    //   await otherReaction.users.fetch()
+    //   if (otherReaction.users.cache.has(user.id))
+    //   {
+    //     otherReaction.users.remove(user.id)
+    //   }
+    // }
+  })
+  questionReactionCollector.on('remove', async (reaction, user) => {
+    if (user.id == client.user.id) { return }
+    await user.fetch()
+
+    let { currentPollID, currentQuestionID, currentOptionData } = getCurrentOptionDataFromReaction(reaction, user)
+    if (!currentOptionData) { return }
+
+    let currentOptionID = currentOptionData.id
+
+    if (!(currentPollID in pollResponses))
+    {
+      pollResponses[currentPollID] = {}
+    }
+    if (!(user.id in pollResponses[currentPollID]))
+    {
+      pollResponses[currentPollID][user.id] = {}
+    }
+    if (pollResponses[currentPollID][user.id][currentQuestionID] == currentOptionID)
+    {
+      delete pollResponses[currentPollID][user.id][currentQuestionID]
+    }
+  })
+
+  if (!(pollID in pollResponseReactionCollectors))
+  {
+    pollResponseReactionCollectors[pollID] = {}
+  }
+  if (!(user.id in pollResponseReactionCollectors[pollID]))
+  {
+    pollResponseReactionCollectors[pollID][user.id] = []
+  }
+
+  pollResponseReactionCollectors[pollID][userID].push(questionReactionCollector)
+}
+
+async function setupPollSubmitReactionCollector(client, pollID, userID, messageID, uploadPollResponse)
+{
+  var user = await client.users.fetch(userID)
+  if (!user) { return }
+
+  var dmChannel = user.dmChannel || await user.createDM()
+  if (!dmChannel) { return }
+
+  var submitMessage = await dmChannel.messages.fetch(messageID)
+  if (!submitMessage) { return }
+
+  var submitReactionCollector = submitMessage.createReactionCollector({ catchAllFilter })
+  submitReactionCollector.on('collect', async (reaction, user) => {
+    if (user.id == client.user.id) { return }
+    if (emojiConverter.unemojify(reaction.emoji.name).replace(/:/g, '') != submitResponseEmote) { return }
+
+    await user.fetch()
+
+    let { currentPollID } = getCurrentPollQuestionIDFromMessageID(reaction.message.id, user.id)
+    if (pollResponses[currentPollID] == null || pollResponses[currentPollID][user.id] == null) { return }
+
+    await uploadPollResponse(currentPollID, user.id, pollResponses[currentPollID][user.id])
+
+    for (let reactionCollector of pollResponseReactionCollectors[currentPollID][user.id])
+    {
+      reactionCollector.stop()
+    }
+    delete pollResponseReactionCollectors[currentPollID][user.id]
+
+    if (!(currentPollID in pollsMessageIDs && user.id in pollsMessageIDs[currentPollID])) { return }
+
+    for (let questionKey of Object.keys(pollsMessageIDs[currentPollID][user.id]))
+    {
+      if (questionKey == "submit")
+      {
+        let message = await user.dmChannel.messages.fetch(pollsMessageIDs[currentPollID][user.id][questionKey])
+        await message.edit(":" + submitResponseEmote + ": Submitted " + pollsData[pollID].name)
+      }
+      else
+      {
+        await user.dmChannel.messages.delete(pollsMessageIDs[currentPollID][user.id][questionKey])
+      }
+    }
+  })
+
+  pollResponseReactionCollectors[pollID][userID].push(submitReactionCollector)
 }
 
 function getCurrentPollQuestionIDFromMessageID(messageID, userID)
@@ -248,8 +396,6 @@ function getCurrentOptionDataFromReaction(reaction, user)
 
   return { currentPollID: currentPollID, currentQuestionID: currentQuestionID, currentOptionData: currentOptionData }
 }
-
-import emojiConverter from 'node-emoji'
 
 function getEmoteID(client, emoteName)
 {

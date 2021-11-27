@@ -18,7 +18,7 @@ const client = new Client({ intents: [
 import { loginBot, printLoginMessage, prepareBotLogout, rebootBot } from "./src/login.js"
 import { sendMessageResponses } from "./src/responses.js"
 import { sendDateCommands, sendMessageCommands, sendClearCommand, sendRepeatCommand, sendSpeakCommand } from "./src/commands.js"
-import { interpretPollSetting, sendVoteCommand, sendVoteDM } from "./src/dmPoll.js"
+import { interpretPollSetting, cleanPollResponseMessages, sendVoteCommand, executeVoteCommand } from "./src/dmPoll.js"
 
 import { interpretRoleSetting } from "./src/roleMessages.js"
 import { interpretVoiceToTextChannelSetting, setupVoiceChannelEventHandler } from "./src/linkedTextChannels.js"
@@ -93,7 +93,13 @@ client.on('ready', async () => {
   pollsSettings.forEach(async (pollSettingDoc) => {
     let pollSettingJSON = pollSettingDoc.data()
     let pollSettingID = pollSettingDoc.id
-    await interpretPollSetting(pollSettingID, pollSettingJSON)
+    pollSettingJSON = await interpretPollSetting(client, pollSettingID, pollSettingJSON, firestoreDB)
+    firestoreDB.doc(pollsCollectionID + "/" + pollSettingID).set(pollSettingJSON)
+
+    let pollResponses = await firestoreDB.collection(pollsCollectionID + "/" + pollSettingID + "/" + pollResponsesCollectionID).get()
+    pollResponses.forEach((pollResponseDoc) => {
+      cleanPollResponseMessages(client, pollResponseDoc.id, pollResponseDoc.data())
+    })
   })
 })
 
@@ -151,28 +157,7 @@ client.on('messageCreate', async msg => {
   let pollID = await sendVoteCommand(msg, messageContent)
   if (pollID)
   {
-    var uploadPollResponse = async (pollID, userID, questionIDToOptionIDMap) => {
-      await firestoreDB.doc(pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID + "/" + msg.author.id).set({responseMap: questionIDToOptionIDMap})
-    }
-
-    let pollResponsePath = pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID + "/" + msg.author.id
-    let pollResponseDoc = await firestoreDB.doc(pollResponsePath).get()
-    let previousPollResponseMessageIDs
-    if (pollResponseDoc != null && pollResponseDoc.data() != null && pollResponseDoc.data().messageIDs != null)
-    {
-      previousPollResponseMessageIDs = pollResponseDoc.data().messageIDs
-    }
-
-    try
-    {
-      let newPollResponseMessageIDs = await sendVoteDM(client, msg.author, pollID, uploadPollResponse, previousPollResponseMessageIDs)
-      await firestoreDB.doc(pollResponsePath).set({messageIDs: newPollResponseMessageIDs})
-    }
-    catch (error)
-    {
-      console.log("Vote DM Error: " + error)
-    }
-
+    await executeVoteCommand(client, msg.author, pollID, firestoreDB)
     return
   }
 
