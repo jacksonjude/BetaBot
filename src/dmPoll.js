@@ -121,7 +121,7 @@ export const sendVoteCommand = async function(msg, messageContent)
 
     var pollData = pollsData[pollID]
 
-    if (!checkVoteRequirements(pollData, msg.channel.guildId, msg.member)) { return }
+    if (!checkVoteRequirements(pollData, msg.channel.guildId, msg.member, msg)) { return }
 
     return pollID
   }
@@ -129,7 +129,7 @@ export const sendVoteCommand = async function(msg, messageContent)
   return false
 }
 
-function checkVoteRequirements(pollData, serverID, member)
+function checkVoteRequirements(pollData, serverID, member, msg)
 {
   var isWithinPollTimeRange = Date.now() >= pollData.openTime.toMillis() && Date.now() <= pollData.closeTime.toMillis()
   var inRequiredServer = pollData.serverID ? serverID == pollData.serverID : true
@@ -137,17 +137,17 @@ function checkVoteRequirements(pollData, serverID, member)
 
   if (!isWithinPollTimeRange)
   {
-    msg.channel.send(pollData.name + " has " + (Date.now() < pollData.openTime.toMillis() ? "not opened" : "closed"))
+    msg && msg.channel.send(pollData.name + " has " + (Date.now() < pollData.openTime.toMillis() ? "not opened" : "closed"))
     return false
   }
   if (!inRequiredServer)
   {
-    msg.channel.send("Cannot vote on " + pollData.name + " in this server")
+    msg && msg.channel.send("Cannot vote on " + pollData.name + " in this server")
     return false
   }
   if (!hasRequiredRoles)
   {
-    msg.channel.send("Cannot vote on " + pollData.name + " without the " + pollData.roleName + " role")
+    msg && msg.channel.send("Cannot vote on " + pollData.name + " without the " + pollData.roleName + " role")
     return false
   }
 
