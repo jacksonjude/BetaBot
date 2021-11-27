@@ -37,7 +37,11 @@ export const interpretPollSetting = async function(client, pollID, pollDataJSON,
       var voteReactionCollector = voteMessage.createReactionCollector({ catchAllFilter })
       voteReactionCollector.on('collect', async (reaction, user) => {
         if (user.id == client.user.id) { return }
-        if (reaction.emoji.name != voteMessageEmoji) { return }
+        if (reaction.emoji.name != voteMessageEmoji)
+        {
+          reaction.users.remove(user.id)
+          return
+        }
 
         await user.fetch()
         if (!checkVoteRequirements(pollDataJSON, channel.guildId, channel.members.get(user.id))) { return }
