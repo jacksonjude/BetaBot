@@ -107,7 +107,7 @@ export const cleanPollResponseMessages = async function(client, userID, pollResp
 
 export const sendVoteCommand = async function(msg, messageContent)
 {
-  if (/^vote\s(.+)$/.test(messageContent))
+  if (/^vote\s(.+)$/.test(messageContent.toLowerCase()))
   {
     await msg.member.fetch()
 

@@ -140,7 +140,7 @@ client.on('messageCreate', async msg => {
 
   if (sendMessageResponses(msg)) { return }
 
-  var messageContent = msg.content.toLowerCase()
+  var messageContent = msg.content
   if (msg.mentions.members && msg.mentions.members.has(client.user.id))
   {
     messageContent = messageContent.replace("<@!" + client.user.id + ">", "")

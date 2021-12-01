@@ -16,7 +16,7 @@ export const sendDateCommands = function(msg, messageContent)
 {
   for (let dateNum in dates)
   {
-    if (messageContent == dates[dateNum].command)
+    if (messageContent.toLowerCase() == dates[dateNum].command)
     {
       var millisDifference = Math.abs(Date.now()-dates[dateNum].timestamp)
       var days = Math.floor(millisDifference/(1000*60*60*24))
@@ -35,7 +35,7 @@ export const sendMessageCommands = function(msg, messageContent)
 {
   for (let commandNum in messageCommands)
   {
-    if (messageContent == messageCommands[commandNum].command)
+    if (messageContent.toLowerCase() == messageCommands[commandNum].command)
     {
       var index = Math.floor((Math.random() * messageCommands[commandNum].responses.length))
       msg.channel.send(messageCommands[commandNum].responses[index])
@@ -50,7 +50,7 @@ export const sendClearCommand = async function(client, msg, messageContent)
 {
   var dmChannel = msg.author.dmChannel || await msg.author.createDM()
 
-  if (/^clear$/.test(messageContent))
+  if (/^clear$/.test(messageContent.toLowerCase()))
   {
     let dmMessages = await dmChannel.messages.fetch()
     dmMessages.forEach((message) => {
@@ -68,7 +68,7 @@ export const sendClearCommand = async function(client, msg, messageContent)
 
 export const sendRepeatCommand = function(msg, messageContent)
 {
-  if (/^repeat\s*(\d*)$/.test(messageContent))
+  if (/^repeat\s*(\d*)$/.test(messageContent.toLowerCase()))
   {
     var multiplier = parseInt(/^repeat\s*(\d*)$/.exec(messageContent)[1]) || 1 //parseInt(messageContent.replace("repeat", "")) || 1
     var messageArray = msg.channel.messages.cache.array()
@@ -87,7 +87,7 @@ export const sendRepeatCommand = function(msg, messageContent)
 
 export const sendSpeakCommand = function(msg, messageContent)
 {
-  if (/^speak\s(.+)$/.test(messageContent))
+  if (/^speak\s(.+)$/.test(messageContent.toLowerCase()))
   {
     var phraseToSay = /^speak\s(.+)$/.exec(messageContent)[1]
     msg.channel.send(phraseToSay, {tts: true})
