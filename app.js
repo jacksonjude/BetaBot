@@ -18,7 +18,9 @@ const client = new Client({ intents: [
 import { loginBot, printLoginMessage, prepareBotLogout, rebootBot } from "./src/login.js"
 import { sendMessageResponses } from "./src/responses.js"
 import { sendDateCommands, sendMessageCommands, sendClearCommand, sendRepeatCommand, sendSpeakCommand } from "./src/commands.js"
-import { interpretPollSetting, cleanPollResponseMessages, sendVoteCommand, executeVoteCommand } from "./src/dmPoll.js"
+
+import { interpretDMPollSetting, cleanDMPollResponseMessages, sendDMVoteCommand, executeDMVoteCommand } from "./src/dmPoll.js"
+// import { interpretServerPollSetting } from "./src/serverPoll.js"
 
 import { interpretRoleSetting } from "./src/roleMessages.js"
 import { interpretVoiceToTextChannelSetting, setupVoiceChannelEventHandler } from "./src/linkedTextChannels.js"
@@ -26,11 +28,6 @@ import { interpretStatsSetting, setupMemberStatsEventHandlers } from "./src/serv
 
 import { initFirestore } from "./src/firebase.js"
 
-const technicianRoleName = "technician"
-
-const botSettingsChannelIDs = [
-  "738578711510646856" // sekret in negativity ("704218896298934317")
-]
 const roleMessageCollectionID = "roleMessageConfigurations"
 const voiceToTextCollectionID = "voiceToTextConfigurations"
 const statChannelsCollectionID = "statsConfigurations"
@@ -38,6 +35,7 @@ const pollsCollectionID = "pollConfigurations"
 const pollResponsesCollectionID = "responses"
 
 const HOME_GUILD_ID = "704218896298934317"
+const technicianRoleName = "technician"
 
 var firestoreDB
 
@@ -61,7 +59,7 @@ client.on('ready', async () => {
     guild.members.fetch(client.user).then(member => updateNickname(member))
   })
 
-  firestoreDB = await initFirestore()
+  firestoreDB = initFirestore()
 
   var roleMessageSettings = await firestoreDB.collection(roleMessageCollectionID).get()
   var voiceToTextChannelSettings = await firestoreDB.collection(voiceToTextCollectionID).get()
@@ -93,19 +91,19 @@ client.on('ready', async () => {
   pollsSettings.forEach(async (pollSettingDoc) => {
     let pollSettingJSON = pollSettingDoc.data()
     let pollSettingID = pollSettingDoc.id
-    pollSettingJSON = await interpretPollSetting(client, pollSettingID, pollSettingJSON, firestoreDB)
+    pollSettingJSON = await interpretDMPollSetting(client, pollSettingID, pollSettingJSON, firestoreDB)
     firestoreDB.doc(pollsCollectionID + "/" + pollSettingID).set(pollSettingJSON)
 
     let pollResponses = await firestoreDB.collection(pollsCollectionID + "/" + pollSettingID + "/" + pollResponsesCollectionID).get()
     pollResponses.forEach((pollResponseDoc) => {
-      cleanPollResponseMessages(client, pollResponseDoc.id, pollResponseDoc.data())
+      cleanDMPollResponseMessages(client, pollResponseDoc.id, pollResponseDoc.data())
     })
   })
 })
 
 // Nickname Enforcement
 
-client.on('guildMemberUpdate', async (oldMember, newMember) => {
+client.on('guildMemberUpdate', async (_, newMember) => {
   var clientMember = await newMember.guild.members.fetch(client.user)
   if (newMember.id !== clientMember.id) { return }
 
@@ -154,10 +152,10 @@ client.on('messageCreate', async msg => {
 
   if (await sendClearCommand(client, msg, messageContent)) { return }
 
-  let pollID = await sendVoteCommand(msg, messageContent)
+  let pollID = await sendDMVoteCommand(msg, messageContent)
   if (pollID)
   {
-    await executeVoteCommand(client, msg.author, pollID, firestoreDB)
+    await executeDMVoteCommand(client, msg.author, pollID, firestoreDB)
     return
   }
 

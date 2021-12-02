@@ -51,7 +51,7 @@ import { spawn } from 'child_process'
 
 export const prepareBotLogout = function(logoutMessage, msg)
 {
-  var logoutBotPromise = new Promise(async (resolve, reject) => {
+  var logoutBotPromise = new Promise(async (resolve) => {
     await msg.channel.send(logoutMessage)
     await client.user.setPresence({status: "dnd"})
     resolve()

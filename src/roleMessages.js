@@ -163,31 +163,31 @@ async function handleRoleReaction(client, reaction, user, action)
   return true
 }
 
-const randomColorRoleName = "random"
-
-function startRandomColorRoleInterval()
-{
-  var now = new Date();
-  var millisTillMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 18, 0) - now;
-  if (millisTillMidnight < 1000) {
-    millisTillMidnight += 86400000
-  }
-  setTimeout(() => {
-    startRandomColorRoleInterval()
-  }, millisTillMidnight);
-}
-
-function updateRandomColorRole(client)
-{
-  var randomRGB = [Math.floor(Math.random()*256), Math.floor(Math.random()*256), Math.floor(Math.random()*256)]
-
-  client.guilds.cache.each(async guild => {
-    var roles = await guild.roles.fetch()
-    var randomRole = roles.cache.find(role => role.name == randomColorRoleName)
-    if (randomRole == null) { return }
-
-    randomRole.setColor(randomRGB)
-  })
-
-  console.log("Set @random to ", randomRGB)
-}
+// const randomColorRoleName = "random"
+//
+// function startRandomColorRoleInterval()
+// {
+//   var now = new Date();
+//   var millisTillMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 18, 0) - now;
+//   if (millisTillMidnight < 1000) {
+//     millisTillMidnight += 86400000
+//   }
+//   setTimeout(() => {
+//     startRandomColorRoleInterval()
+//   }, millisTillMidnight);
+// }
+//
+// function updateRandomColorRole(client)
+// {
+//   var randomRGB = [Math.floor(Math.random()*256), Math.floor(Math.random()*256), Math.floor(Math.random()*256)]
+//
+//   client.guilds.cache.each(async guild => {
+//     var roles = await guild.roles.fetch()
+//     var randomRole = roles.cache.find(role => role.name == randomColorRoleName)
+//     if (randomRole == null) { return }
+//
+//     randomRole.setColor(randomRGB)
+//   })
+//
+//   console.log("Set @random to ", randomRGB)
+// }

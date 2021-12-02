@@ -14,7 +14,7 @@ const catchAllFilter = () => true
 
 import emojiConverter from 'node-emoji'
 
-export const interpretPollSetting = async function(client, pollID, pollDataJSON, firestoreDB)
+export const interpretDMPollSetting = async function(client, pollID, pollDataJSON, firestoreDB)
 {
   pollsData[pollID] = pollDataJSON
 
@@ -45,7 +45,7 @@ export const interpretPollSetting = async function(client, pollID, pollDataJSON,
 
         await user.fetch()
         if (!checkVoteRequirements(pollDataJSON, channel.guildId, channel.members.get(user.id))) { return }
-        executeVoteCommand(client, user, pollID, firestoreDB)
+        executeDMVoteCommand(client, user, pollID, firestoreDB)
       })
 
       pollVoteMessageReactionCollectors[pollDataJSON.id] = voteReactionCollector
@@ -85,7 +85,7 @@ async function editVoteMessage(client, voteMessageSettings)
   }
 }
 
-export const cleanPollResponseMessages = async function(client, userID, pollResponseData)
+export const cleanDMPollResponseMessages = async function(client, userID, pollResponseData)
 {
   if (!("messageIDs" in pollResponseData)) { return }
 
@@ -105,7 +105,7 @@ export const cleanPollResponseMessages = async function(client, userID, pollResp
   }
 }
 
-export const sendVoteCommand = async function(msg, messageContent)
+export const sendDMVoteCommand = async function(msg, messageContent)
 {
   if (/^vote\s(.+)$/.test(messageContent.toLowerCase()))
   {
@@ -154,7 +154,7 @@ function checkVoteRequirements(pollData, serverID, member, msg)
   return true
 }
 
-export const executeVoteCommand = async function(client, user, pollID, firestoreDB)
+export const executeDMVoteCommand = async function(client, user, pollID, firestoreDB)
 {
   console.log("Init vote " + pollID + " for " + user.id)
 

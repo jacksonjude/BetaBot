@@ -33,7 +33,7 @@ export const setupMemberStatsEventHandlers = function(client)
     updateOnlineMembersStat(member.guild) // Not using this for updates
   })
 
-  client.on('guildMemberUpdate', async (oldMember, newMember) => {
+  client.on('guildMemberUpdate', async (oldMember, _) => {
     // Update boost stat
     if (oldMember == null || oldMember.guild == null) { return }
     updateBoostMembersStat(oldMember.guild)
