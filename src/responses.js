@@ -1,5 +1,6 @@
 const messageResponses = [
-  { pattern: "(\\W|\\s+|^)[bruh]{4,}(\\W|\\s+|$)", responses: ["bruh"] }
+  { pattern: "(\\W|\\s+|^)[bruh]{4,}(\\W|\\s+|$)", responses: ["bruh"] },
+  { pattern: "i hope u choke", responses: ["kinky"] }
 ]
 
 export const sendMessageResponses = function(msg)
