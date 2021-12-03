@@ -21,7 +21,7 @@ import { sendDateCommands, sendMessageCommands, sendClearCommand, sendRepeatComm
 
 import { sendExportPollResultsCommand, executeExportPollResultsCommand } from "./src/poll/sharedPoll.js"
 import { interpretDMPollSetting, cleanDMPollResponseMessages, sendDMVoteCommand, executeDMVoteCommand } from "./src/poll/dmPoll.js"
-// import { interpretServerPollSetting } from "./src/poll/serverPoll.js"
+import { interpretServerPollSetting } from "./src/poll/serverPoll.js"
 
 import { interpretRoleSetting } from "./src/roleMessages.js"
 import { interpretVoiceToTextChannelSetting, setupVoiceChannelEventHandler } from "./src/linkedTextChannels.js"
@@ -74,7 +74,18 @@ const firebaseCollectionSyncHandlers = [
     handleDocFunction: async function(pollSettingDoc) {
       let pollSettingJSON = pollSettingDoc.data()
       let pollSettingID = pollSettingDoc.id
-      pollSettingJSON = await interpretDMPollSetting(client, pollSettingID, pollSettingJSON, firestoreDB)
+
+      switch (pollSettingJSON.pollType)
+      {
+        case "dm":
+        pollSettingJSON = await interpretDMPollSetting(client, pollSettingID, pollSettingJSON, firestoreDB)
+        break
+
+        case "server":
+        pollSettingJSON = await interpretServerPollSetting(client, pollSettingID, pollSettingJSON, firestoreDB)
+        break
+      }
+
       firestoreDB.doc(pollsCollectionID + "/" + pollSettingID).set(pollSettingJSON)
     },
     initFunction: async function() {

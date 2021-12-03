@@ -4,7 +4,7 @@ import {
   pollResponses, pollResponseReactionCollectors,
   pollsMessageIDs, pollVoteMessageReactionCollectors,
   voteMessageEmoji, submitResponseEmote,
-  catchAllFilter, getCurrentPollQuestionIDFromMessageID, getCurrentOptionDataFromReaction, getEmoji, getEmoteName
+  catchAllFilter, checkVoteRequirements, getCurrentPollQuestionIDFromMessageID, getCurrentOptionDataFromReaction, getEmoji, getEmoteName
 } from "./sharedPoll.js"
 
 export const interpretDMPollSetting = async function(client, pollID, pollDataJSON, firestoreDB)
@@ -126,31 +126,6 @@ export const sendDMVoteCommand = async function(msg, messageContent)
   return false
 }
 
-function checkVoteRequirements(pollData, serverID, member, msg)
-{
-  var isWithinPollTimeRange = Date.now() >= pollData.openTime.toMillis() && Date.now() <= pollData.closeTime.toMillis()
-  var inRequiredServer = pollData.serverID ? serverID == pollData.serverID : true
-  var hasRequiredRoles = pollData.roleName ? member.roles.cache.find(role => role.name == pollData.roleName) : true
-
-  if (!isWithinPollTimeRange)
-  {
-    msg && msg.channel.send(pollData.name + " has " + (Date.now() < pollData.openTime.toMillis() ? "not opened" : "closed"))
-    return false
-  }
-  if (!inRequiredServer)
-  {
-    msg && msg.channel.send("Cannot vote on " + pollData.name + " in this server")
-    return false
-  }
-  if (!hasRequiredRoles)
-  {
-    msg && msg.channel.send("Cannot vote on " + pollData.name + " without the " + pollData.roleName + " role")
-    return false
-  }
-
-  return true
-}
-
 export const executeDMVoteCommand = async function(client, user, pollID, firestoreDB)
 {
   console.log("Init vote " + pollID + " for " + user.id)
@@ -252,11 +227,7 @@ async function setupPollQuestionReactionCollector(client, pollID, user, messageI
     await user.fetch()
 
     let { currentPollID, currentQuestionID, currentOptionData } = getCurrentOptionDataFromReaction(reaction, user)
-    if (!currentOptionData)
-    {
-      // await reaction.users.remove(user.id)
-      return
-    }
+    if (!currentOptionData) { return }
 
     let currentOptionID = currentOptionData.id
 
@@ -269,19 +240,6 @@ async function setupPollQuestionReactionCollector(client, pollID, user, messageI
       pollResponses[currentPollID][user.id] = {}
     }
     pollResponses[currentPollID][user.id][currentQuestionID] = currentOptionID
-
-    // await reaction.message.reactions.fetch()
-    //
-    // for (let otherReaction in reaction.message.reactions)
-    // {
-    //   if (otherReaction.emoji.name == reaction.emoji.name) { return }
-    //
-    //   await otherReaction.users.fetch()
-    //   if (otherReaction.users.cache.has(user.id))
-    //   {
-    //     otherReaction.users.remove(user.id)
-    //   }
-    // }
   })
   questionReactionCollector.on('remove', async (reaction, user) => {
     if (user.id == client.user.id) { return }

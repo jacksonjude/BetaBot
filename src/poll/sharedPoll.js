@@ -21,6 +21,31 @@ export const catchAllFilter = () => true
 
 import emojiConverter from 'node-emoji'
 
+export const checkVoteRequirements = function(pollData, serverID, member, msg)
+{
+  var isWithinPollTimeRange = Date.now() >= pollData.openTime.toMillis() && Date.now() <= pollData.closeTime.toMillis()
+  var inRequiredServer = pollData.serverID ? serverID == pollData.serverID : true
+  var hasRequiredRoles = pollData.roleID ? member.roles.cache.find(role => role.id == pollData.roleID) : true
+
+  if (!isWithinPollTimeRange)
+  {
+    msg && msg.channel.send(pollData.name + " has " + (Date.now() < pollData.openTime.toMillis() ? "not opened" : "closed"))
+    return false
+  }
+  if (!inRequiredServer)
+  {
+    msg && msg.channel.send("Cannot vote on " + pollData.name + " in this server")
+    return false
+  }
+  if (!hasRequiredRoles)
+  {
+    msg && msg.channel.send("Cannot vote on " + pollData.name + " without the " + (msg.guild.roles.fetch(pollData.roleID) || {}).name + " role")
+    return false
+  }
+
+  return true
+}
+
 export const sendExportPollResultsCommand = async function(msg, messageContent)
 {
   if (/^pollresults\s(.+)$/.test(messageContent.toLowerCase()))
@@ -124,9 +149,18 @@ export const getCurrentPollQuestionIDFromMessageID = function(messageID, userID)
 {
   var currentQuestionID
   var currentPollID = Object.keys(pollsMessageIDs).find((pollID) => {
-    if (pollsMessageIDs[pollID][userID])
+    if (userID && pollsMessageIDs[pollID][userID])
     {
       let questionID = Object.keys(pollsMessageIDs[pollID][userID]).find((questionID) => pollsMessageIDs[pollID][userID][questionID] == messageID)
+      if (questionID)
+      {
+        currentQuestionID = questionID
+        return true
+      }
+    }
+    else
+    {
+      let questionID = Object.keys(pollsMessageIDs[pollID]).find((questionID) => pollsMessageIDs[pollID][questionID] == messageID)
       if (questionID)
       {
         currentQuestionID = questionID
