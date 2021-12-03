@@ -1,23 +1,11 @@
-const voteMessageEmoji = "🗳"
-const submitResponseEmote = "white_check_mark"
-
-const pollsCollectionID = "pollConfigurations"
-const pollResponsesCollectionID = "responses"
-
-const ExportAccessType = {
-  user: "user",
-  role: "role"
-}
-
-var pollsData = {}
-var pollResponses = {}
-var pollResponseReactionCollectors = {}
-var pollsMessageIDs = {}
-var pollVoteMessageReactionCollectors = {}
-
-const catchAllFilter = () => true
-
-import emojiConverter from 'node-emoji'
+import {
+  pollsCollectionID, pollResponsesCollectionID,
+  pollsData,
+  pollResponses, pollResponseReactionCollectors,
+  pollsMessageIDs, pollVoteMessageReactionCollectors,
+  voteMessageEmoji, submitResponseEmote,
+  catchAllFilter, getCurrentPollQuestionIDFromMessageID, getCurrentOptionDataFromReaction, getEmoji, getEmoteName
+} from "./sharedPoll.js"
 
 export const interpretDMPollSetting = async function(client, pollID, pollDataJSON, firestoreDB)
 {
@@ -96,7 +84,7 @@ async function editVoteMessage(client, voteMessageSettings)
 
 export const cleanDMPollResponseMessages = async function(client, userID, pollResponseData)
 {
-  if (!("messageIDs" in pollResponseData)) { return }
+  if (!pollResponseData.messageIDs) { return }
 
   var user = await client.users.fetch(userID)
   if (!user) { return }
@@ -215,9 +203,9 @@ async function sendVoteDM(client, user, pollID, uploadPollResponse, previousPoll
 
     for (let optionData of questionData.options)
     {
-      let emoteID = getEmoteID(client, optionData.emote)
-      if (emoteID == null) { continue }
-      await questionMessage.react(emoteID)
+      let emoji = getEmoji(client, optionData.emote)
+      if (emoji == null) { continue }
+      await questionMessage.react(emoji)
     }
   }
 
@@ -226,8 +214,8 @@ async function sendVoteDM(client, user, pollID, uploadPollResponse, previousPoll
 
   await setupPollSubmitReactionCollector(client, pollID, user, submitMessage.id, uploadPollResponse)
 
-  var submitEmoteID = getEmoteID(client, submitResponseEmote)
-  await submitMessage.react(submitEmoteID)
+  var submitEmoji = getEmoji(client, submitResponseEmote)
+  await submitMessage.react(submitEmoji)
 
   if (previousPollResponseMessageIDs)
   {
@@ -341,7 +329,7 @@ async function setupPollSubmitReactionCollector(client, pollID, user, messageID,
   var submitReactionCollector = submitMessage.createReactionCollector({ catchAllFilter })
   submitReactionCollector.on('collect', async (reaction, user) => {
     if (user.id == client.user.id) { return }
-    if (emojiConverter.unemojify(reaction.emoji.name).replace(/:/g, '') != submitResponseEmote) { return }
+    if (getEmoteName(reaction.emoji) != submitResponseEmote) { return }
 
     await user.fetch()
 
@@ -373,150 +361,4 @@ async function setupPollSubmitReactionCollector(client, pollID, user, messageID,
   })
 
   pollResponseReactionCollectors[pollID][user.id].push(submitReactionCollector)
-}
-
-function getCurrentPollQuestionIDFromMessageID(messageID, userID)
-{
-  var currentQuestionID
-  var currentPollID = Object.keys(pollsMessageIDs).find((pollID) => {
-    if (pollsMessageIDs[pollID][userID])
-    {
-      let questionID = Object.keys(pollsMessageIDs[pollID][userID]).find((questionID) => pollsMessageIDs[pollID][userID][questionID] == messageID)
-      if (questionID)
-      {
-        currentQuestionID = questionID
-        return true
-      }
-    }
-    return false
-  })
-
-  return { currentQuestionID: currentQuestionID, currentPollID: currentPollID }
-}
-
-function getCurrentOptionDataFromReaction(reaction, user)
-{
-  var emoteName = emojiConverter.unemojify(reaction.emoji.name).replace(/:/g, '')
-
-  var { currentPollID, currentQuestionID } = getCurrentPollQuestionIDFromMessageID(reaction.message.id, user.id)
-  var currentQuestionData = pollsData[currentPollID].questions.find(questionData => questionData.id == currentQuestionID)
-  var currentOptionData = currentQuestionData.options.find(optionData => optionData.emote == emoteName)
-
-  return { currentPollID: currentPollID, currentQuestionID: currentQuestionID, currentOptionData: currentOptionData }
-}
-
-function getEmoteID(client, emoteName)
-{
-  var emote = client.emojis.cache.find(emoji => emoji.name == emoteName)
-  if (emote != null)
-  {
-    return emote.id
-  }
-
-  emote = emojiConverter.get(":" + emoteName + ":")
-  if (emote != null && !emote.includes(":"))
-  {
-    return emote
-  }
-
-  return null
-}
-
-export const sendExportPollResultsCommand = async function(msg, messageContent)
-{
-  if (/^pollresults\s(.+)$/.test(messageContent.toLowerCase()))
-  {
-    await msg.member.fetch()
-
-    var pollID = /^pollresults\s(.+)$/.exec(messageContent)[1]
-
-    if (!(pollID in pollsData))
-    {
-      msg.channel.send("Invalid poll name: " + pollID)
-      return false
-    }
-
-    var pollData = pollsData[pollID]
-
-    if (!checkExportPollResultsRequirements(pollData, msg.member, msg)) { return }
-
-    return pollID
-  }
-
-  return false
-}
-
-function checkExportPollResultsRequirements(pollData, member, msg)
-{
-  if (!pollData.exportAccess)
-  {
-    msg && msg.channel.send("Export access has not been enabled for " + pollData.name)
-    return false
-  }
-
-  var userAccessData = pollData.exportAccess.find((userAccess) => userAccess.type == ExportAccessType.user && userAccess.userID == member.user.id)
-  var roleAccessData = pollData.exportAccess.find((roleAccess) => roleAccess.type == ExportAccessType.role && member.roles.cache.has(roleAccess.roleID))
-  var pollHasClosed = Date.now() >= pollData.closeTime.toMillis()
-
-  if (!userAccessData && !roleAccessData)
-  {
-    msg && msg.channel.send("You have no access to the results of " + pollData.name)
-    return false
-  }
-  if ((userAccessData || roleAccessData).afterPollClose && !pollHasClosed)
-  {
-    msg && msg.channel.send("You do not have access to the results of " + pollData.name + " until after the poll has closed")
-    return false
-  }
-  if ((userAccessData || roleAccessData).accessTime && Date.now() < (userAccessData || roleAccessData).accessTime)
-  {
-    msg && msg.channel.send("You do not have access to the results of " + pollData.name + " until " + (new Date((userAccessData || roleAccessData).accessTime)).toString())
-    return false
-  }
-
-  return true
-}
-
-import { Parser } from "json2csv"
-import { MessageAttachment } from "discord.js"
-
-export const executeExportPollResultsCommand = async function(user, pollID, firestoreDB)
-{
-  var dmChannel = user.dmChannel || await user.createDM()
-  if (!dmChannel) { return }
-
-  var pollResultsCollection = await firestoreDB.collection(pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID).get()
-
-  var formattedPollResults = []
-
-  pollResultsCollection.forEach((pollResultDoc) => {
-    let pollResultJSON = pollResultDoc.data()
-
-    if (!pollResultJSON.responseMap) { return }
-
-    formattedPollResults.push({timestamp: pollResultJSON.updatedAt, responseMap: pollResultJSON.responseMap})
-  })
-
-  var responseMapKeys = new Set(["timestamp"])
-  formattedPollResults = formattedPollResults.map((pollResponseData) => {
-    Object.keys(pollResponseData.responseMap).forEach((responseMapKey) => {
-      responseMapKeys.add(responseMapKey)
-      pollResponseData[responseMapKey] = pollResponseData.responseMap[responseMapKey]
-    })
-    delete pollResponseData.responseMap
-
-    return pollResponseData
-  })
-  responseMapKeys = Array.from(responseMapKeys)
-
-  formattedPollResults.sort((pollResult1, pollResult2) => pollResult1.timestamp-pollResult2.timestamp)
-
-  var pollResultsCSVParser = new Parser({fields: responseMapKeys})
-  var pollResultsCSV = pollResultsCSVParser.parse(formattedPollResults)
-
-  var pollResultsCSVFilename = "poll-results-" + pollID + ".csv"
-  var csvMessageAttachment = new MessageAttachment(Buffer.from(pollResultsCSV, 'utf-8'), pollResultsCSVFilename)
-  dmChannel.send({
-    files: [csvMessageAttachment]
-  })
 }
