@@ -446,7 +446,7 @@ export const sendExportPollResultsCommand = async function(msg, messageContent)
 
 function checkExportPollResultsRequirements(pollData, member, msg)
 {
-  var userAccessData = pollData.exportAccess.find((userAccess) => userAccess.type == "user" && userAccess.user == member.user.id)
+  var userAccessData = pollData.exportAccess.find((userAccess) => userAccess.type == "user" && userAccess.userID == member.user.id)
   var roleAccessData = pollData.exportAccess.find((roleAccess) => roleAccess.type == "role" && member.roles.cache.findKey(roleAccess.roleID))
   var pollHasClosed = Date.now() >= pollData.closeTime.toMillis()
 
@@ -483,19 +483,10 @@ export const executeExportPollResultsCommand = async function(user, pollID, fire
 
   pollResultsCollection.forEach((pollResultDoc) => {
     let pollResultJSON = pollResultDoc.data()
-    // let pollResultUserID = pollResultDoc.id
 
     if (!pollResultJSON.responseMap) { return }
 
     formattedPollResults.push({timestamp: pollResultJSON.updatedAt, responseMap: pollResultJSON.responseMap})
-    // if (shouldIncludeUserIDs)
-    // {
-    //   formattedPollResults.push({userID: pollResultUserID, timestamp: pollResultJSON.updatedTime, responseMap: pollResultJSON.responseMap})
-    // }
-    // else
-    // {
-    //   formattedPollResults.push({timestamp: pollResultJSON.updatedTime, responseMap: pollResultJSON.responseMap})
-    // }
   })
 
   var responseMapKeys = new Set(["timestamp"])
