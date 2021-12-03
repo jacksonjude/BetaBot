@@ -447,7 +447,7 @@ export const sendExportPollResultsCommand = async function(msg, messageContent)
 function checkExportPollResultsRequirements(pollData, member, msg)
 {
   var userAccessData = pollData.exportAccess.find((userAccess) => userAccess.type == "user" && userAccess.userID == member.user.id)
-  var roleAccessData = pollData.exportAccess.find((roleAccess) => roleAccess.type == "role" && member.roles.cache.findKey(roleAccess.roleID))
+  var roleAccessData = pollData.exportAccess.find((roleAccess) => roleAccess.type == "role" && member.roles.cache.has(roleAccess.roleID))
   var pollHasClosed = Date.now() >= pollData.closeTime.toMillis()
 
   if (!userAccessData && !roleAccessData)
