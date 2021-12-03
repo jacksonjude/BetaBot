@@ -8,8 +8,9 @@ const messageCommands = [
 ]
 
 const dates = [
-  { name: "Misty Not Rated", timestamp: 1586139240000, command: "misty" },
-  { name: "Birthday", timestamp: 1597993200000, command: "birf" }
+  // { name: "Misty Not Rated", timestamp: 1586139240000, command: "misty" },
+  { name: "Birthday", timestamp: 1597993200000, command: "birf" },
+  { name: "Finals are over!!! :partying_face:", timestamp: 1639209600000, command: "finals" }
 ]
 
 export const sendDateCommands = function(msg, messageContent)
