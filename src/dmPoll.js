@@ -206,7 +206,7 @@ async function sendVoteDM(client, user, pollID, uploadPollResponse, previousPoll
     let questionMessage = await dmChannel.send(questionString)
     pollMessageIDs[questionData.id] = questionMessage.id
 
-    await setupPollQuestionReactionCollector(client, pollID, user.id, questionMessage.id)
+    await setupPollQuestionReactionCollector(client, pollID, user, questionMessage.id)
 
     for (let optionData of questionData.options)
     {
@@ -325,11 +325,8 @@ async function setupPollQuestionReactionCollector(client, pollID, user, messageI
   pollResponseReactionCollectors[pollID][user.id].push(questionReactionCollector)
 }
 
-async function setupPollSubmitReactionCollector(client, pollID, userID, messageID, uploadPollResponse)
+async function setupPollSubmitReactionCollector(client, pollID, user, messageID, uploadPollResponse)
 {
-  var user = await client.users.fetch(userID)
-  if (!user) { return }
-
   var dmChannel = user.dmChannel || await user.createDM()
   if (!dmChannel) { return }
 
@@ -370,7 +367,7 @@ async function setupPollSubmitReactionCollector(client, pollID, userID, messageI
     }
   })
 
-  pollResponseReactionCollectors[pollID][userID].push(submitReactionCollector)
+  pollResponseReactionCollectors[pollID][user.id].push(submitReactionCollector)
 }
 
 function getCurrentPollQuestionIDFromMessageID(messageID, userID)
@@ -446,6 +443,12 @@ export const sendExportPollResultsCommand = async function(msg, messageContent)
 
 function checkExportPollResultsRequirements(pollData, member, msg)
 {
+  if (!pollData.exportAccess)
+  {
+    msg && msg.channel.send("Export access has not been enabled for " + pollData.name)
+    return false
+  }
+
   var userAccessData = pollData.exportAccess.find((userAccess) => userAccess.type == "user" && userAccess.userID == member.user.id)
   var roleAccessData = pollData.exportAccess.find((roleAccess) => roleAccess.type == "role" && member.roles.cache.has(roleAccess.roleID))
   var pollHasClosed = Date.now() >= pollData.closeTime.toMillis()
