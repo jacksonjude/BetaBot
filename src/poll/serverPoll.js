@@ -2,8 +2,8 @@ import {
   pollsCollectionID, pollResponsesCollectionID,
   pollsData,
   pollResponses, pollResponseReactionCollectors,
-  pollsMessageIDs, pollVoteMessageReactionCollectors,
-  catchAllFilter, checkVoteRequirements, getCurrentPollQuestionIDFromMessageID, getCurrentOptionDataFromReaction, getEmoji, getEmoteName
+  pollsMessageIDs,
+  catchAllFilter, checkVoteRequirements, getCurrentPollQuestionIDFromMessageID, getCurrentOptionDataFromReaction, getEmoji
 } from "./sharedPoll.js"
 
 export const interpretServerPollSetting = async function(client, pollID, pollDataJSON, firestoreDB)
