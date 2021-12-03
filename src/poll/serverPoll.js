@@ -88,14 +88,22 @@ async function setupPollQuestionReactionCollector(client, pollID, messageID, upl
     let { currentPollID, currentQuestionID, currentOptionData } = getCurrentOptionDataFromReaction(reaction, user)
     if (!currentOptionData)
     {
-      await reaction.users.remove(user.id)
+      try
+      {
+        await reaction.users.remove(user.id)
+      }
+      catch {}
       return
     }
 
     let guildMember = await pollChannel.guild.members.fetch(user.id)
     if (!checkVoteRequirements(pollData, pollChannel.guildId, guildMember))
     {
-      await reaction.users.remove(user.id)
+      try
+      {
+        await reaction.users.remove(user.id)
+      }
+      catch {}
       return
     }
 
@@ -121,7 +129,11 @@ async function setupPollQuestionReactionCollector(client, pollID, messageID, upl
       await otherReaction.users.fetch()
       if (otherReaction.users.cache.has(user.id))
       {
-        otherReaction.users.remove(user.id)
+        try
+        {
+          await otherReaction.users.remove(user.id)
+        }
+        catch {}
       }
     })
   })

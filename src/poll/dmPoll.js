@@ -32,14 +32,22 @@ export const interpretDMPollSetting = async function(client, pollID, pollDataJSO
         if (user.id == client.user.id) { return }
         if (reaction.emoji.name != voteMessageEmoji)
         {
-          reaction.users.remove(user.id)
+          try
+          {
+            await reaction.users.remove(user.id)
+          }
+          catch {}
           return
         }
 
         await user.fetch()
         if (!checkVoteRequirements(pollDataJSON, channel.guildId, channel.members.get(user.id)))
         {
-          reaction.users.remove(user.id)
+          try
+          {
+            await reaction.users.remove(user.id)
+          }
+          catch {}
           return
         }
         executeDMVoteCommand(client, user, pollID, firestoreDB)
