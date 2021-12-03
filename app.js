@@ -19,7 +19,7 @@ import { loginBot, printLoginMessage, prepareBotLogout, rebootBot } from "./src/
 import { sendMessageResponses } from "./src/responses.js"
 import { sendDateCommands, sendMessageCommands, sendClearCommand, sendRepeatCommand, sendSpeakCommand } from "./src/commands.js"
 
-import { interpretDMPollSetting, cleanDMPollResponseMessages, sendDMVoteCommand, executeDMVoteCommand } from "./src/dmPoll.js"
+import { interpretDMPollSetting, cleanDMPollResponseMessages, sendDMVoteCommand, executeDMVoteCommand, sendExportPollResultsCommand, executeExportPollResultsCommand } from "./src/dmPoll.js"
 // import { interpretServerPollSetting } from "./src/serverPoll.js"
 
 import { interpretRoleSetting } from "./src/roleMessages.js"
@@ -156,6 +156,13 @@ client.on('messageCreate', async msg => {
   if (pollID)
   {
     await executeDMVoteCommand(client, msg.author, pollID, firestoreDB)
+    return
+  }
+
+  let exportPollID = await sendExportPollResultsCommand(msg, messageContent)
+  if (exportPollID)
+  {
+    await executeExportPollResultsCommand(msg.author, exportPollID, firestoreDB)
     return
   }
 

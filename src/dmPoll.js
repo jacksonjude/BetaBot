@@ -44,7 +44,11 @@ export const interpretDMPollSetting = async function(client, pollID, pollDataJSO
         }
 
         await user.fetch()
-        if (!checkVoteRequirements(pollDataJSON, channel.guildId, channel.members.get(user.id))) { return }
+        if (!checkVoteRequirements(pollDataJSON, channel.guildId, channel.members.get(user.id)))
+        {
+          reaction.users.remove(user.id)
+          return
+        }
         executeDMVoteCommand(client, user, pollID, firestoreDB)
       })
 
@@ -215,7 +219,7 @@ async function sendVoteDM(client, user, pollID, uploadPollResponse, previousPoll
   var submitMessage = await dmChannel.send("**" + ":arrow_down: Submit below :arrow_down:" + "**")
   pollMessageIDs["submit"] = submitMessage.id
 
-  await setupPollSubmitReactionCollector(client, pollID, user.id, submitMessage.id, uploadPollResponse)
+  await setupPollSubmitReactionCollector(client, pollID, user, submitMessage.id, uploadPollResponse)
 
   var submitEmoteID = getEmoteID(client, submitResponseEmote)
   await submitMessage.react(submitEmoteID)
@@ -241,11 +245,8 @@ async function sendVoteDM(client, user, pollID, uploadPollResponse, previousPoll
   return pollMessageIDs
 }
 
-async function setupPollQuestionReactionCollector(client, pollID, userID, messageID)
+async function setupPollQuestionReactionCollector(client, pollID, user, messageID)
 {
-  var user = await client.users.fetch(userID)
-  if (!user) { return }
-
   var dmChannel = user.dmChannel || await user.createDM()
   if (!dmChannel) { return }
 
@@ -321,7 +322,7 @@ async function setupPollQuestionReactionCollector(client, pollID, userID, messag
     pollResponseReactionCollectors[pollID][user.id] = []
   }
 
-  pollResponseReactionCollectors[pollID][userID].push(questionReactionCollector)
+  pollResponseReactionCollectors[pollID][user.id].push(questionReactionCollector)
 }
 
 async function setupPollSubmitReactionCollector(client, pollID, userID, messageID, uploadPollResponse)
@@ -417,4 +418,106 @@ function getEmoteID(client, emoteName)
   }
 
   return null
+}
+
+export const sendExportPollResultsCommand = async function(msg, messageContent)
+{
+  if (/^pollresults\s(.+)$/.test(messageContent.toLowerCase()))
+  {
+    await msg.member.fetch()
+
+    var pollID = /^pollresults\s(.+)$/.exec(messageContent)[1]
+
+    if (!(pollID in pollsData))
+    {
+      msg.channel.send("Invalid poll name: " + pollID)
+      return false
+    }
+
+    var pollData = pollsData[pollID]
+
+    if (!checkExportPollResultsRequirements(pollData, msg.member, msg)) { return }
+
+    return pollID
+  }
+
+  return false
+}
+
+function checkExportPollResultsRequirements(pollData, member, msg)
+{
+  var userAccessData = pollData.exportAccess.find((userAccess) => userAccess.type == "user" && userAccess.user == member.user.id)
+  var roleAccessData = pollData.exportAccess.find((roleAccess) => roleAccess.type == "role" && member.roles.cache.findKey(roleAccess.roleID))
+  var pollHasClosed = Date.now() >= pollData.closeTime.toMillis()
+
+  if (!userAccessData && !roleAccessData)
+  {
+    msg && msg.channel.send("You have no access to the results of " + pollData.name)
+    return false
+  }
+  if ((userAccessData || roleAccessData).afterPollClose && !pollHasClosed)
+  {
+    msg && msg.channel.send("You do not have access to the results of " + pollData.name + " until after the poll has closed")
+    return false
+  }
+  if ((userAccessData || roleAccessData).accessTime && Date.now() < (userAccessData || roleAccessData).accessTime)
+  {
+    msg && msg.channel.send("You do not have access to the results of " + pollData.name + " until " + (new Date((userAccessData || roleAccessData).accessTime)).toString())
+    return false
+  }
+
+  return true
+}
+
+import { Parser } from "json2csv"
+import { MessageAttachment } from "discord.js"
+
+export const executeExportPollResultsCommand = async function(user, pollID, firestoreDB)
+{
+  var dmChannel = user.dmChannel || await user.createDM()
+  if (!dmChannel) { return }
+
+  var pollResultsCollection = await firestoreDB.collection(pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID).get()
+
+  var formattedPollResults = []
+
+  pollResultsCollection.forEach((pollResultDoc) => {
+    let pollResultJSON = pollResultDoc.data()
+    // let pollResultUserID = pollResultDoc.id
+
+    if (!pollResultJSON.responseMap) { return }
+
+    formattedPollResults.push({timestamp: pollResultJSON.updatedAt, responseMap: pollResultJSON.responseMap})
+    // if (shouldIncludeUserIDs)
+    // {
+    //   formattedPollResults.push({userID: pollResultUserID, timestamp: pollResultJSON.updatedTime, responseMap: pollResultJSON.responseMap})
+    // }
+    // else
+    // {
+    //   formattedPollResults.push({timestamp: pollResultJSON.updatedTime, responseMap: pollResultJSON.responseMap})
+    // }
+  })
+
+  var responseMapKeys = new Set(["timestamp"])
+  formattedPollResults = formattedPollResults.map((pollResponseData) => {
+    Object.keys(pollResponseData.responseMap).forEach((responseMapKey) => {
+      responseMapKeys.add(responseMapKey)
+      pollResponseData[responseMapKey] = pollResponseData.responseMap[responseMapKey]
+    })
+    delete pollResponseData.responseMap
+
+    return pollResponseData
+  })
+  responseMapKeys = Array.from(responseMapKeys)
+
+  formattedPollResults.sort((pollResult1, pollResult2) => pollResult1.timestamp-pollResult2.timestamp)
+
+  var pollResultsCSVParser = new Parser({fields: responseMapKeys})
+  var pollResultsCSV = pollResultsCSVParser.parse(formattedPollResults)
+
+  var pollResultsCSVFilename = "poll-results-" + pollID + ".csv"
+  var csvMessageAttachment = new MessageAttachment(Buffer.from(pollResultsCSV, 'utf-8'), pollResultsCSVFilename)
+  dmChannel.send({
+    files: [csvMessageAttachment]
+  })
 }
