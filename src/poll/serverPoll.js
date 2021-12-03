@@ -147,8 +147,6 @@ async function setupPollQuestionReactionCollector(client, pollID, messageID, upl
       delete pollResponses[currentPollID][user.id][currentQuestionID]
     }
 
-    if (Object.keys(pollResponses[currentPollID][user.id]) == 0) { return }
-
     await uploadPollResponse(currentPollID, user.id, pollResponses[currentPollID][user.id])
   })
 
