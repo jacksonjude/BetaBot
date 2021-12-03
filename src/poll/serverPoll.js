@@ -18,7 +18,7 @@ export const interpretServerPollSetting = async function(client, pollID, pollDat
 
     if (pollDataJSON.messageIDs == null)
     {
-      pollDataJSON.messageIDs = await sendServerVoteMessage(client, pollDataJSON)
+      pollDataJSON.messageIDs = await sendServerVoteMessage(client, pollDataJSON, uploadPollResponse)
     }
     else
     {
