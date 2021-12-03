@@ -35,9 +35,58 @@ const pollsCollectionID = "pollConfigurations"
 const pollResponsesCollectionID = "responses"
 
 const HOME_GUILD_ID = "704218896298934317"
-const technicianRoleName = "technician"
+const TECHNICIAN_ROLE_ID = "804147385923403826"
 
 var firestoreDB
+var firestoreCollectionListeners = []
+const firebaseCollectionSyncHandlers = [
+  {
+    collectionID: roleMessageCollectionID,
+    handleDocFunction: async function(roleSettingDoc) {
+      let roleSettingJSON = roleSettingDoc.data()
+      let roleSettingID = roleSettingDoc.id
+
+      if (await interpretRoleSetting(client, roleSettingID, roleSettingJSON))
+      {
+        roleSettingDoc.set(roleSettingJSON)
+      }
+    }
+  },
+  {
+    collectionID: voiceToTextCollectionID,
+    handleDocFunction: async function(voiceToTextSettingDoc) {
+      let voiceToTextSettingJSON = voiceToTextSettingDoc.data()
+      let voiceToTextGuildID = voiceToTextSettingDoc.id
+      await interpretVoiceToTextChannelSetting(voiceToTextGuildID, voiceToTextSettingJSON["voiceToTextMap"])
+    }
+  },
+  {
+    collectionID: statChannelsCollectionID,
+    handleDocFunction: async function(statSettingDoc) {
+      let statSettingsJSON = statSettingDoc.data()
+      let statSettingsID = statSettingDoc.id
+      await interpretStatsSetting(client, statSettingsID, statSettingsJSON)
+    }
+  },
+  {
+    collectionID: pollsCollectionID,
+    handleDocFunction: async function(pollSettingDoc) {
+      let pollSettingJSON = pollSettingDoc.data()
+      let pollSettingID = pollSettingDoc.id
+      pollSettingJSON = await interpretDMPollSetting(client, pollSettingID, pollSettingJSON, firestoreDB)
+      firestoreDB.doc(pollsCollectionID + "/" + pollSettingID).set(pollSettingJSON)
+    },
+    initFunction: async function() {
+      let pollSettingsCollection = await firestoreDB.collection(pollsCollectionID).get()
+      pollSettingsCollection.forEach(async (pollSettingDoc) => {
+        let pollResponses = await firestoreDB.collection(pollsCollectionID + "/" + pollSettingDoc.id + "/" + pollResponsesCollectionID).get()
+        pollResponses.forEach((pollResponseDoc) => {
+          cleanDMPollResponseMessages(client, pollResponseDoc.id, pollResponseDoc.data())
+        })
+      })
+    }
+  }
+]
 
 // Login Bot
 
@@ -59,47 +108,28 @@ client.on('ready', async () => {
     guild.members.fetch(client.user).then(member => updateNickname(member))
   })
 
+  initFirestoreCollectionListeners()
+})
+
+function initFirestoreCollectionListeners()
+{
   firestoreDB = initFirestore()
 
-  var roleMessageSettings = await firestoreDB.collection(roleMessageCollectionID).get()
-  var voiceToTextChannelSettings = await firestoreDB.collection(voiceToTextCollectionID).get()
-  var statChannelsSettings = await firestoreDB.collection(statChannelsCollectionID).get()
-  var pollsSettings = await firestoreDB.collection(pollsCollectionID).get()
+  firebaseCollectionSyncHandlers.forEach(async (collectionData) => {
+    let collectionRef = firestoreDB.collection(collectionData.collectionID)
 
-  roleMessageSettings.forEach(async (roleSettingDoc) => {
-    let roleSettingJSON = roleSettingDoc.data()
-    let roleSettingID = roleSettingDoc.id
+    firestoreCollectionListeners.push(
+      collectionRef.onSnapshot((settingSnapshot) => {
+        settingSnapshot.docChanges().forEach((docChange) => {
+          console.log("Firestore: " + docChange.type + " " + collectionData.collectionID + "/" + docChange.doc.id)
+          collectionData.handleDocFunction(docChange.doc)
+        })
+      })
+    )
 
-    if (await interpretRoleSetting(client, roleSettingID, roleSettingJSON))
-    {
-      roleSettingDoc.set(roleSettingJSON)
-    }
+    collectionData.initFunction && collectionData.initFunction()
   })
-
-  voiceToTextChannelSettings.forEach(async (voiceToTextSettingDoc) => {
-    let voiceToTextSettingJSON = voiceToTextSettingDoc.data()
-    let voiceToTextGuildID = voiceToTextSettingDoc.id
-    await interpretVoiceToTextChannelSetting(voiceToTextGuildID, voiceToTextSettingJSON["voiceToTextMap"])
-  })
-
-  statChannelsSettings.forEach(async (statSettingDoc) => {
-    let statSettingsJSON = statSettingDoc.data()
-    let statSettingsID = statSettingDoc.id
-    await interpretStatsSetting(client, statSettingsID, statSettingsJSON)
-  })
-
-  pollsSettings.forEach(async (pollSettingDoc) => {
-    let pollSettingJSON = pollSettingDoc.data()
-    let pollSettingID = pollSettingDoc.id
-    pollSettingJSON = await interpretDMPollSetting(client, pollSettingID, pollSettingJSON, firestoreDB)
-    firestoreDB.doc(pollsCollectionID + "/" + pollSettingID).set(pollSettingJSON)
-
-    let pollResponses = await firestoreDB.collection(pollsCollectionID + "/" + pollSettingID + "/" + pollResponsesCollectionID).get()
-    pollResponses.forEach((pollResponseDoc) => {
-      cleanDMPollResponseMessages(client, pollResponseDoc.id, pollResponseDoc.data())
-    })
-  })
-})
+}
 
 // Nickname Enforcement
 
@@ -177,7 +207,7 @@ client.on('messageCreate', async msg => {
     break
   }
 
-  if (!(msg.guildId == HOME_GUILD_ID && msg.member.roles.cache.find(role => role.name == technicianRoleName))) { return }
+  if (!(msg.guildId == HOME_GUILD_ID && msg.member.roles.cache.find(role => role.id == TECHNICIAN_ROLE_ID))) { return }
 
   if (sendRepeatCommand(msg, messageContent)) { return }
   if (sendSpeakCommand(msg, messageContent)) { return }

@@ -4,6 +4,11 @@ const submitResponseEmote = "white_check_mark"
 const pollsCollectionID = "pollConfigurations"
 const pollResponsesCollectionID = "responses"
 
+const ExportAccessType = {
+  user: "user",
+  role: "role"
+}
+
 var pollsData = {}
 var pollResponses = {}
 var pollResponseReactionCollectors = {}
@@ -449,8 +454,8 @@ function checkExportPollResultsRequirements(pollData, member, msg)
     return false
   }
 
-  var userAccessData = pollData.exportAccess.find((userAccess) => userAccess.type == "user" && userAccess.userID == member.user.id)
-  var roleAccessData = pollData.exportAccess.find((roleAccess) => roleAccess.type == "role" && member.roles.cache.has(roleAccess.roleID))
+  var userAccessData = pollData.exportAccess.find((userAccess) => userAccess.type == ExportAccessType.user && userAccess.userID == member.user.id)
+  var roleAccessData = pollData.exportAccess.find((roleAccess) => roleAccess.type == ExportAccessType.role && member.roles.cache.has(roleAccess.roleID))
   var pollHasClosed = Date.now() >= pollData.closeTime.toMillis()
 
   if (!userAccessData && !roleAccessData)
