@@ -62,6 +62,19 @@ export const sendClearCommand = async function(client, msg, messageContent)
 
     return true
   }
+  else if (/^clear\s*(\d*)$/.test(messageContent.toLowerCase()))
+  {
+    let clearMessageAmount = parseInt(/^clear\s*(\d*)$/.exec(messageContent)[1])
+    let dmMessages = await dmChannel.messages.fetch()
+    dmMessages.forEach((message) => {
+      if (clearMessageAmount <= 0) { return }
+      if (message.author.id == client.user.id)
+      {
+        message.delete()
+        clearMessageAmount -= 1
+      }
+    })
+  }
 
   return false
 }
