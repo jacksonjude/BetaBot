@@ -22,7 +22,7 @@ export const interpretDMPollSetting = async function(client, pollID, pollDataJSO
       await editVoteMessage(client, pollDataJSON.voteMessageSettings)
     }
 
-    if (pollDataJSON.voteMessageSettings.messageID != null)
+    if (pollDataJSON.voteMessageSettings.messageID != null && !pollVoteMessageReactionCollectors[pollDataJSON.id])
     {
       var channel = await client.channels.fetch(pollDataJSON.voteMessageSettings.channelID)
       var voteMessage = await channel.messages.fetch(pollDataJSON.voteMessageSettings.messageID)
