@@ -183,11 +183,13 @@ client.on('messageCreate', async msg => {
   var messageContent = msg.content
   if (msg.mentions.members && msg.mentions.members.has(client.user.id))
   {
-    messageContent = messageContent.replace("<@!" + client.user.id + ">", "")
+    messageContent = messageContent.replace(new RegExp("<@!?" + client.user.id + ">"), "")
   }
   else { return }
 
   messageContent = messageContent.replace(/^\s*/, "").replace(/\s*$/, "")
+
+  // console.log("Command from " + msg.author.id + " in " + msg.guildId + " '" + messageContent + "'")
 
   if (sendMessageCommands(msg, messageContent)) { return }
   if (sendDateCommands(msg, messageContent)) { return }
