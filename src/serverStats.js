@@ -146,7 +146,7 @@ async function updateMessageCounts(guild, hoursPerSegment, trackingStartTime, fi
         if (message.author.bot) { continue }
 
         let segmentStartTime = messageCreatedTimestamp-((messageCreatedTimestamp-trackingStartTime)%(hoursPerSegment*60*60*1000))
-        if (previouslyCalculatedSegments.includes(segmentStartTime))
+        if (previouslyCalculatedSegments.includes(segmentStartTime.toString()))
         {
           return true
         }
@@ -190,6 +190,7 @@ async function updateMessageCounts(guild, hoursPerSegment, trackingStartTime, fi
 
   for (let messageCountSegmentTime in updatedMessageCountSegments)
   {
+    console.log("Message Counts: Add segment " + messageCountSegmentTime + " (" + new Date(parseInt(messageCountSegmentTime)) + ") in " + guild.name)
     await firestoreDB.doc(messageCountsCollectionPath + "/" + messageCountSegmentTime).set(updatedMessageCountSegments[messageCountSegmentTime])
   }
 }
