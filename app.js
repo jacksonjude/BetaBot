@@ -16,8 +16,8 @@ const client = new Client({ intents: [
 // PARTIALS: https://github.com/discordjs/discord.js/issues/4980#issuecomment-723519865
 
 import { loginBot, printLoginMessage, prepareBotLogout, rebootBot } from "./src/login.js"
-import { sendMessageResponses } from "./src/responses.js"
-import { sendDateCommands, sendMessageCommands, sendClearCommand, sendRepeatCommand, sendSpeakCommand } from "./src/commands.js"
+import { sendMessageResponses } from "./src/messageResponses.js"
+import { sendDateCommands, sendMessageCommands, sendEmoteSpellCommand, sendClearCommand, sendRepeatCommand, sendSpeakCommand } from "./src/miscCommands.js"
 
 import { sendExportPollResultsCommand, executeExportPollResultsCommand } from "./src/poll/sharedPoll.js"
 import { interpretDMPollSetting, cleanDMPollResponseMessages, sendDMVoteCommand, executeDMVoteCommand } from "./src/poll/dmPoll.js"
@@ -193,6 +193,7 @@ client.on('messageCreate', async msg => {
 
   if (sendMessageCommands(msg, messageContent)) { return }
   if (sendDateCommands(msg, messageContent)) { return }
+  if (sendEmoteSpellCommand(msg, messageContent))
 
   if (await sendClearCommand(client, msg, messageContent)) { return }
 
