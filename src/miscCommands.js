@@ -250,7 +250,11 @@ export const sendEmoteSpellCommand = async function(msg, messageContent)
 
       await msg.channel.send(spaceLineMessage)
     }
+
+    return true
   }
+
+  return false
 }
 
 export const sendClearCommand = async function(client, msg, messageContent)
@@ -269,7 +273,7 @@ export const sendClearCommand = async function(client, msg, messageContent)
 
     return true
   }
-  else if (/^clear\s*(\d*)$/.test(messageContent.toLowerCase()))
+  else if (/^clear\s+(\d*)$/.test(messageContent.toLowerCase()))
   {
     let clearMessageAmount = parseInt(/^clear\s*(\d*)$/.exec(messageContent)[1])
     let dmMessages = await dmChannel.messages.fetch()
@@ -288,9 +292,9 @@ export const sendClearCommand = async function(client, msg, messageContent)
 
 export const sendRepeatCommand = function(msg, messageContent)
 {
-  if (/^repeat\s*(\d*)$/.test(messageContent.toLowerCase()))
+  if (/^repeat\s+(\d+)$/.test(messageContent.toLowerCase()))
   {
-    var multiplier = parseInt(/^repeat\s*(\d*)$/.exec(messageContent)[1]) || 1 //parseInt(messageContent.replace("repeat", "")) || 1
+    var multiplier = parseInt(/^repeat\s+(\d+)$/.exec(messageContent)[1]) || 1 //parseInt(messageContent.replace("repeat", "")) || 1
     var messageArray = msg.channel.messages.cache.array()
     if (messageArray.length >= 2)
     {

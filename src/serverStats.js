@@ -111,7 +111,7 @@ async function updateStatChannelName(guild, channelID, statValue)
   await channelToUpdate.setName(newChannelName)
 }
 
-async function updateMessageCounts(guild, hoursPerSegment, trackingStartTime, firestoreDB)
+async function updateMessageCounts(guild, hoursPerSegment, trackingStartTime, firestoreDB, verbose)
 {
   let messageCountsCollectionPath = statChannelsCollectionID + "/" + guild.id + "/" + "messageCounts"
   let previousMessageCounts = await firestoreDB.collection(messageCountsCollectionPath).get()
@@ -146,6 +146,10 @@ async function updateMessageCounts(guild, hoursPerSegment, trackingStartTime, fi
         if (message.author.bot) { continue }
 
         let segmentStartTime = messageCreatedTimestamp-((messageCreatedTimestamp-trackingStartTime)%(hoursPerSegment*60*60*1000))
+        if (segmentStartTime+hoursPerSegment*60*60*1000 > Date.now())
+        {
+          continue
+        }
         if (previouslyCalculatedSegments.includes(segmentStartTime.toString()))
         {
           return true
@@ -167,10 +171,13 @@ async function updateMessageCounts(guild, hoursPerSegment, trackingStartTime, fi
     }
 
     let shouldBreakMessageLoop = false
-    // let fetchedMessageCount = channelMessages.size
+    let fetchedMessageCount = channelMessages.size
     while (channelMessages.size > 0 && !shouldBreakMessageLoop)
     {
-      // console.log("Message Counts: " + channel.id + " (count = " + fetchedMessageCount + ", time = " + channelMessages.last().createdAt.getTime() + ")")
+      if (verbose)
+      {
+        console.log("Message Counts: " + channel.id + " (count = " + fetchedMessageCount + ", time = " + channelMessages.last().createdAt.getTime() + ")")
+      }
       shouldBreakMessageLoop = await processMessages(channelMessages.values())
 
       if (channelMessages.size > 0 && channelMessages.last().id)
@@ -178,7 +185,7 @@ async function updateMessageCounts(guild, hoursPerSegment, trackingStartTime, fi
         try
         {
           channelMessages = await channel.messages.fetch({before: channelMessages.last().id, limit: 100})
-          // fetchedMessageCount += channelMessages.size
+          fetchedMessageCount += channelMessages.size
         }
         catch
         {
@@ -193,4 +200,133 @@ async function updateMessageCounts(guild, hoursPerSegment, trackingStartTime, fi
     console.log("Message Counts: Add segment " + messageCountSegmentTime + " (" + new Date(parseInt(messageCountSegmentTime)) + ") in " + guild.name)
     await firestoreDB.doc(messageCountsCollectionPath + "/" + messageCountSegmentTime).set(updatedMessageCountSegments[messageCountSegmentTime])
   }
+}
+
+export const sendMessageCountsUpdateCommand = async function(msg, messageContent, firestoreDB)
+{
+  const updateMessageCountsRegex = /^updateleaderboard$/
+
+  if (updateMessageCountsRegex.test(messageContent) && statsData[msg.guildId] && statsData[msg.guildId].messageCounts)
+  {
+    let guild = await msg.guild.fetch()
+    let messageCountsData = statsData[msg.guildId].messageCounts
+
+    updateMessageCounts(guild, messageCountsData.hours, messageCountsData.startTime.toMillis(), firestoreDB, true)
+
+    return true
+  }
+
+  return false
+}
+
+export const sendMessageCountsLeaderboardCommand = async function(client, msg, messageContent, firestoreDB)
+{
+  const leaderboardCommandRegex = /^leaderboard(\s+(\w+))?(\s+([\d\/]+)\s+([\d\/]+))?$/
+
+  if (leaderboardCommandRegex.test(messageContent.toLowerCase()) && statsData[msg.guildId] && statsData[msg.guildId].messageCounts)
+  {
+    let messageCountsData = statsData[msg.guildId].messageCounts
+
+    let commandGroups = leaderboardCommandRegex.exec(messageContent)
+    let leaderboardToShow = commandGroups[2]
+
+    let messageCountsCollection = await firestoreDB.collection(statChannelsCollectionID + "/" + msg.guildId + "/" + "messageCounts").get()
+
+    let currentTime = Date.now()
+
+    let isAllTime = false
+    let segmentSumType
+    let segmentSumTimeRange = {start: messageCountsData.startTime, end: currentTime, startString: null, endString: null}
+
+    if (messageCountsData.segmentSums)
+    {
+      segmentSumType = statsData[msg.guildId].messageCounts.segmentSums.find((segmentSumType) => segmentSumType.key == leaderboardToShow)
+
+      if (segmentSumType)
+      {
+        segmentSumTimeRange.start = currentTime-((currentTime-messageCountsData.startTime.toMillis())%(messageCountsData.hours*60*60*1000))-(segmentSumType.count*messageCountsData.hours*60*60*1000)
+        segmentSumTimeRange.end = currentTime
+      }
+    }
+
+    if (!segmentSumType && commandGroups[4] && commandGroups[5])
+    {
+      segmentSumTimeRange.startString = commandGroups[4]
+      segmentSumTimeRange.endString = commandGroups[5]
+
+      let startDateParts = segmentSumTimeRange.startString.split("/")
+      let endDateParts = segmentSumTimeRange.endString.split("/")
+
+      if (startDateParts.length != 3 || endDateParts.length != 3) { return false }
+
+      let startDate = new Date(parseInt(startDateParts[2]), parseInt(startDateParts[0]-1), parseInt(startDateParts[1]))
+      let endDate = new Date(parseInt(endDateParts[2]), parseInt(endDateParts[0]-1), parseInt(endDateParts[1]))
+
+      if (startDate.getTime() == NaN || endDate.getTime() == NaN) { return false }
+
+      segmentSumTimeRange.start = startDate.getTime()
+      segmentSumTimeRange.end = endDate.getTime()
+
+      console.log(startDate.getTime(), endDate.getTime())
+    }
+    else if (!segmentSumType)
+    {
+      isAllTime = true
+    }
+
+    let sortedMessageCountsDocs = messageCountsCollection.docs.sort((doc1, doc2) => parseInt(doc2.id)-parseInt(doc1.id))
+
+    let summedMessageCounts = {}
+    for (let docSnapshot of sortedMessageCountsDocs)
+    {
+      if (parseInt(docSnapshot.id) < segmentSumTimeRange.start || parseInt(docSnapshot.id) > segmentSumTimeRange.end) { continue }
+
+      let messageCountsSegment = docSnapshot.data()
+      for (let userID of Object.keys(messageCountsSegment))
+      {
+        if (!summedMessageCounts[userID])
+        {
+          summedMessageCounts[userID] = 0
+        }
+        summedMessageCounts[userID] += messageCountsSegment[userID]
+      }
+    }
+
+    let sortedSummedMessageCounts = []
+    for (let userID of Object.keys(summedMessageCounts))
+    {
+      sortedSummedMessageCounts.push({id: userID, count: summedMessageCounts[userID]})
+    }
+    sortedSummedMessageCounts.sort((messageCount1, messageCount2) => messageCount2.count-messageCount1.count)
+
+    let guild = await client.guilds.fetch(msg.guildId)
+
+    let leaderboardMessage = "__** Leaderboard (" + (segmentSumType ? segmentSumType.name : (isAllTime ? "All-Time" : (segmentSumTimeRange.startString + " to " + segmentSumTimeRange.endString))) + ")**__"
+    for (let messageCountPairIndex in sortedSummedMessageCounts)
+    {
+      leaderboardMessage += "\n"
+
+      let guildName = "[[RIP]]"
+      try
+      {
+        guildName = (await guild.members.fetch(sortedSummedMessageCounts[messageCountPairIndex].id)).displayName
+      }
+      catch
+      {
+        try
+        {
+          guildName = (await client.users.fetch(sortedSummedMessageCounts[messageCountPairIndex].id)).username
+        }
+        catch {}
+      }
+
+      let messageCount = sortedSummedMessageCounts[messageCountPairIndex].count
+      leaderboardMessage += "**" + (parseInt(messageCountPairIndex)+1) + "**  " + guildName + "  (" + messageCount + ")"
+    }
+    msg.channel.send(leaderboardMessage)
+
+    return true
+  }
+
+  return false
 }

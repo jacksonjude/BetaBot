@@ -27,7 +27,7 @@ import { sendExportPollResultsCommand, executeExportPollResultsCommand } from ".
 import { sendDMVoteCommand, executeDMVoteCommand } from "./src/poll/dmPoll.js"
 
 import { setupVoiceChannelEventHandler } from "./src/linkedTextChannels.js"
-import { setupMemberStatsEventHandlers } from "./src/serverStats.js"
+import { setupMemberStatsEventHandlers, sendMessageCountsUpdateCommand, sendMessageCountsLeaderboardCommand } from "./src/serverStats.js"
 
 import { initFirestore, initFirestoreCollectionListeners } from "./src/firebase.js"
 
@@ -139,6 +139,8 @@ client.on('messageCreate', async msg => {
     return
   }
 
+  if (await sendMessageCountsLeaderboardCommand(client, msg, messageContent, firestoreDB)) { return }
+
   switch (messageContent)
   {
     case "info":
@@ -149,6 +151,10 @@ client.on('messageCreate', async msg => {
     msg.channel.send("pong")
     break
   }
+
+  if (!msg.author.id == CREATOR_USER_ID) { return }
+
+  if (sendMessageCountsUpdateCommand(msg, messageContent, firestoreDB)) { return }
 
   if (!(msg.guildId == HOME_GUILD_ID && msg.member.roles.cache.find(role => role.id == TECHNICIAN_ROLE_ID))) { return }
 

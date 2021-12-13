@@ -116,7 +116,7 @@ const firebaseCollectionSyncHandlers = [
 
 export const initFirestoreCollectionListeners = function(firestoreDB, client)
 {
-  firebaseCollectionSyncHandlers.forEach(async (collectionData) => {
+  firebaseCollectionSyncHandlers.forEach((collectionData) => {
     let collectionRef = firestoreDB.collection(collectionData.collectionID)
 
     firestoreCollectionListeners.push(
