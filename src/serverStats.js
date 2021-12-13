@@ -306,22 +306,24 @@ export const sendMessageCountsLeaderboardCommand = async function(client, msg, m
     {
       leaderboardMessage += "\n"
 
-      let guildName = "[[RIP]]"
+      let userName = "[[RIP]]"
+      let guildName
+
       try
       {
         guildName = (await guild.members.fetch(sortedSummedMessageCounts[messageCountPairIndex].id)).displayName
       }
       catch
+      {}
+
+      try
       {
-        try
-        {
-          guildName = (await client.users.fetch(sortedSummedMessageCounts[messageCountPairIndex].id)).username
-        }
-        catch {}
+        userName = (await client.users.fetch(sortedSummedMessageCounts[messageCountPairIndex].id)).username
       }
+      catch {}
 
       let messageCount = sortedSummedMessageCounts[messageCountPairIndex].count
-      leaderboardMessage += "**" + (parseInt(messageCountPairIndex)+1) + "**  " + guildName + "  (" + messageCount + ")"
+      leaderboardMessage += "**#" + (parseInt(messageCountPairIndex)+1) + "**  " + (guildName ?? userName) + (guildName && userName != guildName ? " (aka *" + userName + "*)" : "") + " — *" + messageCount + "*"
     }
     msg.channel.send(leaderboardMessage)
 
