@@ -1,10 +1,13 @@
 const messageCommands = [
   { command: "hi", responses: ["hello :wave:"] },
-  { command: "cook", responses: ["🍕", "🍿", "🍤", "🍣", "🍪", "🍣", "🍔", "🥐", "🥓", "🍱", "🍩", "🍰", "🍳", "🧇", "🥨", "🥞", "🍉", "🥫", "🌮", "🌭", "🥪", "🍚", "🥠"] },
+  { command: "cook", responses: ["🍕", "🍿", "🍤", "🍣", "🍪", "🍣", "🍔", "🥐", "🥓", "🍱", "🍩", "🍰", "🍳", "🧇", "🥨", "https://i.imgur.com/LOoSSoK.jpeg", "🍉", "🥫", "🌮", "🌭", "🥪", "🍚", "🥠"] },
   { command: "roast me", responses: ["nah bro"] },
   { command: "thanks", responses: ["ofc bro", "np", "dont mention it", "thank you!", ":)", "you\'re welcome"] },
   { command: "make it rain", responses: ["\\*in british\\* £££9739797210100000000", ":chart_with_upwards_trend: *støønks*"] },
-  { command: "sad", responses: ["\\:("] }
+  { command: "sad", responses: ["\\:("] },
+  { command: "flip", responses: [":b:", ":robot:"] },
+  { command: "d6", responses: [":one:", ":two:", ":three:", ":four:", ":five:", ":six:"] },
+  { command: "d20", responses: [":one:", ":two:", ":three:", ":four:", ":five:", ":six:", ":seven:", ":eight:", ":nine:", ":one::zero:", ":one::one:", ":one::two:", ":one::three:", ":one::four:", ":one::five:", ":one::six:", ":one::seven:", ":one::eight:", ":one::nine:", ":two::zero:"] }
 ]
 
 const dates = [
