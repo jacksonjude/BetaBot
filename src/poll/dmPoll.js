@@ -60,6 +60,45 @@ export const interpretDMPollSetting = async function(client, pollID, pollDataJSO
   return pollDataJSON
 }
 
+export const removeDMPollSetting = async function(client, pollID, pollDataJSON)
+{
+  if (pollDataJSON.voteMessageSettings != null && pollDataJSON.voteMessageSettings.channelID != null && pollDataJSON.voteMessageSettings.messageID != null)
+  {
+    var channel = await client.channels.fetch(pollDataJSON.voteMessageSettings.channelID)
+    var message = await channel.messages.fetch(pollDataJSON.voteMessageSettings.messageID)
+
+    await message.delete()
+  }
+
+  if (pollVoteMessageReactionCollectors[pollID])
+  {
+    pollVoteMessageReactionCollectors[pollID].stop()
+    delete pollVoteMessageReactionCollectors[pollID]
+  }
+
+  if (pollsMessageIDs[pollID])
+  {
+    delete pollsMessageIDs[pollID]
+  }
+
+  if (pollResponseReactionCollectors[pollID])
+  {
+    for (let responseReactionCollectors of Object.values(pollResponseReactionCollectors[pollID]))
+    {
+      for (let responseReactionCollector of responseReactionCollectors)
+      {
+        responseReactionCollector.stop()
+      }
+    }
+    delete pollResponseReactionCollectors[pollID]
+  }
+
+  if (pollsData[pollID])
+  {
+    delete pollsData[pollID]
+  }
+}
+
 async function sendVoteMessage(client, voteMessageSettings)
 {
   var channel = await client.channels.fetch(voteMessageSettings.channelID)

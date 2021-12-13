@@ -35,6 +35,38 @@ export const interpretServerPollSetting = async function(client, pollID, pollDat
   return pollDataJSON
 }
 
+export const removeServerPollSetting = async function(client, pollID, pollDataJSON)
+{
+  if (pollDataJSON.channelID != null && pollDataJSON.messageIDs != null)
+  {
+    var channel = await client.channels.fetch(pollDataJSON.channelID)
+    for (let messageID of pollDataJSON.messageIDs)
+    {
+      var message = await channel.messages.fetch(messageID)
+      await message.delete()
+    }
+  }
+
+  if (pollsMessageIDs[pollID])
+  {
+    delete pollsMessageIDs[pollID]
+  }
+
+  if (pollResponseReactionCollectors[pollID])
+  {
+    for (let responseReactionCollector of Object.values(pollResponseReactionCollectors[pollID]))
+    {
+      responseReactionCollector.stop()
+    }
+    delete pollResponseReactionCollectors[pollID]
+  }
+
+  if (pollsData[pollID])
+  {
+    delete pollsData[pollID]
+  }
+}
+
 async function sendServerVoteMessage(client, pollData, uploadPollResponse)
 {
   var pollChannel = await client.channels.fetch(pollData.channelID)

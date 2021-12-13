@@ -29,14 +29,14 @@ async function setRole(user, guild, roleName, shouldAddRole)
 
 import emojiConverter from 'node-emoji'
 
-var roleAddMessageData = []
+var roleAddMessageData = {}
 var roleReationCollectors = {}
 
 export const interpretRoleSetting = async function(client, roleSettingID, roleSettingJSON)
 {
   if (roleSettingJSON.channelID == null) { return }
 
-  roleAddMessageData.push(roleSettingJSON)
+  roleAddMessageData[roleSettingID] = roleSettingJSON
 
   var updateSettingInDatabase = false
 
@@ -74,6 +74,28 @@ export const interpretRoleSetting = async function(client, roleSettingID, roleSe
   }
 
   return updateSettingInDatabase
+}
+
+export const removeRoleSetting = async function(client, roleSettingID, roleSettingJSON)
+{
+  if (roleSettingJSON.messageID)
+  {
+    var channel = await client.channels.fetch(roleSettingJSON.channelID)
+    var message = await channel.messages.fetch(roleSettingJSON.messageID)
+
+    await message.delete()
+  }
+
+  if (roleAddMessageData[roleSettingID])
+  {
+    delete roleAddMessageData[roleSettingID]
+  }
+
+  if (roleReationCollectors[roleSettingID])
+  {
+    roleReationCollectors[roleSettingID].stop()
+    delete roleReationCollectors[roleSettingID]
+  }
 }
 
 async function sendRoleAddMessage(client, roleDataJSON)
@@ -142,7 +164,7 @@ async function handleRoleReaction(client, reaction, user, action)
 {
   if (user.id == client.user.id) { return false }
 
-  var roleData = roleAddMessageData.find((roleData) => roleData.messageID == reaction.message.id)
+  var roleData = Object.values(roleAddMessageData).find((roleData) => roleData.messageID == reaction.message.id)
 
   if (!roleData) { return false }
 

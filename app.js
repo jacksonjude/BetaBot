@@ -15,90 +15,26 @@ const client = new Client({ intents: [
 
 // PARTIALS: https://github.com/discordjs/discord.js/issues/4980#issuecomment-723519865
 
+// import { REST } from '@discordjs/rest'
+// import { Routes } from 'discord-api-types/v9'
+// const rest = new REST({ version: '9' }).setToken(process.env.DISCORD_TOKEN)
+
 import { loginBot, printLoginMessage, prepareBotLogout, rebootBot } from "./src/login.js"
 import { sendMessageResponses } from "./src/messageResponses.js"
 import { sendDateCommands, sendMessageCommands, sendEmoteSpellCommand, sendClearCommand, sendRepeatCommand, sendSpeakCommand } from "./src/miscCommands.js"
 
 import { sendExportPollResultsCommand, executeExportPollResultsCommand } from "./src/poll/sharedPoll.js"
-import { interpretDMPollSetting, cleanDMPollResponseMessages, sendDMVoteCommand, executeDMVoteCommand } from "./src/poll/dmPoll.js"
-import { interpretServerPollSetting } from "./src/poll/serverPoll.js"
+import { sendDMVoteCommand, executeDMVoteCommand } from "./src/poll/dmPoll.js"
 
-import { interpretRoleSetting } from "./src/roleMessages.js"
-import { interpretVoiceToTextChannelSetting, setupVoiceChannelEventHandler } from "./src/linkedTextChannels.js"
-import { interpretStatsSetting, setupMemberStatsEventHandlers } from "./src/serverStats.js"
+import { setupVoiceChannelEventHandler } from "./src/linkedTextChannels.js"
+import { setupMemberStatsEventHandlers } from "./src/serverStats.js"
 
-import { initFirestore } from "./src/firebase.js"
-
-const roleMessageCollectionID = "roleMessageConfigurations"
-const voiceToTextCollectionID = "voiceToTextConfigurations"
-const statChannelsCollectionID = "statsConfigurations"
-const pollsCollectionID = "pollConfigurations"
-const pollResponsesCollectionID = "responses"
+import { initFirestore, initFirestoreCollectionListeners } from "./src/firebase.js"
 
 const HOME_GUILD_ID = "704218896298934317"
 const TECHNICIAN_ROLE_ID = "804147385923403826"
 
 var firestoreDB
-var firestoreCollectionListeners = []
-const firebaseCollectionSyncHandlers = [
-  {
-    collectionID: roleMessageCollectionID,
-    handleDocFunction: async function(roleSettingDoc) {
-      let roleSettingJSON = roleSettingDoc.data()
-      let roleSettingID = roleSettingDoc.id
-
-      if (await interpretRoleSetting(client, roleSettingID, roleSettingJSON))
-      {
-        roleSettingDoc.set(roleSettingJSON)
-      }
-    }
-  },
-  {
-    collectionID: voiceToTextCollectionID,
-    handleDocFunction: async function(voiceToTextSettingDoc) {
-      let voiceToTextSettingJSON = voiceToTextSettingDoc.data()
-      let voiceToTextGuildID = voiceToTextSettingDoc.id
-      await interpretVoiceToTextChannelSetting(voiceToTextGuildID, voiceToTextSettingJSON["voiceToTextMap"])
-    }
-  },
-  {
-    collectionID: statChannelsCollectionID,
-    handleDocFunction: async function(statSettingDoc) {
-      let statSettingsJSON = statSettingDoc.data()
-      let statSettingsID = statSettingDoc.id
-      await interpretStatsSetting(client, statSettingsID, statSettingsJSON)
-    }
-  },
-  {
-    collectionID: pollsCollectionID,
-    handleDocFunction: async function(pollSettingDoc) {
-      let pollSettingJSON = pollSettingDoc.data()
-      let pollSettingID = pollSettingDoc.id
-
-      switch (pollSettingJSON.pollType)
-      {
-        case "dm":
-        pollSettingJSON = await interpretDMPollSetting(client, pollSettingID, pollSettingJSON, firestoreDB)
-        break
-
-        case "server":
-        pollSettingJSON = await interpretServerPollSetting(client, pollSettingID, pollSettingJSON, firestoreDB)
-        break
-      }
-
-      firestoreDB.doc(pollsCollectionID + "/" + pollSettingID).set(pollSettingJSON)
-    },
-    initFunction: async function() {
-      let pollSettingsCollection = await firestoreDB.collection(pollsCollectionID).get()
-      pollSettingsCollection.forEach(async (pollSettingDoc) => {
-        let pollResponses = await firestoreDB.collection(pollsCollectionID + "/" + pollSettingDoc.id + "/" + pollResponsesCollectionID).get()
-        pollResponses.forEach((pollResponseDoc) => {
-          cleanDMPollResponseMessages(client, pollResponseDoc.id, pollResponseDoc.data())
-        })
-      })
-    }
-  }
-]
 
 // Login Bot
 
@@ -120,27 +56,19 @@ client.on('ready', async () => {
     guild.members.fetch(client.user).then(member => updateNickname(member))
   })
 
-  initFirestoreCollectionListeners()
+  firestoreDB = initFirestore()
+  initFirestoreCollectionListeners(firestoreDB, client)
+
+  registerSlashCommands()
 })
 
-function initFirestoreCollectionListeners()
+async function registerSlashCommands()
 {
-  firestoreDB = initFirestore()
+  // var commands = []
 
-  firebaseCollectionSyncHandlers.forEach(async (collectionData) => {
-    let collectionRef = firestoreDB.collection(collectionData.collectionID)
-
-    firestoreCollectionListeners.push(
-      collectionRef.onSnapshot((settingSnapshot) => {
-        settingSnapshot.docChanges().forEach((docChange) => {
-          console.log("Firestore: " + docChange.type + " " + collectionData.collectionID + "/" + docChange.doc.id)
-          collectionData.handleDocFunction(docChange.doc)
-        })
-      })
-    )
-
-    collectionData.initFunction && collectionData.initFunction()
-  })
+  // await rest.put(Routes.applicationGuildCommands(client.id, HOME_GUILD_ID), { body: commands })
+	// .then(() => console.log('Successfully registered application commands.'))
+	// .catch(console.error)
 }
 
 // Nickname Enforcement
