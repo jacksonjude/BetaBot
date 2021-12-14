@@ -24,36 +24,7 @@ export const interpretDMPollSetting = async function(client, pollID, pollDataJSO
 
     if (pollDataJSON.voteMessageSettings.messageID != null && !pollVoteMessageReactionCollectors[pollDataJSON.id])
     {
-      var channel = await client.channels.fetch(pollDataJSON.voteMessageSettings.channelID)
-      var voteMessage = await channel.messages.fetch(pollDataJSON.voteMessageSettings.messageID)
-
-      var voteReactionCollector = voteMessage.createReactionCollector({ catchAllFilter })
-      voteReactionCollector.on('collect', async (reaction, user) => {
-        if (user.id == client.user.id) { return }
-        if (reaction.emoji.name != voteMessageEmoji)
-        {
-          try
-          {
-            await reaction.users.remove(user.id)
-          }
-          catch {}
-          return
-        }
-
-        await user.fetch()
-        if (!checkVoteRequirements(pollDataJSON, channel.guildId, channel.members.get(user.id)))
-        {
-          try
-          {
-            await reaction.users.remove(user.id)
-          }
-          catch {}
-          return
-        }
-        executeDMVoteCommand(client, user, pollID, firestoreDB)
-      })
-
-      pollVoteMessageReactionCollectors[pollDataJSON.id] = voteReactionCollector
+      await setupVoteMessageReactionCollector(client, pollDataJSON, firestoreDB)
     }
   }
 
@@ -127,6 +98,40 @@ async function editVoteMessage(client, voteMessageSettings)
   {
     await sendVoteMessage(client, voteMessageSettings)
   }
+}
+
+async function setupVoteMessageReactionCollector(client, pollDataJSON, firestoreDB)
+{
+  var channel = await client.channels.fetch(pollDataJSON.voteMessageSettings.channelID)
+  var voteMessage = await channel.messages.fetch(pollDataJSON.voteMessageSettings.messageID)
+
+  var voteReactionCollector = voteMessage.createReactionCollector({ catchAllFilter })
+  voteReactionCollector.on('collect', async (reaction, user) => {
+    if (user.id == client.user.id) { return }
+    if (reaction.emoji.name != voteMessageEmoji)
+    {
+      try
+      {
+        await reaction.users.remove(user.id)
+      }
+      catch {}
+      return
+    }
+
+    await user.fetch()
+    if (!checkVoteRequirements(pollDataJSON, channel.guildId, channel.members.get(user.id)))
+    {
+      try
+      {
+        await reaction.users.remove(user.id)
+      }
+      catch {}
+      return
+    }
+    executeDMVoteCommand(client, user, pollID, firestoreDB)
+  })
+
+  pollVoteMessageReactionCollectors[pollDataJSON.id] = voteReactionCollector
 }
 
 export const cleanDMPollResponseMessages = async function(client, userID, pollResponseData)

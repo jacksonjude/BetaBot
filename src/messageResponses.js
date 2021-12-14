@@ -16,7 +16,7 @@ export const sendMessageResponses = function(msg)
       var index = Math.floor((Math.random() * messageResponses[responseNum].responses.length))
       if (msg.author.bot)
       {
-        msg.channel.send("shut")
+        msg.channel.send("https://cdn.discordapp.com/emojis/823952129394868334.png?size=240")
       }
       else
       {

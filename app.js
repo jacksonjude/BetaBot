@@ -100,12 +100,6 @@ client.on('messageCreate', async msg => {
     return
   }
 
-  if (client.user.presence.status === "idle")
-  {
-    client.user.setPresence({status: "online"})
-    msg.channel.send("\\*yawn\\*")
-  }
-
   if (sendMessageResponses(msg)) { return }
 
   var messageContent = msg.content
@@ -116,14 +110,20 @@ client.on('messageCreate', async msg => {
   }
   else { return }
 
+  if (client.user.presence.status === "idle")
+  {
+    client.user.setPresence({status: "online"})
+    msg.channel.send("\\*yawn\\*")
+  }
+
   messageContent = messageContent.replace(/^\s*/, "").replace(/\s*$/, "")
 
   // console.log("Command from " + msg.author.id + " in " + msg.guildId + " '" + messageContent + "'")
 
   if (sendMessageCommands(msg, messageContent)) { return }
   if (sendDateCommands(msg, messageContent)) { return }
-  if (sendEmoteSpellCommand(msg, messageContent))
 
+  if (await sendEmoteSpellCommand(msg, messageContent)) { return }
   if (await sendClearCommand(client, msg, messageContent)) { return }
 
   let pollID = await sendDMVoteCommand(msg, messageContent)
