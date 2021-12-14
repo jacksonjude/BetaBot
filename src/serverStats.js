@@ -335,6 +335,7 @@ export const sendMessageCountsLeaderboardCommand = async function(client, msg, m
     {
       sortedSummedMessageCounts.push({id: userID, count: summedMessageCounts[userID]})
     }
+    sortedSummedMessageCounts.sort((messageCount1, messageCount2) => messageCount1.id-messageCount2.id)
     sortedSummedMessageCounts.sort((messageCount1, messageCount2) => messageCount2.count-messageCount1.count)
 
     let guild = await client.guilds.fetch(msg.guildId)
@@ -364,7 +365,16 @@ export const sendMessageCountsLeaderboardCommand = async function(client, msg, m
       catch {}
 
       let messageCount = sortedSummedMessageCounts[messageCountPairIndex].count
-      leaderboardMessage += "**#" + (parseInt(messageCountPairIndex)+1) + "**  *(" + messageCount + ")*  " + (shouldUseMentions && guildName ? "<@" + userID + ">" : (!shouldUseMentions && guildName ? guildName : userTag))
+      let nextMessageCount
+      let placementIndex = parseInt(messageCountPairIndex)+1
+      do
+      {
+        placementIndex -= 1
+        nextMessageCount = placementIndex-1 >= 0 ? sortedSummedMessageCounts[placementIndex-1].count : null
+      }
+      while (nextMessageCount && messageCount == nextMessageCount)
+
+      leaderboardMessage += "**#" + (parseInt(placementIndex)+1) + "**  *(" + messageCount + ")*  " + (shouldUseMentions && guildName ? "<@" + userID + ">" : (!shouldUseMentions && guildName ? guildName : userTag))
     }
     msg.channel.send({
       "content": leaderboardMessage,
