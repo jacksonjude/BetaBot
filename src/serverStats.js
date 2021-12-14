@@ -243,16 +243,20 @@ export const sendMessageCountsUpdateCommand = async function(msg, messageContent
   return false
 }
 
+Date.prototype.toDMYString = function() {
+  return (this.getMonth()+1) + "/" + this.getDate() + "/" + this.getFullYear()
+}
+
 export const sendMessageCountsLeaderboardCommand = async function(client, msg, messageContent, firestoreDB)
 {
-  const leaderboardCommandRegex = /^leaderboard(\s+(\w+))?(\s+([\d\/]+)\s+([\d\/]+))?$/
+  const leaderboardCommandRegex = /^leaderboard(\s+(false|true))?(\s+(\w+))?(\s+([\d\/]+))?(\s+([\d\/]+))?$/
 
   if (leaderboardCommandRegex.test(messageContent.toLowerCase()) && statsData[msg.guildId] && statsData[msg.guildId].messageCounts)
   {
     let messageCountsData = statsData[msg.guildId].messageCounts
 
     let commandGroups = leaderboardCommandRegex.exec(messageContent)
-    let leaderboardToShow = commandGroups[2]
+    let leaderboardToShow = commandGroups[4]
 
     let messageCountsCollection = await firestoreDB.collection(statChannelsCollectionID + "/" + msg.guildId + "/" + "messageCounts").get()
 
@@ -269,14 +273,17 @@ export const sendMessageCountsLeaderboardCommand = async function(client, msg, m
       if (segmentSumType)
       {
         segmentSumTimeRange.start = currentTime-((currentTime-messageCountsData.startTime.toMillis())%(messageCountsData.hours*60*60*1000))-(segmentSumType.count*messageCountsData.hours*60*60*1000)
-        segmentSumTimeRange.end = currentTime
+        segmentSumTimeRange.startString = new Date(segmentSumTimeRange.start).toDMYString()
       }
+
+      segmentSumTimeRange.end = currentTime-((currentTime-messageCountsData.startTime.toMillis())%(messageCountsData.hours*60*60*1000))
+      segmentSumTimeRange.endString = new Date(segmentSumTimeRange.end).toDMYString()
     }
 
-    if (!segmentSumType && commandGroups[4] && commandGroups[5])
+    if (!segmentSumType && commandGroups[6])
     {
-      segmentSumTimeRange.startString = commandGroups[4]
-      segmentSumTimeRange.endString = commandGroups[5]
+      segmentSumTimeRange.startString = commandGroups[6]
+      segmentSumTimeRange.endString = commandGroups[8] ?? commandGroups[6]
 
       let startDateParts = segmentSumTimeRange.startString.split("/")
       let endDateParts = segmentSumTimeRange.endString.split("/")
@@ -286,18 +293,21 @@ export const sendMessageCountsLeaderboardCommand = async function(client, msg, m
       let startDate = new Date(parseInt(startDateParts[2]), parseInt(startDateParts[0])-1, parseInt(startDateParts[1]))
       let endDate = new Date(parseInt(endDateParts[2]), parseInt(endDateParts[0])-1, parseInt(endDateParts[1]))
 
-      console.log(startDate, endDate)
-
       if (startDate.getTime() == NaN || endDate.getTime() == NaN) { return false }
 
       segmentSumTimeRange.start = startDate.getTime()
       segmentSumTimeRange.end = endDate.getTime()
-
-      console.log(startDate.getTime(), endDate.getTime())
     }
     else if (!segmentSumType)
     {
       isAllTime = true
+      segmentSumTimeRange.startString = new Date(messageCountsData.startTime.toMillis()).toDMYString()
+    }
+
+    let shouldUseMentions = true
+    if (commandGroups[2] == "false")
+    {
+      shouldUseMentions = false
     }
 
     await msg.channel.sendTyping()
@@ -329,7 +339,7 @@ export const sendMessageCountsLeaderboardCommand = async function(client, msg, m
 
     let guild = await client.guilds.fetch(msg.guildId)
 
-    let leaderboardMessage = "__** Leaderboard (" + (segmentSumType ? segmentSumType.name : (isAllTime ? "All-Time" : (segmentSumTimeRange.startString + " to " + segmentSumTimeRange.endString))) + ")**__"
+    let leaderboardMessage = "__** Leaderboard (" + (segmentSumType ? segmentSumType.name + ": " : (isAllTime ? "All-Time: " : "")) + segmentSumTimeRange.startString + (segmentSumTimeRange.start != segmentSumTimeRange.end && segmentSumTimeRange.endString ? " to " + segmentSumTimeRange.endString : "") + ")**__"
     for (let messageCountPairIndex in sortedSummedMessageCounts)
     {
       leaderboardMessage += "\n"
@@ -354,7 +364,7 @@ export const sendMessageCountsLeaderboardCommand = async function(client, msg, m
       catch {}
 
       let messageCount = sortedSummedMessageCounts[messageCountPairIndex].count
-      leaderboardMessage += "**#" + (parseInt(messageCountPairIndex)+1) + "**  " + (guildName ? "<@" + userID + ">" : userTag) + " — *" + messageCount + "*"
+      leaderboardMessage += "**#" + (parseInt(messageCountPairIndex)+1) + "**  *(" + messageCount + ")*  " + (shouldUseMentions && guildName ? "<@" + userID + ">" : (!shouldUseMentions && guildName ? guildName : userTag))
     }
     msg.channel.send({
       "content": leaderboardMessage,
