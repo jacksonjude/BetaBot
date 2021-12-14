@@ -111,6 +111,26 @@ async function updateStatChannelName(guild, channelID, statValue)
   await channelToUpdate.setName(newChannelName)
 }
 
+Date.prototype.stdTimezoneOffset = function() {
+  var jan = new Date(this.getFullYear(), 0, 1)
+  var jul = new Date(this.getFullYear(), 6, 1)
+  return Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset())
+}
+
+Date.prototype.dstTimezoneOffset = function() {
+  var jan = new Date(this.getFullYear(), 0, 1)
+  var jul = new Date(this.getFullYear(), 6, 1)
+  return Math.min(jan.getTimezoneOffset(), jul.getTimezoneOffset())
+}
+
+Date.prototype.isDSTObserved = function() {
+  return this.getTimezoneOffset() < this.stdTimezoneOffset()
+}
+
+Date.prototype.getOffsetDueToDST = function() {
+  return 1000*60*(this.isDSTObserved() ? this.stdTimezoneOffset()-this.getTimezoneOffset() : this.dstTimezoneOffset()-this.getTimezoneOffset())
+}
+
 async function updateMessageCounts(guild, hoursPerSegment, trackingStartTime, firestoreDB, verbose)
 {
   let messageCountsCollectionPath = statChannelsCollectionID + "/" + guild.id + "/" + "messageCounts"
@@ -146,6 +166,10 @@ async function updateMessageCounts(guild, hoursPerSegment, trackingStartTime, fi
         if (message.author.bot) { continue }
 
         let segmentStartTime = messageCreatedTimestamp-((messageCreatedTimestamp-trackingStartTime)%(hoursPerSegment*60*60*1000))
+        if ((new Date(segmentStartTime)).isDSTObserved() != (new Date(trackingStartTime)).isDSTObserved())
+        {
+          segmentStartTime -= new Date(segmentStartTime).getOffsetDueToDST()
+        }
         if (segmentStartTime+hoursPerSegment*60*60*1000 > Date.now())
         {
           continue
@@ -259,8 +283,10 @@ export const sendMessageCountsLeaderboardCommand = async function(client, msg, m
 
       if (startDateParts.length != 3 || endDateParts.length != 3) { return false }
 
-      let startDate = new Date(parseInt(startDateParts[2]), parseInt(startDateParts[0]-1), parseInt(startDateParts[1]))
-      let endDate = new Date(parseInt(endDateParts[2]), parseInt(endDateParts[0]-1), parseInt(endDateParts[1]))
+      let startDate = new Date(parseInt(startDateParts[2]), parseInt(startDateParts[0])-1, parseInt(startDateParts[1]))
+      let endDate = new Date(parseInt(endDateParts[2]), parseInt(endDateParts[0])-1, parseInt(endDateParts[1]))
+
+      console.log(startDate, endDate)
 
       if (startDate.getTime() == NaN || endDate.getTime() == NaN) { return false }
 
@@ -309,23 +335,28 @@ export const sendMessageCountsLeaderboardCommand = async function(client, msg, m
       let userName = "[[RIP]]"
       let guildName
 
+      let userID = sortedSummedMessageCounts[messageCountPairIndex].id
+
       try
       {
-        guildName = (await guild.members.fetch(sortedSummedMessageCounts[messageCountPairIndex].id)).displayName
+        guildName = (await guild.members.fetch(userID)).displayName
       }
       catch
       {}
 
       try
       {
-        userName = (await client.users.fetch(sortedSummedMessageCounts[messageCountPairIndex].id)).username
+        userName = (await client.users.fetch(userID)).username
       }
       catch {}
 
       let messageCount = sortedSummedMessageCounts[messageCountPairIndex].count
-      leaderboardMessage += "**#" + (parseInt(messageCountPairIndex)+1) + "**  " + (guildName ?? userName) + (guildName && userName != guildName ? " (aka *" + userName + "*)" : "") + " — *" + messageCount + "*"
+      leaderboardMessage += "**#" + (parseInt(messageCountPairIndex)+1) + "**  " + (guildName ? "<@" + userID + ">" : userName) + (guildName && userName != guildName ? " (aka *" + userName + "*)" : "") + " — *" + messageCount + "*"
     }
-    msg.channel.send(leaderboardMessage)
+    msg.channel.send({
+      "content": leaderboardMessage,
+      "allowedMentions": { "users" : []}
+    })
 
     return true
   }
