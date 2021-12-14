@@ -300,6 +300,8 @@ export const sendMessageCountsLeaderboardCommand = async function(client, msg, m
       isAllTime = true
     }
 
+    await msg.channel.sendTyping()
+
     let sortedMessageCountsDocs = messageCountsCollection.docs.sort((doc1, doc2) => parseInt(doc2.id)-parseInt(doc1.id))
 
     let summedMessageCounts = {}
@@ -332,7 +334,7 @@ export const sendMessageCountsLeaderboardCommand = async function(client, msg, m
     {
       leaderboardMessage += "\n"
 
-      let userName = "[[RIP]]"
+      let userTag = "#0000"
       let guildName
 
       let userID = sortedSummedMessageCounts[messageCountPairIndex].id
@@ -346,12 +348,13 @@ export const sendMessageCountsLeaderboardCommand = async function(client, msg, m
 
       try
       {
-        userName = (await client.users.fetch(userID)).username
+        let user = await client.users.fetch(userID)
+        userTag = user.tag
       }
       catch {}
 
       let messageCount = sortedSummedMessageCounts[messageCountPairIndex].count
-      leaderboardMessage += "**#" + (parseInt(messageCountPairIndex)+1) + "**  " + (guildName ? "<@" + userID + ">" : userName) + (guildName && userName != guildName ? " (aka *" + userName + "*)" : "") + " — *" + messageCount + "*"
+      leaderboardMessage += "**#" + (parseInt(messageCountPairIndex)+1) + "**  " + (guildName ? "<@" + userID + ">" : userTag) + " — *" + messageCount + "*"
     }
     msg.channel.send({
       "content": leaderboardMessage,
