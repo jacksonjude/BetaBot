@@ -52,7 +52,7 @@ async function setupRoleAssignmentMessageReactionCollector(client, roleAssignmen
     }
 
     await user.fetch()
-    if (!checkRoleAssignmentRequirements(roleAssignmentDataJSON, channel.guildId, channel.members.get(user.id)))
+    if (!checkRoleAssignmentRequirements(roleAssignmentData[roleAssignmentID], channel.guildId, channel.members.get(user.id)))
     {
       try
       {
@@ -68,7 +68,7 @@ async function setupRoleAssignmentMessageReactionCollector(client, roleAssignmen
       member = await roleAssignMessage.guild.members.fetch(user.id)
     }
     catch { return }
-    executeRoleAssignment(member, roleAssignmentDataJSON)
+    executeRoleAssignment(member, roleAssignmentData[roleAssignmentID])
   })
 
   roleAssignmentMessageReactionCollectors[roleAssignmentID] = roleAssignReactionCollector
@@ -102,12 +102,13 @@ function checkRoleAssignmentRequirements(roleAssignmentData, serverID, member, m
 async function executeRoleAssignment(member, roleAssignmentData)
 {
   let memberBiasRoleIDs = member.roles.cache.filter(role => roleAssignmentData.weightRoleIDs.includes(role.id)).map(role => role.id)
-  if (memberBiasRoleIDs.length != 1) { return }
+  if (memberBiasRoleIDs.length > 1) { return }
 
+  let shouldUseWeights = memberBiasRoleIDs.length == 1
   let memberBiasRoleID = memberBiasRoleIDs[0]
 
   let totalToGenerate = roleAssignmentData.roleWeights.reduce((totalCount, roleWeightData) => {
-    return totalCount + roleWeightData.weights.find(weight => weight.roleID == memberBiasRoleID).value
+    return totalCount + (shouldUseWeights ? roleWeightData.weights.find(weight => weight.roleID == memberBiasRoleID).value : 1)
   }, 0)
 
   let generatedValue = Math.floor(Math.random()*totalToGenerate)
@@ -116,9 +117,9 @@ async function executeRoleAssignment(member, roleAssignmentData)
 
   while (generatedValue >= 0 && roleIndex < roleAssignmentData.roleWeights.length)
   {
-    let roleWeight = roleAssignmentData.roleWeights[roleIndex].weights.find(weight => weight.roleID == memberBiasRoleID)
     roleIDToAssign = roleAssignmentData.roleWeights[roleIndex].roleID
-    generatedValue -= roleWeight.value
+    let roleWeight = shouldUseWeights ? roleAssignmentData.roleWeights[roleIndex].weights.find(weight => weight.roleID == memberBiasRoleID) : null
+    generatedValue -= shouldUseWeights ? roleWeight.value : 1
     roleIndex += 1
   }
 
