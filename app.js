@@ -109,9 +109,10 @@ client.on('messageCreate', async msg => {
   if (sendMessageResponses(msg)) { return }
 
   var messageContent = msg.content
-  if (msg.mentions.members && msg.mentions.members.has(client.user.id))
+  if ((msg.mentions.members && msg.mentions.members.has(client.user.id)) || (msg.mentions.roles && msg.mentions.roles.find(role => role.name == DISCORD_NICKNAME)))
   {
-    messageContent = messageContent.replace(new RegExp("<@!?" + client.user.id + ">"), "")
+    messageContent = messageContent.replace(/<@!?&?\d+?>/, "")
+    console.log(messageContent)
   }
   else { return }
 
