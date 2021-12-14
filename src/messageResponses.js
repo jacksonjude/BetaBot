@@ -14,7 +14,14 @@ export const sendMessageResponses = function(msg)
     if (regex.test(messageContent))
     {
       var index = Math.floor((Math.random() * messageResponses[responseNum].responses.length))
-      msg.channel.send(messageResponses[responseNum].responses[index])
+      if (msg.author.bot)
+      {
+        msg.channel.send("shut")
+      }
+      else
+      {
+        msg.channel.send(messageResponses[responseNum].responses[index])
+      }
       return true
     }
   }
