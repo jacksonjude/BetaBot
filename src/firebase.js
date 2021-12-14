@@ -12,24 +12,27 @@ export const initFirestore = function()
   return getFirestore()
 }
 
-import { interpretDMPollSetting, removeDMPollSetting, cleanDMPollResponseMessages } from "./poll/dmPoll.js"
-import { interpretServerPollSetting, removeServerPollSetting } from "./poll/serverPoll.js"
-
 import { interpretRoleSetting, removeRoleSetting } from "./roleMessages.js"
 import { interpretVoiceToTextChannelSetting } from "./linkedTextChannels.js"
 import { interpretStatsSetting } from "./serverStats.js"
+
+import { interpretDMPollSetting, removeDMPollSetting, cleanDMPollResponseMessages } from "./poll/dmPoll.js"
+import { interpretServerPollSetting, removeServerPollSetting } from "./poll/serverPoll.js"
+
+import { interpretRoleAssignmentSetting } from "./roleAssignment.js"
 
 const roleMessageCollectionID = "roleMessageConfigurations"
 const voiceToTextCollectionID = "voiceToTextConfigurations"
 const statChannelsCollectionID = "statsConfigurations"
 const pollsCollectionID = "pollConfigurations"
 const pollResponsesCollectionID = "responses"
+const roleAssignmentCollectionID = "roleAssignmentConfigurations"
 
 var firestoreCollectionListeners = []
-const firebaseCollectionSyncHandlers = [
+const firestoreCollectionSyncHandlers = [
   {
     collectionID: roleMessageCollectionID,
-    updateDocFunction: async function(roleSettingDoc, shouldDelete, _, client) {
+    updateDocFunction: async function(roleSettingDoc, shouldDelete, client) {
       let roleSettingJSON = roleSettingDoc.data()
       let roleSettingID = roleSettingDoc.id
 
@@ -57,7 +60,7 @@ const firebaseCollectionSyncHandlers = [
   },
   {
     collectionID: statChannelsCollectionID,
-    updateDocFunction: async function(statSettingDoc, shouldDelete, firestoreDB, client) {
+    updateDocFunction: async function(statSettingDoc, shouldDelete, client, firestoreDB) {
       let statSettingsJSON = statSettingDoc.data()
       let statSettingsID = statSettingDoc.id
 
@@ -69,7 +72,7 @@ const firebaseCollectionSyncHandlers = [
   },
   {
     collectionID: pollsCollectionID,
-    updateDocFunction: async function(pollSettingDoc, shouldDelete, firestoreDB, client) {
+    updateDocFunction: async function(pollSettingDoc, shouldDelete, client, firestoreDB) {
       let pollSettingJSON = pollSettingDoc.data()
       let pollSettingID = pollSettingDoc.id
 
@@ -102,7 +105,7 @@ const firebaseCollectionSyncHandlers = [
         }
       }
     },
-    initFunction: async function(firestoreDB, client) {
+    initFunction: async function(client, firestoreDB) {
       let pollSettingsCollection = await firestoreDB.collection(pollsCollectionID).get()
       pollSettingsCollection.forEach(async (pollSettingDoc) => {
         let pollResponses = await firestoreDB.collection(pollsCollectionID + "/" + pollSettingDoc.id + "/" + pollResponsesCollectionID).get()
@@ -111,12 +114,25 @@ const firebaseCollectionSyncHandlers = [
         })
       })
     }
+  },
+  {
+    collectionID: roleAssignmentCollectionID,
+    updateDocFunction: async function(roleAssignmentSettingDoc, shouldDelete, client, firestoreDB) {
+      let roleAssignmentSettingJSON = roleAssignmentSettingDoc.data()
+      let roleAssignmentSettingID = roleAssignmentSettingDoc.id
+
+      if (!shouldDelete)
+      {
+        roleAssignmentSettingJSON = await interpretRoleAssignmentSetting(client, roleAssignmentSettingID, roleAssignmentSettingJSON)
+        firestoreDB.doc(roleAssignmentCollectionID + "/" + roleAssignmentSettingID).set(roleAssignmentSettingJSON)
+      }
+    }
   }
 ]
 
 export const initFirestoreCollectionListeners = function(firestoreDB, client)
 {
-  firebaseCollectionSyncHandlers.forEach((collectionData) => {
+  firestoreCollectionSyncHandlers.forEach((collectionData) => {
     let collectionRef = firestoreDB.collection(collectionData.collectionID)
 
     firestoreCollectionListeners.push(
@@ -128,17 +144,17 @@ export const initFirestoreCollectionListeners = function(firestoreDB, client)
           {
             case "added":
             case "modified":
-            collectionData.updateDocFunction(docChange.doc, false, firestoreDB, client)
+            collectionData.updateDocFunction(docChange.doc, false, client, firestoreDB)
             break
 
             case "deleted":
-            collectionData.updateDocFunction(docChange.doc, true, firestoreDB, client)
+            collectionData.updateDocFunction(docChange.doc, true, client, firestoreDB)
             break
           }
         })
       })
     )
 
-    collectionData.initFunction && collectionData.initFunction(firestoreDB, client)
+    collectionData.initFunction && collectionData.initFunction(client, firestoreDB)
   })
 }
