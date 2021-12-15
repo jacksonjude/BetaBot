@@ -1,10 +1,12 @@
+import { Client, TextChannel, Message } from 'discord.js'
+
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN
 
-var loginMessage
-var loginChannelID
-var loginGuildID
+var loginMessage: string
+var loginChannelID: string
+var loginGuildID: string
 
-export const loginBot = async function(client, message, channelID, guildID)
+export const loginBot = async function(client: Client, message: string = null, channelID: string = null, guildID: string = null)
 {
   if (process.env.process_restarting)
   {
@@ -28,13 +30,13 @@ export const loginBot = async function(client, message, channelID, guildID)
   client.login(DISCORD_TOKEN)
 }
 
-export const printLoginMessage = async function(client)
+export const printLoginMessage = async function(client: Client)
 {
   if (loginMessage && loginChannelID && loginGuildID)
   {
     var guild = await client.guilds.fetch(loginGuildID)
     if (!guild) { return }
-    var channel = await guild.channels.fetch(loginChannelID)
+    var channel = await guild.channels.fetch(loginChannelID) as TextChannel
     if (!channel) { return }
 
     channel.send(loginMessage)
@@ -44,23 +46,18 @@ export const printLoginMessage = async function(client)
 // Reboot Methods
 
 const logfile = 'betabot.log'
-const endLogMessage = "logout"
+export const endLogMessage = "logout"
 const isLocalProcess = process.argv[2] == "local"
-import fs from 'fs'
+import * as fs from 'fs'
 import { spawn } from 'child_process'
 
-export const prepareBotLogout = function(logoutMessage, msg)
+export const prepareBotLogout = async function(client: Client, logoutMessage: string, msg: Message)
 {
-  var logoutBotPromise = new Promise(async (resolve) => {
-    await msg.channel.send(logoutMessage)
-    await client.user.setPresence({status: "dnd"})
-    resolve()
-  })
-
-  return logoutBotPromise
+  await msg.channel.send(logoutMessage)
+  client.user.setPresence({status: "dnd"})
 }
 
-export const logoutBot = function()
+export const logoutBot = function(client: Client)
 {
   if (isLocalProcess && fs.existsSync(logfile))
   {
@@ -72,7 +69,7 @@ export const logoutBot = function()
   client.destroy()
 }
 
-export const rebootBot = async function(logoutMessage, loginMessage, msg)
+export const rebootBot = async function(client: Client, logoutMessage: string, loginMessage: string, msg: Message)
 {
   if (!isLocalProcess)
   {
@@ -80,14 +77,14 @@ export const rebootBot = async function(logoutMessage, loginMessage, msg)
     return
   }
 
-  await prepareBotLogout(logoutMessage, msg)
+  await prepareBotLogout(client, logoutMessage, msg)
 
   spawnBot(loginMessage, msg)
 
   client.destroy()
 }
 
-const spawnBot = function(loginMessage, msg)
+const spawnBot = function(loginMessage: string, msg: Message)
 {
   var out = fs.openSync(logfile, 'a')
   var err = fs.openSync(logfile, 'a')

@@ -1,7 +1,42 @@
-var roleAssignmentData = {}
-var roleAssignmentMessageReactionCollectors = {}
+import { Client, TextChannel, Message, GuildMember, Role, ReactionCollector } from "discord.js"
 
-export const interpretRoleAssignmentSetting = async function(client, roleAssignmentID, roleAssignmentDataJSON)
+var roleAssignmentData: { [k: string]: RoleAssignmentConfiguration } = {}
+var roleAssignmentMessageReactionCollectors: { [k: string]: ReactionCollector } = {}
+
+export class RoleAssignmentConfiguration
+{
+  name: string
+  roleIDWhitelist: string[]
+  roleIDBlacklist: string[]
+  serverID: string
+
+  weightRoleIDs: string[]
+  roleWeights: RoleAssignmentWeightSet[]
+
+  messageSettings: RoleAssignmentMessageConfiguration
+}
+
+class RoleAssignmentWeightSet
+{
+  roleID: string
+  weights: RoleAssignmentWeight[]
+}
+
+class RoleAssignmentWeight
+{
+  roleID: string
+  value: number
+}
+
+class RoleAssignmentMessageConfiguration
+{
+  channelID: string
+  messageEmoji: string
+  messageText: string
+  messageID: string | null
+}
+
+export const interpretRoleAssignmentSetting = async function(client: Client, roleAssignmentID: string, roleAssignmentDataJSON: RoleAssignmentConfiguration)
 {
   roleAssignmentData[roleAssignmentID] = roleAssignmentDataJSON
 
@@ -21,9 +56,9 @@ export const interpretRoleAssignmentSetting = async function(client, roleAssignm
   return roleAssignmentDataJSON
 }
 
-async function sendRoleAssignMessage(client, messageSettings)
+async function sendRoleAssignMessage(client: Client, messageSettings: RoleAssignmentMessageConfiguration)
 {
-  var channel = await client.channels.fetch(messageSettings.channelID)
+  var channel = await client.channels.fetch(messageSettings.channelID) as TextChannel
   var messageContent = messageSettings.messageText
   var sentMessage = await channel.send(messageContent)
   messageSettings.messageID = sentMessage.id
@@ -31,14 +66,14 @@ async function sendRoleAssignMessage(client, messageSettings)
   sentMessage.react(messageSettings.messageEmoji)
 }
 
-async function setupRoleAssignmentMessageReactionCollector(client, roleAssignmentID, roleAssignmentDataJSON)
+async function setupRoleAssignmentMessageReactionCollector(client: Client, roleAssignmentID: string, roleAssignmentDataJSON: RoleAssignmentConfiguration)
 {
-  var channel = await client.channels.fetch(roleAssignmentDataJSON.messageSettings.channelID)
+  var channel = await client.channels.fetch(roleAssignmentDataJSON.messageSettings.channelID) as TextChannel
   var roleAssignMessage = await channel.messages.fetch(roleAssignmentDataJSON.messageSettings.messageID)
 
   const catchAllFilter = () => true
 
-  var roleAssignReactionCollector = roleAssignMessage.createReactionCollector({ catchAllFilter })
+  var roleAssignReactionCollector = roleAssignMessage.createReactionCollector({ filter: catchAllFilter })
   roleAssignReactionCollector.on('collect', async (reaction, user) => {
     if (user.id == client.user.id) { return }
     if (reaction.emoji.name != roleAssignmentDataJSON.messageSettings.messageEmoji)
@@ -62,7 +97,7 @@ async function setupRoleAssignmentMessageReactionCollector(client, roleAssignmen
       return
     }
 
-    let member
+    let member: GuildMember
     try
     {
       member = await roleAssignMessage.guild.members.fetch(user.id)
@@ -74,32 +109,34 @@ async function setupRoleAssignmentMessageReactionCollector(client, roleAssignmen
   roleAssignmentMessageReactionCollectors[roleAssignmentID] = roleAssignReactionCollector
 }
 
-function checkRoleAssignmentRequirements(roleAssignmentData, serverID, member, msg)
+function checkRoleAssignmentRequirements(roleAssignmentData: RoleAssignmentConfiguration, serverID: string, member: GuildMember, msg: Message = null)
 {
   var inRequiredServer = roleAssignmentData.serverID ? serverID == roleAssignmentData.serverID : true
   var hasRequiredRoles = roleAssignmentData.roleIDWhitelist ? member.roles.cache.find(role => roleAssignmentData.roleIDWhitelist.includes(role.id)) : true
   var hasBlacklistedRoles = roleAssignmentData.roleIDBlacklist ? member.roles.cache.find(role => roleAssignmentData.roleIDBlacklist.includes(role.id)) : false
+
+  console.log(inRequiredServer, hasRequiredRoles, hasBlacklistedRoles)
 
   if (!inRequiredServer)
   {
     msg && msg.channel.send("Cannot get role for " + roleAssignmentData.name + " in this server")
     return false
   }
-  if (!hasRequiredRoles)
+  if (hasRequiredRoles == null)
   {
-    msg && msg.channel.send("Cannot get role for " + roleAssignmentData.name + " without the " + hasRequiredRoles.name + " role")
+    msg && msg.channel.send("Cannot get role for " + roleAssignmentData.name + " because you don't have the required role")
     return false
   }
-  if (hasBlacklistedRoles)
+  if (hasBlacklistedRoles != null)
   {
-    msg && msg.channel.send("Cannot get role for " + roleAssignmentData.name + " if you have the " + hasBlacklistedRoles.name + " role")
+    msg && msg.channel.send("Cannot get role for " + roleAssignmentData.name + " if you have the " + (hasBlacklistedRoles as Role).name + " role")
     return false
   }
 
   return true
 }
 
-async function executeRoleAssignment(member, roleAssignmentData)
+async function executeRoleAssignment(member: GuildMember, roleAssignmentData: RoleAssignmentConfiguration)
 {
   let memberBiasRoleIDs = member.roles.cache.filter(role => roleAssignmentData.weightRoleIDs.includes(role.id)).map(role => role.id)
   if (memberBiasRoleIDs.length > 1) { return }
@@ -113,7 +150,7 @@ async function executeRoleAssignment(member, roleAssignmentData)
 
   let generatedValue = Math.floor(Math.random()*totalToGenerate)
   let roleIndex = 0
-  let roleIDToAssign
+  let roleIDToAssign: string
 
   while (generatedValue >= 0 && roleIndex < roleAssignmentData.roleWeights.length)
   {

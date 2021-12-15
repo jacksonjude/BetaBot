@@ -1,3 +1,5 @@
+import { Client, Message } from "discord.js"
+
 const messageCommands = [
   { command: "hi", responses: ["hello :wave:"] },
   { command: "cook", responses: ["🍕", "🍿", "🍤", "🍣", "🍪", "🍣", "🍔", "🥐", "🥓", "🍱", "🍩", "🍰", "🍳", "🧇", "🥨", "https://i.imgur.com/LOoSSoK.jpeg", "🍉", "🥫", "🌮", "🌭", "🥪", "🍚", "🥠"] },
@@ -16,7 +18,7 @@ const dates = [
   { name: "Finals are over!!! :partying_face:", timestamp: 1639209600000, command: "finals" }
 ]
 
-export const sendDateCommands = function(msg, messageContent)
+export const sendDateCommands = function(msg: Message, messageContent: string)
 {
   for (let dateNum in dates)
   {
@@ -35,7 +37,7 @@ export const sendDateCommands = function(msg, messageContent)
   return false
 }
 
-export const sendMessageCommands = function(msg, messageContent)
+export const sendMessageCommands = function(msg: Message, messageContent: string)
 {
   for (let commandNum in messageCommands)
   {
@@ -211,7 +213,7 @@ const letterBitmaps = {
   ]
 }
 
-export const sendEmoteSpellCommand = async function(msg, messageContent)
+export const sendEmoteSpellCommand = async function(msg: Message, messageContent: string)
 {
   const spellCommandRegex = /^spell\s+([a-zA-Z]+)(\s+((<)?:[^\s:]+?:(\d+>)?))?(\s+((<)?:[^\s:]+?:(\d+>)?))?$/
   if (spellCommandRegex.test(messageContent.toLowerCase()))
@@ -257,7 +259,7 @@ export const sendEmoteSpellCommand = async function(msg, messageContent)
   return false
 }
 
-export const sendClearCommand = async function(client, msg, messageContent)
+export const sendClearCommand = async function(client: Client, msg: Message, messageContent: string)
 {
   var dmChannel = msg.author.dmChannel || await msg.author.createDM()
 
@@ -290,17 +292,17 @@ export const sendClearCommand = async function(client, msg, messageContent)
   return false
 }
 
-export const sendRepeatCommand = function(msg, messageContent)
+export const sendRepeatCommand = function(msg: Message, messageContent: string)
 {
   if (/^repeat\s+(\d+)$/.test(messageContent.toLowerCase()))
   {
     var multiplier = parseInt(/^repeat\s+(\d+)$/.exec(messageContent)[1]) || 1 //parseInt(messageContent.replace("repeat", "")) || 1
-    var messageArray = msg.channel.messages.cache.array()
+    var messageArray = msg.channel.messages.cache.toJSON()
     if (messageArray.length >= 2)
     {
       for (let i=0; i < multiplier; i++)
       {
-        msg.channel.send(messageArray[messageArray.length-2])
+        msg.channel.send(messageArray[messageArray.length-2].toString())
       }
     }
     return true
@@ -309,12 +311,12 @@ export const sendRepeatCommand = function(msg, messageContent)
   return false
 }
 
-export const sendSpeakCommand = function(msg, messageContent)
+export const sendSpeakCommand = function(msg: Message, messageContent: string)
 {
   if (/^speak\s(.+)$/.test(messageContent.toLowerCase()))
   {
     var phraseToSay = /^speak\s(.+)$/.exec(messageContent)[1]
-    msg.channel.send(phraseToSay, {tts: true})
+    msg.channel.send({content: phraseToSay, tts: true})
     return true
   }
 

@@ -1,12 +1,42 @@
+import { Client, Guild, TextChannel, Collection, Message } from "discord.js"
+import { Firestore, Timestamp } from "firebase-admin/firestore"
+
 import { CronJob } from "cron"
 
 const statChannelsCollectionID = "statsConfigurations"
 
-var statsData = {}
-var onlineMemberCountCronJob
-var messageCountsCronJobs = {}
+var statsData: { [k: string]: StatsConfiguration } = {}
+var onlineMemberCountCronJob: CronJob
+var messageCountsCronJobs: { [k: string]: CronJob } = {}
 
-export const interpretStatsSetting = async function(client, guildID, statsDataJSON, firestoreDB)
+export class StatsConfiguration
+{
+  totalCountChannelID: string | null
+  onlineCountChannelID: string | null
+  boostCountChannelID: string | null
+
+  messageCounts: MessageCountsConfiguration | null
+}
+
+class MessageCountsConfiguration
+{
+  cronHours: string
+  hours: number
+
+  startTime: Timestamp
+  timeZone: string
+
+  segmentSums: MessageCountSegmentSumConfiguration[]
+}
+
+class MessageCountSegmentSumConfiguration
+{
+  key: string
+  name: string
+  count: number
+}
+
+export const interpretStatsSetting = async function(client: Client, guildID: string, statsDataJSON: StatsConfiguration, firestoreDB: Firestore)
 {
   statsData[guildID] = statsDataJSON
 
@@ -23,7 +53,7 @@ export const interpretStatsSetting = async function(client, guildID, statsDataJS
   }
 }
 
-export const setupMemberStatsEventHandlers = function(client)
+export const setupMemberStatsEventHandlers = function(client: Client)
 {
   client.on('guildMemberAdd', (member) => {
     // Update members stat
@@ -53,7 +83,7 @@ export const setupMemberStatsEventHandlers = function(client)
   })
 }
 
-function setupMessageCountsCronJob(client, guildID, messageCountsData, firestoreDB)
+function setupMessageCountsCronJob(client: Client, guildID: string, messageCountsData: MessageCountsConfiguration, firestoreDB: Firestore)
 {
   let messageCountCronJob = new CronJob("1 0 " + (messageCountsData.cronHours ?? "0") + " * * *", () => {
     client.guilds.fetch(guildID).then(async guild => {
@@ -70,7 +100,7 @@ function setupMessageCountsCronJob(client, guildID, messageCountsData, firestore
   messageCountsCronJobs[guildID] = messageCountCronJob
 }
 
-function updateTotalMembersStat(guild)
+function updateTotalMembersStat(guild: Guild)
 {
   var guildStatsSettings = statsData[guild.id]
   if (guildStatsSettings == null || guildStatsSettings.totalCountChannelID == null) { return }
@@ -80,7 +110,7 @@ function updateTotalMembersStat(guild)
   updateStatChannelName(guild, guildStatsSettings.totalCountChannelID, totalCount)
 }
 
-async function updateOnlineMembersStat(guild)
+async function updateOnlineMembersStat(guild: Guild)
 {
   var guildStatsSettings = statsData[guild.id]
   if (guildStatsSettings == null || guildStatsSettings.onlineCountChannelID == null) { return }
@@ -91,7 +121,7 @@ async function updateOnlineMembersStat(guild)
   updateStatChannelName(guild, guildStatsSettings.onlineCountChannelID, onlineCount)
 }
 
-function updateBoostMembersStat(guild)
+function updateBoostMembersStat(guild: Guild)
 {
   var guildStatsSettings = statsData[guild.id]
   if (guildStatsSettings == null || guildStatsSettings.boostCountChannelID == null) { return }
@@ -101,14 +131,27 @@ function updateBoostMembersStat(guild)
   updateStatChannelName(guild, guildStatsSettings.boostCountChannelID, boostCount)
 }
 
-async function updateStatChannelName(guild, channelID, statValue)
+async function updateStatChannelName(guild: Guild, channelID: string, statValue: number)
 {
   let channelToUpdate = await guild.channels.fetch(channelID)
   if (channelToUpdate == null) { return }
 
   let currentChannelName = channelToUpdate.name
-  let newChannelName = currentChannelName.replace(/\d+/, statValue)
+  let newChannelName = currentChannelName.replace(/\d+/, statValue.toString())
   await channelToUpdate.setName(newChannelName)
+}
+
+declare global
+{
+  interface Date
+  {
+    stdTimezoneOffset(): void
+    dstTimezoneOffset(): void
+    isDSTObserved(): boolean
+    getOffsetDueToDST(): number
+    toDMYString(): string
+    changeTimezone(ianatz: string, multiplier: number): void
+  }
 }
 
 Date.prototype.stdTimezoneOffset = function() {
@@ -131,7 +174,7 @@ Date.prototype.getOffsetDueToDST = function() {
   return 1000*60*(this.isDSTObserved() ? this.stdTimezoneOffset()-this.getTimezoneOffset() : this.dstTimezoneOffset()-this.getTimezoneOffset())
 }
 
-async function updateMessageCounts(guild, hoursPerSegment, trackingStartTime, firestoreDB, verbose)
+async function updateMessageCounts(guild: Guild, hoursPerSegment: number, trackingStartTime: number, firestoreDB: Firestore, verbose: boolean = false)
 {
   let messageCountsCollectionPath = statChannelsCollectionID + "/" + guild.id + "/" + "messageCounts"
   let previousMessageCounts = await firestoreDB.collection(messageCountsCollectionPath).get()
@@ -144,20 +187,22 @@ async function updateMessageCounts(guild, hoursPerSegment, trackingStartTime, fi
   var updatedMessageCountSegments = {}
 
   var guildChannels = await guild.channels.fetch()
-  for (let channel of guildChannels.values())
+  for (let channel of guildChannels.toJSON())
   {
     if (channel.type != "GUILD_TEXT") { continue }
-    let channelMessages
+    let textChannel = channel as TextChannel
+
+    let channelMessages: Collection<string,Message>
     try
     {
-      channelMessages = await channel.messages.fetch({limit: 100})
+      channelMessages = await textChannel.messages.fetch({limit: 100})
     }
     catch (error)
     {
       continue
     }
 
-    const processMessages = async function(messages)
+    const processMessages = async function(messages: Message[])
     {
       for (let message of messages)
       {
@@ -202,7 +247,7 @@ async function updateMessageCounts(guild, hoursPerSegment, trackingStartTime, fi
       {
         console.log("Message Counts: " + channel.id + " (count = " + fetchedMessageCount + ", time = " + channelMessages.last().createdAt.getTime() + ")")
       }
-      shouldBreakMessageLoop = await processMessages(channelMessages.values())
+      shouldBreakMessageLoop = await processMessages(Object.values(channelMessages.toJSON()))
 
       if (channelMessages.size > 0 && channelMessages.last().id)
       {
@@ -226,7 +271,7 @@ async function updateMessageCounts(guild, hoursPerSegment, trackingStartTime, fi
   }
 }
 
-export const sendMessageCountsUpdateCommand = async function(msg, messageContent, firestoreDB)
+export const sendMessageCountsUpdateCommand = async function(msg: Message, messageContent: string, firestoreDB: Firestore)
 {
   const updateMessageCountsRegex = /^updateleaderboard$/
 
@@ -247,7 +292,7 @@ Date.prototype.toDMYString = function() {
   return (this.getMonth()+1) + "/" + this.getDate() + "/" + this.getFullYear()
 }
 
-Date.prototype.changeTimezone = function(ianatz, multiplier) {
+Date.prototype.changeTimezone = function(ianatz: string, multiplier: number = null) {
   // suppose the date is 12:00 UTC
   var invdate = new Date(this.toLocaleString('en-US', {
     timeZone: ianatz
@@ -256,13 +301,13 @@ Date.prototype.changeTimezone = function(ianatz, multiplier) {
   // then invdate will be 07:00 in Toronto
   // and the diff is 5 hours
   var diff = this.getTime() - invdate.getTime()
-  diff *= multiplier
+  diff *= multiplier ?? 1
 
   // so 12:00 in Toronto is 17:00 UTC
   this.setTime(this.getTime() - diff) // needs to substract
 }
 
-export const sendMessageCountsLeaderboardCommand = async function(client, msg, messageContent, firestoreDB)
+export const sendMessageCountsLeaderboardCommand = async function(client: Client, msg: Message, messageContent: string, firestoreDB: Firestore)
 {
   const leaderboardCommandRegex = /^leaderboard(\s+(false|true))?(\s+(\w+))?(\s+([\d\/]+))?(\s+([\d\/]+))?$/
 
@@ -278,8 +323,8 @@ export const sendMessageCountsLeaderboardCommand = async function(client, msg, m
     let currentTime = Date.now()
 
     let isAllTime = false
-    let segmentSumType
-    let segmentSumTimeRange = {start: messageCountsData.startTime, end: currentTime, startString: null, endString: null}
+    let segmentSumType: MessageCountSegmentSumConfiguration
+    let segmentSumTimeRange = {start: messageCountsData.startTime.toMillis(), end: currentTime, startString: null, endString: null}
 
     if (messageCountsData.segmentSums)
     {
@@ -364,7 +409,7 @@ export const sendMessageCountsLeaderboardCommand = async function(client, msg, m
       leaderboardMessage += "\n"
 
       let userTag = "#0000"
-      let guildName
+      let guildName: string
 
       let userID = sortedSummedMessageCounts[messageCountPairIndex].id
 
@@ -383,7 +428,7 @@ export const sendMessageCountsLeaderboardCommand = async function(client, msg, m
       catch {}
 
       let messageCount = sortedSummedMessageCounts[messageCountPairIndex].count
-      let nextMessageCount
+      let nextMessageCount: number
       let placementIndex = parseInt(messageCountPairIndex)+1
       do
       {
@@ -392,7 +437,7 @@ export const sendMessageCountsLeaderboardCommand = async function(client, msg, m
       }
       while (nextMessageCount && messageCount == nextMessageCount)
 
-      leaderboardMessage += "**#" + (parseInt(placementIndex)+1) + "**  *(" + messageCount + ")*  " + (shouldUseMentions && guildName ? "<@" + userID + ">" : (!shouldUseMentions && guildName ? guildName : userTag))
+      leaderboardMessage += "**#" + (placementIndex+1) + "**  *(" + messageCount + ")*  " + (shouldUseMentions && guildName ? "<@" + userID + ">" : (!shouldUseMentions && guildName ? guildName : userTag))
     }
     msg.channel.send({
       "content": leaderboardMessage,

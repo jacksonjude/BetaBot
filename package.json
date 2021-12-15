@@ -2,9 +2,9 @@
   "name": "betabot",
   "version": "1.0.0",
   "description": "A Discord bot. Still in Beta.",
-  "main": "app.js",
+  "main": "app.ts",
   "scripts": {
-    "start": "node app.js"
+    "start": "ts-node app.ts"
   },
   "author": "JJCooley",
   "license": "ISC",
@@ -23,6 +23,5 @@
   },
   "engines": {
     "node": "17.0.1"
-  },
-  "type": "module"
+  }
 }

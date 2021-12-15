@@ -1,7 +1,7 @@
 const CREATOR_USER_ID = process.env.CREATOR_USER_ID
 const DISCORD_NICKNAME = process.env.DISCORD_NICKNAME
 
-import { Client, Intents } from 'discord.js'
+import { Client, Intents, GuildMember } from 'discord.js'
 const client = new Client({ intents: [
   Intents.FLAGS.GUILDS,
   Intents.FLAGS.GUILD_MEMBERS,
@@ -13,28 +13,30 @@ const client = new Client({ intents: [
   Intents.FLAGS.DIRECT_MESSAGE_REACTIONS
 ], partials: ['USER'] })
 
+import { Firestore } from "firebase-admin/firestore"
+
 // PARTIALS: https://github.com/discordjs/discord.js/issues/4980#issuecomment-723519865
 
 // import { REST } from '@discordjs/rest'
 // import { Routes } from 'discord-api-types/v9'
 // const rest = new REST({ version: '9' }).setToken(process.env.DISCORD_TOKEN)
 
-import { loginBot, printLoginMessage, prepareBotLogout, rebootBot } from "./src/login.js"
-import { sendMessageResponses } from "./src/messageResponses.js"
-import { sendDateCommands, sendMessageCommands, sendEmoteSpellCommand, sendClearCommand, sendRepeatCommand, sendSpeakCommand } from "./src/miscCommands.js"
+import { loginBot, printLoginMessage, prepareBotLogout, rebootBot, logoutBot, endLogMessage } from "./src/login"
+import { sendMessageResponses } from "./src/messageResponses"
+import { sendDateCommands, sendMessageCommands, sendEmoteSpellCommand, sendClearCommand, sendRepeatCommand, sendSpeakCommand } from "./src/miscCommands"
 
-import { sendExportPollResultsCommand, executeExportPollResultsCommand } from "./src/poll/sharedPoll.js"
-import { sendDMVoteCommand, executeDMVoteCommand } from "./src/poll/dmPoll.js"
+import { setupVoiceChannelEventHandler } from "./src/linkedTextChannels"
+import { setupMemberStatsEventHandlers, sendMessageCountsUpdateCommand, sendMessageCountsLeaderboardCommand } from "./src/serverStats"
 
-import { setupVoiceChannelEventHandler } from "./src/linkedTextChannels.js"
-import { setupMemberStatsEventHandlers, sendMessageCountsUpdateCommand, sendMessageCountsLeaderboardCommand } from "./src/serverStats.js"
+import { sendExportPollResultsCommand, executeExportPollResultsCommand } from "./src/poll/sharedPoll"
+import { sendDMVoteCommand, executeDMVoteCommand } from "./src/poll/dmPoll"
 
-import { initFirestore, initFirestoreCollectionListeners } from "./src/firebase.js"
+import { initFirestore, initFirestoreCollectionListeners } from "./src/firebase"
 
 const HOME_GUILD_ID = "704218896298934317"
 const TECHNICIAN_ROLE_ID = "804147385923403826"
 
-var firestoreDB
+var firestoreDB: Firestore
 
 // Login Bot
 
@@ -80,7 +82,7 @@ client.on('guildMemberUpdate', async (_, newMember) => {
   updateNickname(clientMember)
 })
 
-function updateNickname(clientMember)
+function updateNickname(clientMember: GuildMember)
 {
   if (clientMember.displayName !== DISCORD_NICKNAME)
   {
@@ -106,7 +108,6 @@ client.on('messageCreate', async msg => {
   if ((msg.mentions.members && msg.mentions.members.has(client.user.id)) || (msg.mentions.roles && msg.mentions.roles.find(role => role.name == DISCORD_NICKNAME)))
   {
     messageContent = messageContent.replace(/<@!?&?\d+?>/, "")
-    console.log(messageContent)
   }
   else { return }
 
@@ -153,7 +154,7 @@ client.on('messageCreate', async msg => {
     break
   }
 
-  if (!msg.author.id == CREATOR_USER_ID) { return }
+  if (msg.author.id != CREATOR_USER_ID) { return }
 
   if (sendMessageCountsUpdateCommand(msg, messageContent, firestoreDB)) { return }
 
@@ -165,24 +166,24 @@ client.on('messageCreate', async msg => {
   switch (messageContent)
   {
     case "randomize":
-    updateRandomColorRole()
+    // updateRandomColorRole()
     break
 
     case "logout":
-    await prepareBotLogout("Bye bye for now!", msg)
+    await prepareBotLogout(client, "Bye bye for now!", msg)
     console.log(endLogMessage)
 
-    logoutBot()
+    logoutBot(client)
     break
 
     case "restart":
-    prepareBotLogout("Bye bye for now!", msg)
-      .then(client.destroy())
-      .then(loginBot("And we're back!", msg.channel.id, msg.guild.id))
+    prepareBotLogout(client, "Bye bye for now!", msg)
+      .then(() => client.destroy())
+      .then(() => loginBot(client, "And we're back!", msg.channel.id, msg.guild.id))
     break
 
     case "reboot":
-    rebootBot("Bye bye for now!", "And we're back!", msg)
+    rebootBot(client, "Bye bye for now!", "And we're back!", msg)
     break
 
     case "sleep":

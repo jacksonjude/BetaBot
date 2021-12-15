@@ -1,9 +1,11 @@
+import { Client, User, Guild, TextChannel, MessageReaction, ReactionCollector } from "discord.js"
+
 const kAddedReaction = 0
 const kRemovedReaction = 1
 
 // Update Roles
 
-async function setRole(user, guild, roleName, shouldAddRole)
+export async function setRole(user: User, guild: Guild, roleName: string, shouldAddRole: boolean)
 {
   var guildRoles = await guild.roles.fetch()
   var rolesArray = Array.from(guildRoles.values())
@@ -27,12 +29,26 @@ async function setRole(user, guild, roleName, shouldAddRole)
 
 // Role Messages
 
-import emojiConverter from 'node-emoji'
+import * as emojiConverter from 'node-emoji'
 
-var roleAddMessageData = {}
-var roleReationCollectors = {}
+var roleAddMessageData: { [k: string]: RoleMessageConfiguration } = {}
+var roleReationCollectors: { [k: string]: ReactionCollector } = {}
 
-export const interpretRoleSetting = async function(client, roleSettingID, roleSettingJSON)
+export class RoleMessageConfiguration
+{
+  name: string
+  channelID: string
+  messageID: string | null
+  roleMap: RoleEmoteMap[]
+}
+
+class RoleEmoteMap
+{
+  role: string
+  emote: string
+}
+
+export const interpretRoleSetting = async function(client: Client, roleSettingID: string, roleSettingJSON: RoleMessageConfiguration)
 {
   if (roleSettingJSON.channelID == null) { return }
 
@@ -53,12 +69,12 @@ export const interpretRoleSetting = async function(client, roleSettingID, roleSe
 
   if (roleSettingJSON.messageID != null)
   {
-    var channel = await client.channels.fetch(roleSettingJSON.channelID)
+    var channel = await client.channels.fetch(roleSettingJSON.channelID) as TextChannel
     var liveMessage = await channel.messages.fetch(roleSettingJSON.messageID)
 
     var catchAllFilter = () => true
 
-    var reactionCollector = liveMessage.createReactionCollector({ catchAllFilter, dispose: true })
+    var reactionCollector = liveMessage.createReactionCollector({ filter: catchAllFilter, dispose: true })
     reactionCollector.on('collect', async (reaction, user) => {
       await user.fetch()
       console.log("Add", reaction.emoji.name, user.username)
@@ -76,11 +92,11 @@ export const interpretRoleSetting = async function(client, roleSettingID, roleSe
   return updateSettingInDatabase
 }
 
-export const removeRoleSetting = async function(client, roleSettingID, roleSettingJSON)
+export const removeRoleSetting = async function(client: Client, roleSettingID: string, roleSettingJSON: RoleMessageConfiguration)
 {
   if (roleSettingJSON.messageID)
   {
-    var channel = await client.channels.fetch(roleSettingJSON.channelID)
+    var channel = await client.channels.fetch(roleSettingJSON.channelID) as TextChannel
     var message = await channel.messages.fetch(roleSettingJSON.messageID)
 
     await message.delete()
@@ -98,9 +114,9 @@ export const removeRoleSetting = async function(client, roleSettingID, roleSetti
   }
 }
 
-async function sendRoleAddMessage(client, roleDataJSON)
+async function sendRoleAddMessage(client: Client, roleDataJSON: RoleMessageConfiguration)
 {
-  var channel = await client.channels.fetch(roleDataJSON.channelID)
+  var channel = await client.channels.fetch(roleDataJSON.channelID) as TextChannel
   var messageContent = getRoleAddMessageContent(roleDataJSON)
   var sentMessage = await channel.send(messageContent)
   roleDataJSON.messageID = sentMessage.id
@@ -113,9 +129,9 @@ async function sendRoleAddMessage(client, roleDataJSON)
   }
 }
 
-async function editRoleAddMessage(client, roleDataJSON)
+async function editRoleAddMessage(client: Client, roleDataJSON: RoleMessageConfiguration)
 {
-  var channel = await client.channels.fetch(roleDataJSON.channelID)
+  var channel = await client.channels.fetch(roleDataJSON.channelID) as TextChannel
   var message = await channel.messages.fetch(roleDataJSON.messageID)
   var messageContent = getRoleAddMessageContent(roleDataJSON)
 
@@ -132,7 +148,7 @@ async function editRoleAddMessage(client, roleDataJSON)
   }
 }
 
-function getRoleAddMessageContent(roleDataJSON)
+function getRoleAddMessageContent(roleDataJSON: any)
 {
   var messageContent = "**" + roleDataJSON.name + "**"
   for (let emoteRolePair of roleDataJSON.roleMap)
@@ -143,24 +159,24 @@ function getRoleAddMessageContent(roleDataJSON)
   return messageContent
 }
 
-function getEmoteID(client, emoteName)
+function getEmoteID(client: Client, emoteName: string)
 {
-  var emote = client.emojis.cache.find(emoji => emoji.name == emoteName)
-  if (emote != null)
+  var emoji = client.emojis.cache.find(emoji => emoji.name == emoteName)
+  if (emoji != null)
   {
-    return emote.id
+    return emoji.id
   }
 
-  emote = emojiConverter.get(":" + emoteName + ":")
-  if (emote != null && !emote.includes(":"))
+  var emoteString = emojiConverter.get(":" + emoteName + ":")
+  if (emoteString != null && !emoteString.includes(":"))
   {
-    return emote
+    return emoteString
   }
 
   return null
 }
 
-async function handleRoleReaction(client, reaction, user, action)
+async function handleRoleReaction(client: Client, reaction: MessageReaction, user: User, action: number)
 {
   if (user.id == client.user.id) { return false }
 

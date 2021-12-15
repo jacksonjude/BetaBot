@@ -1,18 +1,22 @@
+import { Client, TextChannel } from "discord.js"
+import { Firestore } from "firebase-admin/firestore"
+
 import {
+  PollConfiguration, PollResponseMap,
   pollsCollectionID, pollResponsesCollectionID,
   pollsData,
   pollResponses, pollResponseReactionCollectors,
   pollsMessageIDs,
   catchAllFilter, checkVoteRequirements, getCurrentPollQuestionIDFromMessageID, getCurrentOptionDataFromReaction, getEmoji
-} from "./sharedPoll.js"
+} from "./sharedPoll"
 
-export const interpretServerPollSetting = async function(client, pollID, pollDataJSON, firestoreDB)
+export const interpretServerPollSetting = async function(client: Client, pollID: string, pollDataJSON: PollConfiguration, firestoreDB: Firestore)
 {
   pollsData[pollID] = pollDataJSON
 
   if (pollDataJSON.channelID != null)
   {
-    var uploadPollResponse = async (pollID, userID, questionIDToOptionIDMap) => {
+    var uploadPollResponse = async (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => {
       await firestoreDB.doc(pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID + "/" + userID).set({responseMap: questionIDToOptionIDMap, updatedAt: Date.now()})
     }
 
@@ -35,12 +39,12 @@ export const interpretServerPollSetting = async function(client, pollID, pollDat
   return pollDataJSON
 }
 
-export const removeServerPollSetting = async function(client, pollID, pollDataJSON)
+export const removeServerPollSetting = async function(client: Client, pollID: string, pollDataJSON: PollConfiguration)
 {
   if (pollDataJSON.channelID != null && pollDataJSON.messageIDs != null)
   {
-    var channel = await client.channels.fetch(pollDataJSON.channelID)
-    for (let messageID of pollDataJSON.messageIDs)
+    var channel = await client.channels.fetch(pollDataJSON.channelID) as TextChannel
+    for (let messageID of Object.values(pollDataJSON.messageIDs))
     {
       var message = await channel.messages.fetch(messageID)
       await message.delete()
@@ -67,9 +71,9 @@ export const removeServerPollSetting = async function(client, pollID, pollDataJS
   }
 }
 
-async function sendServerVoteMessage(client, pollData, uploadPollResponse)
+async function sendServerVoteMessage(client: Client, pollData: PollConfiguration, uploadPollResponse: (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => Promise<void>)
 {
-  var pollChannel = await client.channels.fetch(pollData.channelID)
+  var pollChannel = await client.channels.fetch(pollData.channelID) as TextChannel
   if (!pollChannel) { return }
 
   var pollMessageIDs = {}
@@ -101,17 +105,17 @@ async function sendServerVoteMessage(client, pollData, uploadPollResponse)
   return pollMessageIDs
 }
 
-async function setupPollQuestionReactionCollector(client, pollID, messageID, uploadPollResponse)
+async function setupPollQuestionReactionCollector(client: Client, pollID: string, messageID: string, uploadPollResponse: (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => Promise<void>)
 {
   var pollData = pollsData[pollID]
 
-  var pollChannel = await client.channels.fetch(pollData.channelID)
+  var pollChannel = await client.channels.fetch(pollData.channelID) as TextChannel
   if (!pollChannel) { return }
 
   var questionMessage = await pollChannel.messages.fetch(messageID)
   if (!questionMessage) { return }
 
-  var questionReactionCollector = questionMessage.createReactionCollector({ catchAllFilter, dispose: true })
+  var questionReactionCollector = questionMessage.createReactionCollector({ filter: catchAllFilter, dispose: true })
   questionReactionCollector.on('collect', async (reaction, user) => {
     if (user.id == client.user.id) { return }
 

@@ -1,3 +1,6 @@
+import { Client, User, GuildMember, Message, MessageReaction, GuildEmoji, ReactionEmoji, ReactionCollector } from "discord.js"
+import { Firestore, Timestamp } from "firebase-admin/firestore"
+
 export const pollsCollectionID = "pollConfigurations"
 export const pollResponsesCollectionID = "responses"
 
@@ -9,19 +12,80 @@ const ExportAccessType = {
   role: "role"
 }
 
-export var pollsData = {}
+export var pollsData: { [k: string]: PollConfiguration } = {}
 
-export var pollResponses = {}
-export var pollResponseReactionCollectors = {}
+export var pollResponses: { [k: string]: { [k: string]: { [k: string]: string } } } = {}
+export var pollResponseReactionCollectors: { [k: string]: { [k: string]: ReactionCollector[] } | ReactionCollector[] } = {}
 
-export var pollsMessageIDs = {}
-export var pollVoteMessageReactionCollectors = {}
+export var pollsMessageIDs: { [k: string]: { [k: string]: { [k: string]: string } | string } } = {}
+export var pollVoteMessageReactionCollectors: { [k: string]: ReactionCollector } = {}
+
+export class PollConfiguration
+{
+  id: string
+  name: string
+  pollType: "dm" | "server"
+  openTime: Timestamp
+  closeTime: Timestamp
+
+  roleID: string
+  serverID: string
+
+  channelID: string
+  messageIDs: { [k: string]: string }
+
+  questions: PollQuestion[]
+  voteMessageSettings: PollVoteMessageConfiguration
+  exportAccess: PollExportAccessConfiguration[]
+}
+
+class PollQuestion
+{
+  id: string
+  prompt: string
+  options: PollQuestionOption[]
+}
+
+class PollQuestionOption
+{
+  id: string
+  name: string
+  emote: string
+}
+
+export class PollVoteMessageConfiguration
+{
+  channelID: string
+  messageID: string | null
+  messageText: string
+}
+
+export class PollExportAccessConfiguration
+{
+  type: "user" | "role"
+  userID: string | null
+  roleID: string | null
+  afterPollClose: boolean | null
+  accessTime: Timestamp | null
+}
+
+export class PollResponse
+{
+  responseMap: PollResponseMap | null
+  messageIDs: string[] | null
+  updatedAt: number
+}
+
+export class PollResponseMap
+{
+  [k: string]: string
+}
 
 export const catchAllFilter = () => true
 
-import emojiConverter from 'node-emoji'
+import * as emojiConverter from 'node-emoji'
 
-export const checkVoteRequirements = function(pollData, serverID, member, msg)
+export const checkVoteRequirements = function(pollData: PollConfiguration, serverID: string, member: GuildMember, msg: Message = null)
 {
   var isWithinPollTimeRange = Date.now() >= pollData.openTime.toMillis() && Date.now() <= pollData.closeTime.toMillis()
   var inRequiredServer = pollData.serverID ? serverID == pollData.serverID : true
@@ -39,14 +103,14 @@ export const checkVoteRequirements = function(pollData, serverID, member, msg)
   }
   if (!hasRequiredRoles)
   {
-    msg && msg.channel.send("Cannot vote on " + pollData.name + " without the " + (msg.guild.roles.fetch(pollData.roleID) || {}).name + " role")
+    msg && msg.channel.send("Cannot vote on " + pollData.name + " without the " + pollData.roleID + " role")
     return false
   }
 
   return true
 }
 
-export const sendExportPollResultsCommand = async function(msg, messageContent)
+export const sendExportPollResultsCommand = async function(msg: Message, messageContent: string)
 {
   if (/^pollresults\s(.+)$/.test(messageContent.toLowerCase()))
   {
@@ -70,7 +134,7 @@ export const sendExportPollResultsCommand = async function(msg, messageContent)
   return false
 }
 
-function checkExportPollResultsRequirements(pollData, member, msg)
+function checkExportPollResultsRequirements(pollData: PollConfiguration, member: GuildMember, msg: Message)
 {
   if (!pollData.exportAccess)
   {
@@ -92,9 +156,9 @@ function checkExportPollResultsRequirements(pollData, member, msg)
     msg && msg.channel.send("You do not have access to the results of " + pollData.name + " until after the poll has closed")
     return false
   }
-  if ((userAccessData || roleAccessData).accessTime && Date.now() < (userAccessData || roleAccessData).accessTime)
+  if ((userAccessData || roleAccessData).accessTime && Date.now() < (userAccessData || roleAccessData).accessTime.toMillis())
   {
-    msg && msg.channel.send("You do not have access to the results of " + pollData.name + " until " + (new Date((userAccessData || roleAccessData).accessTime)).toString())
+    msg && msg.channel.send("You do not have access to the results of " + pollData.name + " until " + (new Date((userAccessData || roleAccessData).accessTime.toMillis())).toString())
     return false
   }
 
@@ -104,7 +168,7 @@ function checkExportPollResultsRequirements(pollData, member, msg)
 import { Parser } from "json2csv"
 import { MessageAttachment } from "discord.js"
 
-export const executeExportPollResultsCommand = async function(user, pollID, firestoreDB)
+export const executeExportPollResultsCommand = async function(user: User, pollID: string, firestoreDB: Firestore)
 {
   var dmChannel = user.dmChannel || await user.createDM()
   if (!dmChannel) { return }
@@ -131,11 +195,11 @@ export const executeExportPollResultsCommand = async function(user, pollID, fire
 
     return pollResponseData
   })
-  responseMapKeys = Array.from(responseMapKeys)
+  var responseMapKeyArray = Array.from(responseMapKeys)
 
   formattedPollResults.sort((pollResult1, pollResult2) => pollResult1.timestamp-pollResult2.timestamp)
 
-  var pollResultsCSVParser = new Parser({fields: responseMapKeys})
+  var pollResultsCSVParser = new Parser({fields: responseMapKeyArray})
   var pollResultsCSV = pollResultsCSVParser.parse(formattedPollResults)
 
   var pollResultsCSVFilename = "poll-results-" + pollID + ".csv"
@@ -145,9 +209,9 @@ export const executeExportPollResultsCommand = async function(user, pollID, fire
   })
 }
 
-export const getCurrentPollQuestionIDFromMessageID = function(messageID, userID)
+export const getCurrentPollQuestionIDFromMessageID = function(messageID: string, userID: string = null)
 {
-  var currentQuestionID
+  var currentQuestionID: string
   var currentPollID = Object.keys(pollsMessageIDs).find((pollID) => {
     if (userID && pollsMessageIDs[pollID][userID])
     {
@@ -173,7 +237,7 @@ export const getCurrentPollQuestionIDFromMessageID = function(messageID, userID)
   return { currentQuestionID: currentQuestionID, currentPollID: currentPollID }
 }
 
-export const getCurrentOptionDataFromReaction = function(reaction, user)
+export const getCurrentOptionDataFromReaction = function(reaction: MessageReaction, user: User)
 {
   var emoteName = getEmoteName(reaction.emoji)
 
@@ -184,15 +248,15 @@ export const getCurrentOptionDataFromReaction = function(reaction, user)
   return { currentPollID: currentPollID, currentQuestionID: currentQuestionID, currentOptionData: currentOptionData }
 }
 
-export const getEmoji = function(client, emoteName)
+export const getEmoji = function(client: Client, emoteName: string)
 {
-  var emote = client.emojis.cache.find(emoji => emoji.name == emoteName)
-  if (emote != null)
+  var emoji = client.emojis.cache.find(emoji => emoji.name == emoteName)
+  if (emoji != null)
   {
-    return emote.id
+    return emoji.id
   }
 
-  emote = emojiConverter.get(":" + emoteName + ":")
+  var emote = emojiConverter.get(":" + emoteName + ":")
   if (emote != null && !emote.includes(":"))
   {
     return emote
@@ -201,7 +265,7 @@ export const getEmoji = function(client, emoteName)
   return null
 }
 
-export const getEmoteName = function(emoji)
+export const getEmoteName = function(emoji: GuildEmoji | ReactionEmoji)
 {
   return emojiConverter.unemojify(emoji.name).replace(/:/g, '')
 }

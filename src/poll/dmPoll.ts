@@ -1,13 +1,17 @@
+import { Client, User, TextChannel, Message } from "discord.js"
+import { Firestore } from "firebase-admin/firestore"
+
 import {
+  PollConfiguration, PollVoteMessageConfiguration, PollResponseMap, PollResponse,
   pollsCollectionID, pollResponsesCollectionID,
   pollsData,
   pollResponses, pollResponseReactionCollectors,
   pollsMessageIDs, pollVoteMessageReactionCollectors,
   voteMessageEmoji, submitResponseEmote,
   catchAllFilter, checkVoteRequirements, getCurrentPollQuestionIDFromMessageID, getCurrentOptionDataFromReaction, getEmoji, getEmoteName
-} from "./sharedPoll.js"
+} from "./sharedPoll"
 
-export const interpretDMPollSetting = async function(client, pollID, pollDataJSON, firestoreDB)
+export const interpretDMPollSetting = async function(client: Client, pollID: string, pollDataJSON: PollConfiguration, firestoreDB: Firestore)
 {
   pollsData[pollID] = pollDataJSON
 
@@ -31,11 +35,11 @@ export const interpretDMPollSetting = async function(client, pollID, pollDataJSO
   return pollDataJSON
 }
 
-export const removeDMPollSetting = async function(client, pollID, pollDataJSON)
+export const removeDMPollSetting = async function(client: Client, pollID: string, pollDataJSON: PollConfiguration)
 {
   if (pollDataJSON.voteMessageSettings != null && pollDataJSON.voteMessageSettings.channelID != null && pollDataJSON.voteMessageSettings.messageID != null)
   {
-    var channel = await client.channels.fetch(pollDataJSON.voteMessageSettings.channelID)
+    var channel = await client.channels.fetch(pollDataJSON.voteMessageSettings.channelID) as TextChannel
     var message = await channel.messages.fetch(pollDataJSON.voteMessageSettings.messageID)
 
     await message.delete()
@@ -70,9 +74,9 @@ export const removeDMPollSetting = async function(client, pollID, pollDataJSON)
   }
 }
 
-async function sendVoteMessage(client, voteMessageSettings)
+async function sendVoteMessage(client: Client, voteMessageSettings: PollVoteMessageConfiguration)
 {
-  var channel = await client.channels.fetch(voteMessageSettings.channelID)
+  var channel = await client.channels.fetch(voteMessageSettings.channelID) as TextChannel
   var messageContent = voteMessageSettings.messageText
   var sentMessage = await channel.send(messageContent)
   voteMessageSettings.messageID = sentMessage.id
@@ -80,9 +84,9 @@ async function sendVoteMessage(client, voteMessageSettings)
   sentMessage.react(voteMessageEmoji)
 }
 
-async function editVoteMessage(client, voteMessageSettings)
+async function editVoteMessage(client: Client, voteMessageSettings: PollVoteMessageConfiguration)
 {
-  var channel = await client.channels.fetch(voteMessageSettings.channelID)
+  var channel = await client.channels.fetch(voteMessageSettings.channelID) as TextChannel
   try
   {
     var message = await channel.messages.fetch(voteMessageSettings.messageID)
@@ -100,12 +104,12 @@ async function editVoteMessage(client, voteMessageSettings)
   }
 }
 
-async function setupVoteMessageReactionCollector(client, pollDataJSON, firestoreDB)
+async function setupVoteMessageReactionCollector(client: Client, pollDataJSON: PollConfiguration, firestoreDB: Firestore)
 {
-  var channel = await client.channels.fetch(pollDataJSON.voteMessageSettings.channelID)
+  var channel = await client.channels.fetch(pollDataJSON.voteMessageSettings.channelID) as TextChannel
   var voteMessage = await channel.messages.fetch(pollDataJSON.voteMessageSettings.messageID)
 
-  var voteReactionCollector = voteMessage.createReactionCollector({ catchAllFilter })
+  var voteReactionCollector = voteMessage.createReactionCollector({ filter: catchAllFilter })
   voteReactionCollector.on('collect', async (reaction, user) => {
     if (user.id == client.user.id) { return }
     if (reaction.emoji.name != voteMessageEmoji)
@@ -128,13 +132,13 @@ async function setupVoteMessageReactionCollector(client, pollDataJSON, firestore
       catch {}
       return
     }
-    executeDMVoteCommand(client, user, pollID, firestoreDB)
+    executeDMVoteCommand(client, user, pollDataJSON.id, firestoreDB)
   })
 
   pollVoteMessageReactionCollectors[pollDataJSON.id] = voteReactionCollector
 }
 
-export const cleanDMPollResponseMessages = async function(client, userID, pollResponseData)
+export const cleanDMPollResponseMessages = async function(client: Client, userID: string, pollResponseData: PollResponse)
 {
   if (!pollResponseData.messageIDs) { return }
 
@@ -154,7 +158,7 @@ export const cleanDMPollResponseMessages = async function(client, userID, pollRe
   }
 }
 
-export const sendDMVoteCommand = async function(msg, messageContent)
+export const sendDMVoteCommand = async function(msg: Message, messageContent: string)
 {
   if (/^vote\s(.+)$/.test(messageContent.toLowerCase()))
   {
@@ -170,7 +174,7 @@ export const sendDMVoteCommand = async function(msg, messageContent)
 
     var pollData = pollsData[pollID]
 
-    if (!checkVoteRequirements(pollData, msg.channel.guildId, msg.member, msg)) { return }
+    if (!checkVoteRequirements(pollData, (msg.channel as TextChannel).guildId, msg.member, msg)) { return }
 
     return pollID
   }
@@ -178,17 +182,17 @@ export const sendDMVoteCommand = async function(msg, messageContent)
   return false
 }
 
-export const executeDMVoteCommand = async function(client, user, pollID, firestoreDB)
+export const executeDMVoteCommand = async function(client: Client, user: User, pollID: string, firestoreDB: Firestore)
 {
   console.log("Init vote " + pollID + " for " + user.id)
 
-  var uploadPollResponse = async (pollID, userID, questionIDToOptionIDMap) => {
+  var uploadPollResponse = async (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => {
     await firestoreDB.doc(pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID + "/" + userID).set({responseMap: questionIDToOptionIDMap, updatedAt: Date.now()})
   }
 
   let pollResponsePath = pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID + "/" + user.id
   let pollResponseDoc = await firestoreDB.doc(pollResponsePath).get()
-  let previousPollResponseMessageIDs
+  let previousPollResponseMessageIDs: string[]
   if (pollResponseDoc != null && pollResponseDoc.data() != null && pollResponseDoc.data().messageIDs != null)
   {
     previousPollResponseMessageIDs = pollResponseDoc.data().messageIDs
@@ -205,7 +209,7 @@ export const executeDMVoteCommand = async function(client, user, pollID, firesto
   }
 }
 
-async function sendVoteDM(client, user, pollID, uploadPollResponse, previousPollResponseMessageIDs)
+async function sendVoteDM(client: Client, user: User, pollID: string, uploadPollResponse: (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => Promise<void>, previousPollResponseMessageIDs: string[])
 {
   var dmChannel = user.dmChannel || await user.createDM()
 
@@ -265,7 +269,7 @@ async function sendVoteDM(client, user, pollID, uploadPollResponse, previousPoll
   return pollMessageIDs
 }
 
-async function setupPollQuestionReactionCollector(client, pollID, user, messageID)
+async function setupPollQuestionReactionCollector(client: Client, pollID: string, user: User, messageID: string)
 {
   var dmChannel = user.dmChannel || await user.createDM()
   if (!dmChannel) { return }
@@ -273,7 +277,7 @@ async function setupPollQuestionReactionCollector(client, pollID, user, messageI
   var questionMessage = await dmChannel.messages.fetch(messageID)
   if (!questionMessage) { return }
 
-  var questionReactionCollector = questionMessage.createReactionCollector({ catchAllFilter, dispose: true })
+  var questionReactionCollector = questionMessage.createReactionCollector({ filter: catchAllFilter, dispose: true })
   questionReactionCollector.on('collect', async (reaction, user) => {
     if (user.id == client.user.id) { return }
     await user.fetch()
@@ -328,7 +332,7 @@ async function setupPollQuestionReactionCollector(client, pollID, user, messageI
   pollResponseReactionCollectors[pollID][user.id].push(questionReactionCollector)
 }
 
-async function setupPollSubmitReactionCollector(client, pollID, user, messageID, uploadPollResponse)
+async function setupPollSubmitReactionCollector(client: Client, pollID: string, user: User, messageID: string, uploadPollResponse: (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => Promise<void>)
 {
   var dmChannel = user.dmChannel || await user.createDM()
   if (!dmChannel) { return }
@@ -336,7 +340,7 @@ async function setupPollSubmitReactionCollector(client, pollID, user, messageID,
   var submitMessage = await dmChannel.messages.fetch(messageID)
   if (!submitMessage) { return }
 
-  var submitReactionCollector = submitMessage.createReactionCollector({ catchAllFilter })
+  var submitReactionCollector = submitMessage.createReactionCollector({ filter: catchAllFilter })
   submitReactionCollector.on('collect', async (reaction, user) => {
     if (user.id == client.user.id) { return }
     if (getEmoteName(reaction.emoji) != submitResponseEmote) { return }

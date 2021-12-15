@@ -1,9 +1,11 @@
+import { Message } from "discord.js"
+
 const messageResponses = [
   { pattern: "(\\W|\\s+|^)[bruh]{4,}(\\W|\\s+|$)", responses: ["bruh"] },
   { pattern: "i hope u choke", responses: ["kinky"] }
 ]
 
-export const sendMessageResponses = function(msg)
+export const sendMessageResponses = function(msg: Message)
 {
   var messageContent = msg.content.toLowerCase()
 

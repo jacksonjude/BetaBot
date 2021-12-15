@@ -1,40 +1,28 @@
+import { Client } from "discord.js"
+
 // Update Roles
 
-async function setRole(user, guild, roleName, shouldAddRole)
-{
-  var guildRoles = await guild.roles.fetch()
-  var rolesArray = Array.from(guildRoles.values())
-
-  var roleObject = rolesArray.find(roleToTest => roleToTest.name == roleName)
-  if (roleObject == null) { return false }
-
-  var guildMember = await guild.members.fetch(user)
-
-  if (shouldAddRole)
-  {
-    guildMember.roles.add(roleObject)
-  }
-  else
-  {
-    guildMember.roles.remove(roleObject)
-  }
-
-  return true
-}
+import { setRole } from "./roleMessages"
 
 // Voice to text channel
 
-var voiceToTextChannelData = {}
+var voiceToTextChannelData: { [k: string]: VoiceToTextPair[] } = {}
 
-export const interpretVoiceToTextChannelSetting = async function(guildID, voiceToTextChannelMap)
+class VoiceToTextPair
+{
+  textChannel: string
+  voiceChannel: string
+}
+
+export const interpretVoiceToTextChannelSetting = async function(guildID: string, voiceToTextChannelMap: VoiceToTextPair[])
 {
   voiceToTextChannelData[guildID] = voiceToTextChannelMap
 }
 
-export const setupVoiceChannelEventHandler = function(client)
+export const setupVoiceChannelEventHandler = function(client: Client)
 {
   client.on('voiceStateUpdate', async (oldState, newState) => {
-    let prevTextChannelName
+    let prevTextChannelName: string
     if (oldState.channelId != null)
     {
       let voiceTextChannelPair = voiceToTextChannelData[oldState.guild.id].find((voiceTextChannelPair) => voiceTextChannelPair.voiceChannel == oldState.channelId)
@@ -45,7 +33,7 @@ export const setupVoiceChannelEventHandler = function(client)
         prevTextChannelName = prevTextChannel != null ? prevTextChannel.name : null
       }
     }
-    let newTextChannelName
+    let newTextChannelName: string
     if (newState.channelId != null)
     {
       let voiceTextChannelPair = voiceToTextChannelData[newState.guild.id].find((voiceTextChannelPair) => voiceTextChannelPair.voiceChannel == newState.channelId)
