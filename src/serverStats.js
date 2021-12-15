@@ -307,8 +307,12 @@ export const sendMessageCountsLeaderboardCommand = async function(client, msg, m
       let startDate = new Date(parseInt(startDateParts[2]), parseInt(startDateParts[0])-1, parseInt(startDateParts[1]))
       let endDate = new Date(parseInt(endDateParts[2]), parseInt(endDateParts[0])-1, parseInt(endDateParts[1]))
 
+      console.log(startDate.getTime())
+
       startDate.changeTimezone(messageCountsData.timeZone)
       endDate.changeTimezone(messageCountsData.timeZone)
+
+      console.log(startDate.getTime())
 
       if (startDate.getTime() == NaN || endDate.getTime() == NaN) { return false }
 
