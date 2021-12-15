@@ -247,7 +247,7 @@ Date.prototype.toDMYString = function() {
   return (this.getMonth()+1) + "/" + this.getDate() + "/" + this.getFullYear()
 }
 
-Date.prototype.changeTimezone = function(ianatz) {
+Date.prototype.changeTimezone = function(ianatz, multiplier) {
   // suppose the date is 12:00 UTC
   var invdate = new Date(this.toLocaleString('en-US', {
     timeZone: ianatz
@@ -256,6 +256,7 @@ Date.prototype.changeTimezone = function(ianatz) {
   // then invdate will be 07:00 in Toronto
   // and the diff is 5 hours
   var diff = this.getTime() - invdate.getTime()
+  diff *= multiplier
 
   // so 12:00 in Toronto is 17:00 UTC
   this.setTime(this.getTime() - diff) // needs to substract
@@ -307,12 +308,8 @@ export const sendMessageCountsLeaderboardCommand = async function(client, msg, m
       let startDate = new Date(parseInt(startDateParts[2]), parseInt(startDateParts[0])-1, parseInt(startDateParts[1]))
       let endDate = new Date(parseInt(endDateParts[2]), parseInt(endDateParts[0])-1, parseInt(endDateParts[1]))
 
-      console.log(startDate.getTime())
-
-      startDate.changeTimezone(messageCountsData.timeZone)
-      endDate.changeTimezone(messageCountsData.timeZone)
-
-      console.log(startDate.getTime())
+      startDate.changeTimezone(messageCountsData.timeZone, -1)
+      endDate.changeTimezone(messageCountsData.timeZone, -1)
 
       if (startDate.getTime() == NaN || endDate.getTime() == NaN) { return false }
 
