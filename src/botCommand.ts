@@ -1,25 +1,26 @@
 import { TextChannel, Message, Client } from "discord.js"
 import { Firestore } from "firebase-admin/firestore"
 
+type ParseCommandStringFunction = (messageString: string, channel: TextChannel, usageMessage: string) => boolean | string[]
 type ExecuteCommandFunction = (commandArguments: string[], message: Message, client: Client, firestoreDB: Firestore) => Promise<BotCommandError | void>
 
 export class BotCommand
 {
-  parseCommandString: (messageString: string, channel: TextChannel) => boolean | string[]
+  parseCommandString: ParseCommandStringFunction
   usageMessage: string | null
 
   executeCommand: ExecuteCommandFunction
 
-  constructor(parseCommandStringFunction: (messageString: string, channel: TextChannel) => boolean | string[], usageMessage: string | null, executeCommand: ExecuteCommandFunction)
+  constructor(parseCommandStringFunction: ParseCommandStringFunction, usageMessage: string | null, executeCommand: ExecuteCommandFunction)
   {
     this.parseCommandString = parseCommandStringFunction
-    this.usageMessage = "Usage: `@BetaBot " + usageMessage + "`"
+    this.usageMessage = "**Usage: `@BetaBot " + usageMessage + "`**"
     this.executeCommand = executeCommand
   }
 
   static fromRegex(fullRegex: RegExp, partialRegex: RegExp | null, usageMessage: string | null, executeCommand: ExecuteCommandFunction): BotCommand
   {
-    return new BotCommand((messageString: string, channel: TextChannel) => {
+    return new BotCommand((messageString: string, channel: TextChannel, usageMessage: string) => {
       if (partialRegex && !partialRegex.test(messageString.toLowerCase())) { return false }
       if (!fullRegex.test(messageString.toLowerCase()))
       {
@@ -36,14 +37,14 @@ export class BotCommand
   async execute(messageString: string, message: Message, client: Client, firestoreDB: Firestore): Promise<boolean>
   {
     let textChannel = message.channel as TextChannel
-    let parseCallback = this.parseCommandString(messageString, textChannel)
+    let parseCallback = this.parseCommandString(messageString, textChannel, this.usageMessage)
     if (parseCallback === false || parseCallback === true) { return parseCallback }
 
     let currentArguments = parseCallback
     let commandCallback = await this.executeCommand(currentArguments, message, client, firestoreDB)
     if (commandCallback)
     {
-      await textChannel.send("Error: " + commandCallback.errorMessage)
+      await textChannel.send("**Error: " + commandCallback.errorMessage + "**")
       commandCallback.shouldShowUsage && await textChannel.send(this.usageMessage)
     }
     return true
