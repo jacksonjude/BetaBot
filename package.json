@@ -9,6 +9,7 @@
   "author": "JJCooley",
   "license": "ISC",
   "dependencies": {
+    "ts-node": "^3.3.0",
     "@discordjs/rest": "^0.1.0-canary.0",
     "@types/cron": "^1.7.3",
     "@types/json2csv": "^5.0.3",
