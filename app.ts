@@ -21,9 +21,11 @@ import { Firestore } from "firebase-admin/firestore"
 // import { Routes } from 'discord-api-types/v9'
 // const rest = new REST({ version: '9' }).setToken(process.env.DISCORD_TOKEN)
 
+import { BotCommand } from "./src/botCommand"
+
 import { loginBot, printLoginMessage, prepareBotLogout, rebootBot, logoutBot, endLogMessage } from "./src/login"
 import { sendMessageResponses } from "./src/messageResponses"
-import { sendDateCommands, sendMessageCommands, sendEmoteSpellCommand, sendClearCommand, sendRepeatCommand, sendSpeakCommand } from "./src/miscCommands"
+import { getMessageCommands, getDateCommands, getEmoteSpellCommand, getClearCommand, getRepeatCommand, getSpeakCommand } from "./src/miscCommands"
 
 import { setupVoiceChannelEventHandler } from "./src/linkedTextChannels"
 import { setupMemberStatsEventHandlers, sendMessageCountsUpdateCommand, sendMessageCountsLeaderboardCommand } from "./src/serverStats"
@@ -121,11 +123,17 @@ client.on('messageCreate', async msg => {
 
   // console.log("Command from " + msg.author.id + " in " + msg.guildId + " '" + messageContent + "'")
 
-  if (sendMessageCommands(msg, messageContent)) { return }
-  if (sendDateCommands(msg, messageContent)) { return }
+  const runBotCommands = async function(botCommands: BotCommand[]): Promise<boolean>
+  {
+    for (let botCommand of botCommands)
+    {
+      if (await botCommand.execute(messageContent, msg, client, firestoreDB)) { return true }
+    }
+    return false
+  }
 
-  if (await sendEmoteSpellCommand(msg, messageContent)) { return }
-  if (await sendClearCommand(client, msg, messageContent)) { return }
+  var botCommands = [...getMessageCommands(), ...getDateCommands(), getEmoteSpellCommand(), getClearCommand()]
+  if (await runBotCommands(botCommands)) { return }
 
   let pollID = await sendDMVoteCommand(msg, messageContent)
   if (pollID)
@@ -160,8 +168,8 @@ client.on('messageCreate', async msg => {
 
   if (!(msg.guildId == HOME_GUILD_ID && msg.member.roles.cache.find(role => role.id == TECHNICIAN_ROLE_ID))) { return }
 
-  if (sendRepeatCommand(msg, messageContent)) { return }
-  if (sendSpeakCommand(msg, messageContent)) { return }
+  botCommands = [getRepeatCommand(), getSpeakCommand()]
+  if (await runBotCommands(botCommands)) { return }
 
   switch (messageContent)
   {

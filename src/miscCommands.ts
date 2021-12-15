@@ -1,4 +1,5 @@
 import { Client, Message } from "discord.js"
+import { BotCommand, BotCommandError } from "./botCommand"
 
 const messageCommands = [
   { command: "hi", responses: ["hello :wave:"] },
@@ -12,45 +13,11 @@ const messageCommands = [
   { command: "d20", responses: [":one:", ":two:", ":three:", ":four:", ":five:", ":six:", ":seven:", ":eight:", ":nine:", ":one::zero:", ":one::one:", ":one::two:", ":one::three:", ":one::four:", ":one::five:", ":one::six:", ":one::seven:", ":one::eight:", ":one::nine:", ":two::zero:"] }
 ]
 
-const dates = [
+const dateCommands = [
   // { name: "Misty Not Rated", timestamp: 1586139240000, command: "misty" },
   { name: "Birthday", timestamp: 1597993200000, command: "birf" },
   { name: "Finals are over!!! :partying_face:", timestamp: 1639209600000, command: "finals" }
 ]
-
-export const sendDateCommands = function(msg: Message, messageContent: string)
-{
-  for (let dateNum in dates)
-  {
-    if (messageContent.toLowerCase() == dates[dateNum].command)
-    {
-      var millisDifference = Math.abs(Date.now()-dates[dateNum].timestamp)
-      var days = Math.floor(millisDifference/(1000*60*60*24))
-      var hours = Math.floor((millisDifference-days*1000*60*60*24)/(1000*60*60))
-      var minutes = Math.floor((millisDifference-days*1000*60*60*24-hours*1000*60*60)/(1000*60))
-      msg.channel.send(dates[dateNum].name + ": " + (Math.sign(Date.now()-dates[dateNum].timestamp) == -1 ? "-" : "") + days + " days, " + hours + " hours, and " + minutes + " minutes")
-
-      return true
-    }
-  }
-
-  return false
-}
-
-export const sendMessageCommands = function(msg: Message, messageContent: string)
-{
-  for (let commandNum in messageCommands)
-  {
-    if (messageContent.toLowerCase() == messageCommands[commandNum].command)
-    {
-      var index = Math.floor((Math.random() * messageCommands[commandNum].responses.length))
-      msg.channel.send(messageCommands[commandNum].responses[index])
-      return true
-    }
-  }
-
-  return false
-}
 
 const letterBitmaps = {
   A: [
@@ -213,112 +180,127 @@ const letterBitmaps = {
   ]
 }
 
-export const sendEmoteSpellCommand = async function(msg: Message, messageContent: string)
+export const getMessageCommands = function(): BotCommand[]
 {
-  const spellCommandRegex = /^spell\s+([a-zA-Z]+)(\s+((<)?:[^\s:]+?:(\d+>)?))?(\s+((<)?:[^\s:]+?:(\d+>)?))?$/
-  if (spellCommandRegex.test(messageContent.toLowerCase()))
-  {
-    let spellRegexGroups = spellCommandRegex.exec(messageContent)
+  return messageCommands.map(messageCommandData => {
+    return BotCommand.fromRegex(
+      new RegExp("^" + messageCommandData.command + "$"), null,
+      messageCommandData.command,
+      async (_, message: Message, __, ___) => {
+        let index = Math.floor((Math.random() * messageCommandData.responses.length))
+        await message.channel.send(messageCommandData.responses[index])
+      }
+    )
+  })
+}
 
-    let wordToSpell = spellRegexGroups[1].toUpperCase()
+export const getDateCommands = function(): BotCommand[]
+{
+  return dateCommands.map(dateCommandData => {
+    return BotCommand.fromRegex(
+      new RegExp("^" + dateCommandData.command + "$"), null,
+      dateCommandData.command,
+      async (_, message: Message, __, ___) => {
+        let millisDifference = Math.abs(Date.now()-dateCommandData.timestamp)
+        let days = Math.floor(millisDifference/(1000*60*60*24))
+        let hours = Math.floor((millisDifference-days*1000*60*60*24)/(1000*60*60))
+        let minutes = Math.floor((millisDifference-days*1000*60*60*24-hours*1000*60*60)/(1000*60))
+        await message.channel.send(dateCommandData.name + ": " + (Math.sign(Date.now()-dateCommandData.timestamp) == -1 ? "-" : "") + days + " days, " + hours + " hours, and " + minutes + " minutes")
+      }
+    )
+  })
+}
 
-    if (wordToSpell.length > 10)
-    {
-      await msg.channel.send("that's too long m'dude")
-      return
-    }
+export const getEmoteSpellCommand = function(): BotCommand
+{
+  return BotCommand.fromRegex(
+    /^spell\s+([a-zA-Z]+)(\s+((<)?:[^\s:]+?:(\d+>)?))?(\s+((<)?:[^\s:]+?:(\d+>)?))?$/, /^spell\s*.*$/,
+    "spell <word> [interior emote] [exterior emote]",
+    async (commandArguments: string[], message: Message, __, ___) => {
+      let wordToSpell = commandArguments[1]
 
-    let fillEmote = spellRegexGroups[3] ?? ":white_large_square:"
-    let backgroundEmote = spellRegexGroups[7] ?? ":black_large_square:"
-
-    let spaceLineMessage = backgroundEmote + " " + backgroundEmote + " " + backgroundEmote + " "
-
-    for (let currentCharacter of wordToSpell.split(""))
-    {
-      if (!letterBitmaps[currentCharacter]) { continue }
-
-      for (let letterBitmapLine of letterBitmaps[currentCharacter])
+      if (wordToSpell.length > 10)
       {
-        let letterLineMessage = ""
+        return new BotCommandError("that's too long m'dude", false)
+      }
 
-        for (let letterBitCell of letterBitmapLine.split(""))
+      let fillEmote = commandArguments[3] ?? ":white_large_square:"
+      let backgroundEmote = commandArguments[7] ?? ":black_large_square:"
+
+      let spaceLineMessage = backgroundEmote + " " + backgroundEmote + " " + backgroundEmote + " "
+
+      for (let currentCharacter of wordToSpell.toUpperCase().split(""))
+      {
+        if (!letterBitmaps[currentCharacter]) { continue }
+
+        for (let letterBitmapLine of letterBitmaps[currentCharacter])
         {
-          letterLineMessage += letterBitCell == "1" ? fillEmote : backgroundEmote
-          letterLineMessage += " "
+          let letterLineMessage = ""
+
+          for (let letterBitCell of letterBitmapLine.split(""))
+          {
+            letterLineMessage += letterBitCell == "1" ? fillEmote : backgroundEmote
+            letterLineMessage += " "
+          }
+
+          await message.channel.send(letterLineMessage)
         }
 
-        await msg.channel.send(letterLineMessage)
-      }
-
-      await msg.channel.send(spaceLineMessage)
-    }
-
-    return true
-  }
-
-  return false
-}
-
-export const sendClearCommand = async function(client: Client, msg: Message, messageContent: string)
-{
-  var dmChannel = msg.author.dmChannel || await msg.author.createDM()
-
-  if (/^clear$/.test(messageContent.toLowerCase()))
-  {
-    let dmMessages = await dmChannel.messages.fetch()
-    dmMessages.forEach((message) => {
-      if (message.author.id == client.user.id)
-      {
-        message.delete()
-      }
-    })
-
-    return true
-  }
-  else if (/^clear\s+(\d*)$/.test(messageContent.toLowerCase()))
-  {
-    let clearMessageAmount = parseInt(/^clear\s*(\d*)$/.exec(messageContent)[1])
-    let dmMessages = await dmChannel.messages.fetch()
-    dmMessages.forEach((message) => {
-      if (clearMessageAmount <= 0) { return }
-      if (message.author.id == client.user.id)
-      {
-        message.delete()
-        clearMessageAmount -= 1
-      }
-    })
-  }
-
-  return false
-}
-
-export const sendRepeatCommand = function(msg: Message, messageContent: string)
-{
-  if (/^repeat\s+(\d+)$/.test(messageContent.toLowerCase()))
-  {
-    var multiplier = parseInt(/^repeat\s+(\d+)$/.exec(messageContent)[1]) || 1 //parseInt(messageContent.replace("repeat", "")) || 1
-    var messageArray = msg.channel.messages.cache.toJSON()
-    if (messageArray.length >= 2)
-    {
-      for (let i=0; i < multiplier; i++)
-      {
-        msg.channel.send(messageArray[messageArray.length-2].toString())
+        await message.channel.send(spaceLineMessage)
       }
     }
-    return true
-  }
-
-  return false
+  )
 }
 
-export const sendSpeakCommand = function(msg: Message, messageContent: string)
+export const getClearCommand = function(): BotCommand
 {
-  if (/^speak\s(.+)$/.test(messageContent.toLowerCase()))
-  {
-    var phraseToSay = /^speak\s(.+)$/.exec(messageContent)[1]
-    msg.channel.send({content: phraseToSay, tts: true})
-    return true
-  }
+  return BotCommand.fromRegex(
+    /^clear(\s+(\d+))?$/, /^clear\s*.*$/,
+    "clear [message count]",
+    async (commandArguments: string[], message: Message, client: Client, ___) => {
+      let dmChannel = message.author.dmChannel || await message.author.createDM()
 
-  return false
+      let clearMessageAmount = parseInt(commandArguments[2] ?? "100")
+      let dmMessages = await dmChannel.messages.fetch()
+      dmMessages.forEach((message) => {
+        if (clearMessageAmount <= 0) { return }
+        if (message.author.id == client.user.id)
+        {
+          message.delete()
+          clearMessageAmount -= 1
+        }
+      })
+    }
+  )
+}
+
+export const getRepeatCommand = function(): BotCommand
+{
+  return BotCommand.fromRegex(
+    /^repeat\s+(\d+)$/, /^repeat\s*.*$/,
+    "repeat [count]",
+    async (commandArguments: string[], message: Message, __, ___) => {
+      let multiplier = parseInt(commandArguments[1])
+      let messageArray = message.channel.messages.cache.toJSON()
+      if (messageArray.length >= 2)
+      {
+        for (let i=0; i < multiplier; i++)
+        {
+          message.channel.send(messageArray[messageArray.length-2].toString())
+        }
+      }
+    }
+  )
+}
+
+export const getSpeakCommand = function(): BotCommand
+{
+  return BotCommand.fromRegex(
+    /^speak\s+(.+)$/, null,
+    "speak [message]",
+    async (commandArguments: string[], message: Message, __, ___) => {
+      let phraseToSay = commandArguments[1]
+      message.channel.send({content: phraseToSay, tts: true})
+    }
+  )
 }
