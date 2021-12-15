@@ -115,8 +115,6 @@ function checkRoleAssignmentRequirements(roleAssignmentData: RoleAssignmentConfi
   var hasRequiredRoles = roleAssignmentData.roleIDWhitelist ? member.roles.cache.find(role => roleAssignmentData.roleIDWhitelist.includes(role.id)) : true
   var hasBlacklistedRoles = roleAssignmentData.roleIDBlacklist ? member.roles.cache.find(role => roleAssignmentData.roleIDBlacklist.includes(role.id)) : false
 
-  console.log(inRequiredServer, hasRequiredRoles, hasBlacklistedRoles)
-
   if (!inRequiredServer)
   {
     msg && msg.channel.send("Cannot get role for " + roleAssignmentData.name + " in this server")
