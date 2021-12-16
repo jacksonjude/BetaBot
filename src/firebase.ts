@@ -1,7 +1,7 @@
 import { initializeApp, cert } from 'firebase-admin/app'
 import { getFirestore, Firestore, QueryDocumentSnapshot } from 'firebase-admin/firestore'
 
-export const initFirestore = function()
+export function initFirestore()
 {
   const serviceAccount = JSON.parse(process.env.FIRESTORE_KEY_JSON)
 
@@ -133,7 +133,7 @@ const firestoreCollectionSyncHandlers = [
   }
 ]
 
-export const initFirestoreCollectionListeners = function(firestoreDB: Firestore, client: Client)
+export function initFirestoreCollectionListeners(firestoreDB: Firestore, client: Client)
 {
   firestoreCollectionSyncHandlers.forEach((collectionData) => {
     let collectionRef = firestoreDB.collection(collectionData.collectionID)

@@ -10,7 +10,7 @@ import {
   catchAllFilter, checkVoteRequirements, getCurrentPollQuestionIDFromMessageID, getCurrentOptionDataFromReaction, getEmoji
 } from "./sharedPoll"
 
-export const interpretServerPollSetting = async function(client: Client, pollID: string, pollDataJSON: PollConfiguration, firestoreDB: Firestore)
+export async function interpretServerPollSetting(client: Client, pollID: string, pollDataJSON: PollConfiguration, firestoreDB: Firestore)
 {
   pollsData[pollID] = pollDataJSON
 
@@ -39,7 +39,7 @@ export const interpretServerPollSetting = async function(client: Client, pollID:
   return pollDataJSON
 }
 
-export const removeServerPollSetting = async function(client: Client, pollID: string, pollDataJSON: PollConfiguration)
+export async function removeServerPollSetting(client: Client, pollID: string, pollDataJSON: PollConfiguration)
 {
   if (pollDataJSON.channelID != null && pollDataJSON.messageIDs != null)
   {

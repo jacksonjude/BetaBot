@@ -5,7 +5,7 @@ const messageResponses = [
   { pattern: "i hope u choke", responses: ["kinky"] }
 ]
 
-export const sendMessageResponses = function(msg: Message)
+export function sendMessageResponses(msg: Message)
 {
   var messageContent = msg.content.toLowerCase()
 

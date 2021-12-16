@@ -38,7 +38,7 @@ class MessageCountSegmentSumConfiguration
   count: number
 }
 
-export const interpretStatsSetting = async function(client: Client, guildID: string, statsDataJSON: StatsConfiguration, firestoreDB: Firestore)
+export async function interpretStatsSetting(client: Client, guildID: string, statsDataJSON: StatsConfiguration, firestoreDB: Firestore)
 {
   statsData[guildID] = statsDataJSON
 
@@ -55,7 +55,7 @@ export const interpretStatsSetting = async function(client: Client, guildID: str
   }
 }
 
-export const setupMemberStatsEventHandlers = function(client: Client)
+export function setupMemberStatsEventHandlers(client: Client)
 {
   client.on('guildMemberAdd', (member) => {
     // Update members stat

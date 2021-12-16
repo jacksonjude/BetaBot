@@ -12,7 +12,7 @@ import {
   catchAllFilter, checkVoteRequirements, getCurrentPollQuestionIDFromMessageID, getCurrentOptionDataFromReaction, getEmoji, getEmoteName
 } from "./sharedPoll"
 
-export const interpretDMPollSetting = async function(client: Client, pollID: string, pollDataJSON: PollConfiguration, firestoreDB: Firestore)
+export async function interpretDMPollSetting(client: Client, pollID: string, pollDataJSON: PollConfiguration, firestoreDB: Firestore)
 {
   pollsData[pollID] = pollDataJSON
 
@@ -36,7 +36,7 @@ export const interpretDMPollSetting = async function(client: Client, pollID: str
   return pollDataJSON
 }
 
-export const removeDMPollSetting = async function(client: Client, pollID: string, pollDataJSON: PollConfiguration)
+export async function removeDMPollSetting(client: Client, pollID: string, pollDataJSON: PollConfiguration)
 {
   if (pollDataJSON.voteMessageSettings != null && pollDataJSON.voteMessageSettings.channelID != null && pollDataJSON.voteMessageSettings.messageID != null)
   {
@@ -139,7 +139,7 @@ async function setupVoteMessageReactionCollector(client: Client, pollDataJSON: P
   pollVoteMessageReactionCollectors[pollDataJSON.id] = voteReactionCollector
 }
 
-export const cleanDMPollResponseMessages = async function(client: Client, userID: string, pollResponseData: PollResponse)
+export async function cleanDMPollResponseMessages(client: Client, userID: string, pollResponseData: PollResponse)
 {
   if (!pollResponseData.messageIDs) { return }
 

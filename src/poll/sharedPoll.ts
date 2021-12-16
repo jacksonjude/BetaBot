@@ -86,7 +86,7 @@ export const catchAllFilter = () => true
 
 import * as emojiConverter from 'node-emoji'
 
-export const checkVoteRequirements = function(pollData: PollConfiguration, serverID: string, member: GuildMember, msg: Message = null)
+export function checkVoteRequirements(pollData: PollConfiguration, serverID: string, member: GuildMember, msg: Message = null)
 {
   var isWithinPollTimeRange = Date.now() >= pollData.openTime.toMillis() && Date.now() <= pollData.closeTime.toMillis()
   var inRequiredServer = pollData.serverID ? serverID == pollData.serverID : true
@@ -172,7 +172,7 @@ function checkExportPollResultsRequirements(pollData: PollConfiguration, member:
 import { Parser } from "json2csv"
 import { MessageAttachment } from "discord.js"
 
-export const executeExportPollResultsCommand = async function(user: User, pollID: string, firestoreDB: Firestore)
+export async function executeExportPollResultsCommand(user: User, pollID: string, firestoreDB: Firestore)
 {
   var dmChannel = user.dmChannel || await user.createDM()
   if (!dmChannel) { return }
@@ -213,7 +213,7 @@ export const executeExportPollResultsCommand = async function(user: User, pollID
   })
 }
 
-export const getCurrentPollQuestionIDFromMessageID = function(messageID: string, userID: string = null)
+export function getCurrentPollQuestionIDFromMessageID(messageID: string, userID: string = null)
 {
   var currentQuestionID: string
   var currentPollID = Object.keys(pollsMessageIDs).find((pollID) => {
@@ -241,7 +241,7 @@ export const getCurrentPollQuestionIDFromMessageID = function(messageID: string,
   return { currentQuestionID: currentQuestionID, currentPollID: currentPollID }
 }
 
-export const getCurrentOptionDataFromReaction = function(reaction: MessageReaction, user: User)
+export function getCurrentOptionDataFromReaction(reaction: MessageReaction, user: User)
 {
   var emoteName = getEmoteName(reaction.emoji)
 
@@ -252,7 +252,7 @@ export const getCurrentOptionDataFromReaction = function(reaction: MessageReacti
   return { currentPollID: currentPollID, currentQuestionID: currentQuestionID, currentOptionData: currentOptionData }
 }
 
-export const getEmoji = function(client: Client, emoteName: string)
+export function getEmoji(client: Client, emoteName: string)
 {
   var emoji = client.emojis.cache.find(emoji => emoji.name == emoteName)
   if (emoji != null)
@@ -269,7 +269,7 @@ export const getEmoji = function(client: Client, emoteName: string)
   return null
 }
 
-export const getEmoteName = function(emoji: GuildEmoji | ReactionEmoji)
+export function getEmoteName(emoji: GuildEmoji | ReactionEmoji)
 {
   return emojiConverter.unemojify(emoji.name).replace(/:/g, '')
 }

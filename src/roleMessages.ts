@@ -48,7 +48,7 @@ class RoleEmoteMap
   emote: string
 }
 
-export const interpretRoleSetting = async function(client: Client, roleSettingID: string, roleSettingJSON: RoleMessageConfiguration)
+export async function interpretRoleSetting(client: Client, roleSettingID: string, roleSettingJSON: RoleMessageConfiguration)
 {
   if (roleSettingJSON.channelID == null) { return }
 
@@ -92,7 +92,7 @@ export const interpretRoleSetting = async function(client: Client, roleSettingID
   return updateSettingInDatabase
 }
 
-export const removeRoleSetting = async function(client: Client, roleSettingID: string, roleSettingJSON: RoleMessageConfiguration)
+export async function removeRoleSetting(client: Client, roleSettingID: string, roleSettingJSON: RoleMessageConfiguration)
 {
   if (roleSettingJSON.messageID)
   {

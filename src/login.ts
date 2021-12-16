@@ -6,7 +6,7 @@ var loginMessage: string
 var loginChannelID: string
 var loginGuildID: string
 
-export const loginBot = async function(client: Client, message: string = null, channelID: string = null, guildID: string = null)
+export async function loginBot(client: Client, message: string = null, channelID: string = null, guildID: string = null)
 {
   if (process.env.process_restarting)
   {
@@ -30,7 +30,7 @@ export const loginBot = async function(client: Client, message: string = null, c
   client.login(DISCORD_TOKEN)
 }
 
-export const printLoginMessage = async function(client: Client)
+export async function printLoginMessage(client: Client)
 {
   if (loginMessage && loginChannelID && loginGuildID)
   {
@@ -51,13 +51,13 @@ const isLocalProcess = process.argv[2] == "local"
 import * as fs from 'fs'
 import { spawn } from 'child_process'
 
-export const prepareBotLogout = async function(client: Client, logoutMessage: string, msg: Message)
+export async function prepareBotLogout(client: Client, logoutMessage: string, msg: Message)
 {
   await msg.channel.send(logoutMessage)
   client.user.setPresence({status: "dnd"})
 }
 
-export const logoutBot = function(client: Client)
+export function logoutBot(client: Client)
 {
   if (isLocalProcess && fs.existsSync(logfile))
   {
@@ -69,7 +69,7 @@ export const logoutBot = function(client: Client)
   client.destroy()
 }
 
-export const rebootBot = async function(client: Client, logoutMessage: string, loginMessage: string, msg: Message)
+export async function rebootBot(client: Client, logoutMessage: string, loginMessage: string, msg: Message)
 {
   if (!isLocalProcess)
   {
@@ -84,7 +84,7 @@ export const rebootBot = async function(client: Client, logoutMessage: string, l
   client.destroy()
 }
 
-const spawnBot = function(loginMessage: string, msg: Message)
+function spawnBot(loginMessage: string, msg: Message)
 {
   var out = fs.openSync(logfile, 'a')
   var err = fs.openSync(logfile, 'a')

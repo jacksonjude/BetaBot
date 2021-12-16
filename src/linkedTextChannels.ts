@@ -14,12 +14,12 @@ class VoiceToTextPair
   voiceChannel: string
 }
 
-export const interpretVoiceToTextChannelSetting = async function(guildID: string, voiceToTextChannelMap: VoiceToTextPair[])
+export async function interpretVoiceToTextChannelSetting(guildID: string, voiceToTextChannelMap: VoiceToTextPair[])
 {
   voiceToTextChannelData[guildID] = voiceToTextChannelMap
 }
 
-export const setupVoiceChannelEventHandler = function(client: Client)
+export function setupVoiceChannelEventHandler(client: Client)
 {
   client.on('voiceStateUpdate', async (oldState, newState) => {
     let prevTextChannelName: string

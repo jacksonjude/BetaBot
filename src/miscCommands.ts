@@ -180,7 +180,7 @@ const letterBitmaps = {
   ]
 }
 
-export const getHelpCommand = function(botCommands: BotCommand[]): BotCommand
+export function getHelpCommand(botCommands: BotCommand[]): BotCommand
 {
   return BotCommand.fromRegex(
     "help", "get help for commands",
@@ -214,7 +214,7 @@ export const getHelpCommand = function(botCommands: BotCommand[]): BotCommand
   )
 }
 
-export const getMessageCommands = function(): BotCommand[]
+export function getMessageCommands(): BotCommand[]
 {
   return messageCommands.map(messageCommandData => {
     return BotCommand.fromRegex(
@@ -229,7 +229,7 @@ export const getMessageCommands = function(): BotCommand[]
   })
 }
 
-export const getDateCommands = function(): BotCommand[]
+export function getDateCommands(): BotCommand[]
 {
   return dateCommands.map(dateCommandData => {
     return BotCommand.fromRegex(
@@ -247,7 +247,7 @@ export const getDateCommands = function(): BotCommand[]
   })
 }
 
-export const getEmoteSpellCommand = function(): BotCommand
+export function getEmoteSpellCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "spell", "spell a word using emotes",
@@ -289,7 +289,7 @@ export const getEmoteSpellCommand = function(): BotCommand
   )
 }
 
-export const getClearCommand = function(): BotCommand
+export function getClearCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "clear", "clear bot messages from DMs",
@@ -312,7 +312,7 @@ export const getClearCommand = function(): BotCommand
   )
 }
 
-export const getRepeatCommand = function(commandRequirement: BotCommandRequirement): BotCommand
+export function getRepeatCommand(commandRequirement: BotCommandRequirement): BotCommand
 {
   return BotCommand.fromRegex(
     "repeat", "repeat the last message sent to the channel",
@@ -333,7 +333,7 @@ export const getRepeatCommand = function(commandRequirement: BotCommandRequireme
   )
 }
 
-export const getSpeakCommand = function(commandRequirement: BotCommandRequirement): BotCommand
+export function getSpeakCommand(commandRequirement: BotCommandRequirement): BotCommand
 {
   return BotCommand.fromRegex(
     "speak", "read the last message sent to the channel in tts",

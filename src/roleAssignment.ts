@@ -36,7 +36,7 @@ class RoleAssignmentMessageConfiguration
   messageID: string | null
 }
 
-export const interpretRoleAssignmentSetting = async function(client: Client, roleAssignmentID: string, roleAssignmentDataJSON: RoleAssignmentConfiguration)
+export async function interpretRoleAssignmentSetting(client: Client, roleAssignmentID: string, roleAssignmentDataJSON: RoleAssignmentConfiguration)
 {
   roleAssignmentData[roleAssignmentID] = roleAssignmentDataJSON
 
