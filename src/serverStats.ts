@@ -3,6 +3,7 @@ import { Firestore, Timestamp } from "firebase-admin/firestore"
 import { BotCommand, BotCommandError } from "./botCommand"
 
 import { CronJob } from "cron"
+import { DateTime } from "luxon"
 
 const statChannelsCollectionID = "statsConfigurations"
 
@@ -88,7 +89,7 @@ function setupMessageCountsCronJob(client: Client, guildID: string, messageCount
 {
   let messageCountCronJob = new CronJob("1 0 " + (messageCountsData.cronHours ?? "0") + " * * *", () => {
     client.guilds.fetch(guildID).then(async guild => {
-      updateMessageCounts(guild, messageCountsData.hours, messageCountsData.startTime.toMillis(), firestoreDB)
+      updateMessageCounts(guild, messageCountsData.hours, messageCountsData.startTime.toMillis(), messageCountsData.timeZone, firestoreDB)
     })
   }, null, true, messageCountsData.timeZone ?? "America/Los_Angeles")
   messageCountCronJob.start()
@@ -175,22 +176,7 @@ Date.prototype.getOffsetDueToDST = function() {
   return 1000*60*(this.isDSTObserved() ? this.stdTimezoneOffset()-this.getTimezoneOffset() : this.dstTimezoneOffset()-this.getTimezoneOffset())
 }
 
-var messageCreatedTimestamp = 1636498802000
-var trackingStartTime = 1633071600000
-var hoursPerSegment = 24
-
-var segmentStartTime = messageCreatedTimestamp-((messageCreatedTimestamp-trackingStartTime)%(hoursPerSegment*60*60*1000))
-
-console.log(segmentStartTime, new Date(segmentStartTime).getOffsetDueToDST())
-
-if ((new Date(segmentStartTime)).isDSTObserved() != (new Date(trackingStartTime)).isDSTObserved())
-{
-  segmentStartTime -= new Date(segmentStartTime).getOffsetDueToDST()
-}
-
-console.log(segmentStartTime)
-
-async function updateMessageCounts(guild: Guild, hoursPerSegment: number, trackingStartTime: number, firestoreDB: Firestore, verbose: boolean = false)
+async function updateMessageCounts(guild: Guild, hoursPerSegment: number, trackingStartTime: number, timeZone: string, firestoreDB: Firestore, verbose: boolean = false)
 {
   let messageCountsCollectionPath = statChannelsCollectionID + "/" + guild.id + "/" + "messageCounts"
   let previousMessageCounts = await firestoreDB.collection(messageCountsCollectionPath).get()
@@ -226,11 +212,23 @@ async function updateMessageCounts(guild: Guild, hoursPerSegment: number, tracki
         if (messageCreatedTimestamp < trackingStartTime) { return true }
         if (message.author.bot) { continue }
 
-        let segmentStartTime = messageCreatedTimestamp-((messageCreatedTimestamp-trackingStartTime)%(hoursPerSegment*60*60*1000))
-        if ((new Date(segmentStartTime)).isDSTObserved() != (new Date(trackingStartTime)).isDSTObserved())
+        let trackingStartDateTime = DateTime.fromMillis(trackingStartTime).setZone(timeZone)
+        let messageDateTime = DateTime.fromMillis(messageCreatedTimestamp).setZone(timeZone)
+
+        let timezoneOffset = 0
+        if (messageDateTime.isInDST != trackingStartDateTime.isInDST)
         {
-          segmentStartTime -= new Date(segmentStartTime).getOffsetDueToDST()
+          timezoneOffset = 1000*60*(messageDateTime.offset-trackingStartDateTime.offset)
         }
+
+        let segmentStartTime = messageCreatedTimestamp-((messageCreatedTimestamp-trackingStartTime+timezoneOffset)%(hoursPerSegment*60*60*1000))
+        let segmentDateTime = DateTime.fromMillis(segmentStartTime).setZone(timeZone)
+
+        if (segmentDateTime.isInDST != messageDateTime.isInDST)
+        {
+          segmentStartTime += 1000*60*(messageDateTime.offset-trackingStartDateTime.offset)
+        }
+
         if (segmentStartTime+hoursPerSegment*60*60*1000 > Date.now())
         {
           continue
@@ -296,7 +294,7 @@ export const sendMessageCountsUpdateCommand = async function(msg: Message, messa
     let guild = await msg.guild.fetch()
     let messageCountsData = statsData[msg.guildId].messageCounts
 
-    updateMessageCounts(guild, messageCountsData.hours, messageCountsData.startTime.toMillis(), firestoreDB, true)
+    updateMessageCounts(guild, messageCountsData.hours, messageCountsData.startTime.toMillis(), messageCountsData.timeZone, firestoreDB, true)
 
     return true
   }

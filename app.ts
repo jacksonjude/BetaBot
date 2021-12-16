@@ -1,7 +1,7 @@
 const CREATOR_USER_ID = process.env.CREATOR_USER_ID
 const DISCORD_NICKNAME = process.env.DISCORD_NICKNAME
 
-import { Client, Intents, GuildMember, TextChannel } from 'discord.js'
+import { Client, Intents, GuildMember } from 'discord.js'
 const client = new Client({ intents: [
   Intents.FLAGS.GUILDS,
   Intents.FLAGS.GUILD_MEMBERS,
