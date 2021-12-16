@@ -65,6 +65,12 @@ export class BotCommand
     }
     return true
   }
+
+  setRequirement(requirement: BotCommandRequirement): BotCommand
+  {
+    this.executionRequirement = requirement
+    return this
+  }
 }
 
 export class BotCommandError

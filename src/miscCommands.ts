@@ -1,5 +1,5 @@
 import { Client, Message } from "discord.js"
-import { BotCommand, BotCommandError, BotCommandRequirement } from "./botCommand"
+import { BotCommand, BotCommandError } from "./botCommand"
 
 const messageCommands = [
   { command: "hi", description: "say hello", responses: ["hello :wave:"] },
@@ -312,7 +312,7 @@ export function getClearCommand(): BotCommand
   )
 }
 
-export function getRepeatCommand(commandRequirement: BotCommandRequirement): BotCommand
+export function getRepeatCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "repeat", "repeat the last message sent to the channel",
@@ -328,21 +328,19 @@ export function getRepeatCommand(commandRequirement: BotCommandRequirement): Bot
           message.channel.send(messageArray[messageArray.length-2].toString())
         }
       }
-    },
-    commandRequirement
+    }
   )
 }
 
-export function getSpeakCommand(commandRequirement: BotCommandRequirement): BotCommand
+export function getSpeakCommand(): BotCommand
 {
   return BotCommand.fromRegex(
-    "speak", "read the last message sent to the channel in tts",
+    "speak", "read a message in tts",
     /^speak\s+(.+)$/, null,
     "speak [message]",
     async (commandArguments: string[], message: Message) => {
       let phraseToSay = commandArguments[1]
       message.channel.send({content: phraseToSay, tts: true})
-    },
-    commandRequirement
+    }
   )
 }

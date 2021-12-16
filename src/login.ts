@@ -1,5 +1,5 @@
 import { Client, TextChannel, Message } from 'discord.js'
-import { BotCommand, BotCommandRequirement } from "./botCommand"
+import { BotCommand } from "./botCommand"
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN
 
@@ -29,7 +29,7 @@ export async function prepareBotLogout(client: Client, logoutMessage: string, ms
   client.user.setPresence({status: "dnd"})
 }
 
-export function getRestartCommand(commandRequirement: BotCommandRequirement): BotCommand
+export function getRestartCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "restart", "restart BetaBot",
@@ -39,7 +39,6 @@ export function getRestartCommand(commandRequirement: BotCommandRequirement): Bo
       await prepareBotLogout(client, "Bye bye for now!", message)
       client.destroy()
       await loginBot(client, "And we're back!", message.channel.id, message.guild.id)
-    },
-    commandRequirement
+    }
   )
 }

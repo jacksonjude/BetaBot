@@ -154,10 +154,10 @@ client.on('messageCreate', async msg => {
     getDMVoteCommand(),
     getExportPollResultsCommand(),
     getMessageCountsLeaderboardCommand(),
-    getMessageCountsUpdateCommand(ownerUserRequirement),
-    getRepeatCommand(developmentRequirement),
-    getSpeakCommand(developmentRequirement),
-    getRestartCommand(ownerUserAndDevelopmentRequirement)
+    getMessageCountsUpdateCommand().setRequirement(ownerUserRequirement),
+    getRepeatCommand().setRequirement(developmentRequirement),
+    getSpeakCommand().setRequirement(developmentRequirement),
+    getRestartCommand().setRequirement(ownerUserAndDevelopmentRequirement)
   ]
   botCommands.unshift(getHelpCommand(botCommands))
   if (await runBotCommands(botCommands)) { return }
