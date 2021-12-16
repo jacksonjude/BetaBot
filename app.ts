@@ -145,10 +145,10 @@ client.on('messageCreate', async msg => {
     ...getMessageCommands(),
     ...getDateCommands(),
     getEmoteSpellCommand(),
+    getClearCommand(),
     getDMVoteCommand(),
     getExportPollResultsCommand(),
     getMessageCountsLeaderboardCommand(),
-    getClearCommand(),
     getMessageCountsUpdateCommand(ownerUserRequirement),
     getRepeatCommand(developmentRequirement),
     getSpeakCommand(developmentRequirement)
