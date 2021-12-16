@@ -23,7 +23,7 @@ import { Firestore } from "firebase-admin/firestore"
 
 import { BotCommand, BotCommandUserIDRequirement, BotCommandRoleIDRequirement, BotCommandServerIDRequirement, BotCommandIntersectionRequirement } from "./src/botCommand"
 
-import { loginBot, printLoginMessage, prepareBotLogout, rebootBot, logoutBot, endLogMessage } from "./src/login"
+import { loginBot, getRestartCommand } from "./src/login"
 import { sendMessageResponses } from "./src/messageResponses"
 import { getHelpCommand, getMessageCommands, getDateCommands, getEmoteSpellCommand, getClearCommand, getRepeatCommand, getSpeakCommand } from "./src/miscCommands"
 
@@ -51,8 +51,6 @@ setupMemberStatsEventHandlers(client)
 
 client.on('ready', async () => {
   console.log(`Logged in as ${client.user.tag}!`)
-
-  printLoginMessage(client)
 
   client.user.setPresence({status: "online"})
 
@@ -141,6 +139,13 @@ client.on('messageCreate', async msg => {
     ]
   )
 
+  var ownerUserAndDevelopmentRequirement = new BotCommandIntersectionRequirement(
+    [
+      ownerUserRequirement,
+      developmentRequirement
+    ]
+  )
+
   var botCommands = [
     ...getMessageCommands(),
     ...getDateCommands(),
@@ -151,7 +156,8 @@ client.on('messageCreate', async msg => {
     getMessageCountsLeaderboardCommand(),
     getMessageCountsUpdateCommand(ownerUserRequirement),
     getRepeatCommand(developmentRequirement),
-    getSpeakCommand(developmentRequirement)
+    getSpeakCommand(developmentRequirement),
+    getRestartCommand(ownerUserAndDevelopmentRequirement)
   ]
   botCommands.unshift(getHelpCommand(botCommands))
   if (await runBotCommands(botCommands)) { return }
@@ -166,29 +172,4 @@ client.on('messageCreate', async msg => {
     msg.channel.send("pong")
     return
   }
-
-  // switch (messageContent)
-  // {
-  //   case "logout":
-  //   await prepareBotLogout(client, "Bye bye for now!", msg)
-  //   console.log(endLogMessage)
-  //
-  //   logoutBot(client)
-  //   break
-  //
-  //   case "restart":
-  //   prepareBotLogout(client, "Bye bye for now!", msg)
-  //     .then(() => client.destroy())
-  //     .then(() => loginBot(client, "And we're back!", msg.channel.id, msg.guild.id))
-  //   break
-  //
-  //   case "reboot":
-  //   rebootBot(client, "Bye bye for now!", "And we're back!", msg)
-  //   break
-  //
-  //   case "sleep":
-  //   msg.channel.send("zzz")
-  //   client.user.setPresence({status: "idle"})
-  //   break
-  // }
 })
