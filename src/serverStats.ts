@@ -175,6 +175,18 @@ Date.prototype.getOffsetDueToDST = function() {
   return 1000*60*(this.isDSTObserved() ? this.stdTimezoneOffset()-this.getTimezoneOffset() : this.dstTimezoneOffset()-this.getTimezoneOffset())
 }
 
+var messageCreatedTimestamp = 1636498802000
+var trackingStartTime = 1633071600000
+var hoursPerSegment = 24
+
+var segmentStartTime = messageCreatedTimestamp-((messageCreatedTimestamp-trackingStartTime)%(hoursPerSegment*60*60*1000))
+if ((new Date(segmentStartTime)).isDSTObserved() != (new Date(trackingStartTime)).isDSTObserved())
+{
+  segmentStartTime -= new Date(segmentStartTime).getOffsetDueToDST()
+}
+
+console.log(segmentStartTime)
+
 async function updateMessageCounts(guild: Guild, hoursPerSegment: number, trackingStartTime: number, firestoreDB: Firestore, verbose: boolean = false)
 {
   let messageCountsCollectionPath = statChannelsCollectionID + "/" + guild.id + "/" + "messageCounts"
