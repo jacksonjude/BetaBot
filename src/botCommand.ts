@@ -122,6 +122,16 @@ export class BotCommandRoleIDRequirement extends BotCommandRequirement
   }
 }
 
+export class BotCommandChannelIDRequirement extends BotCommandRequirement
+{
+  constructor(channelID: string)
+  {
+    super((_, __, ___, channel: TextChannel) => {
+      return channel.id == channelID
+    })
+  }
+}
+
 export class BotCommandServerIDRequirement extends BotCommandRequirement
 {
   constructor(serverID: string)

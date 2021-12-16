@@ -21,7 +21,7 @@ import { Firestore } from "firebase-admin/firestore"
 // import { Routes } from 'discord-api-types/v9'
 // const rest = new REST({ version: '9' }).setToken(process.env.DISCORD_TOKEN)
 
-import { BotCommand, BotCommandUserIDRequirement, BotCommandRoleIDRequirement, BotCommandServerIDRequirement, BotCommandIntersectionRequirement } from "./src/botCommand"
+import { BotCommand, BotCommandUserIDRequirement, BotCommandRoleIDRequirement, BotCommandChannelIDRequirement, BotCommandServerIDRequirement, BotCommandUnionRequirement, BotCommandIntersectionRequirement } from "./src/botCommand"
 
 import { loginBot, getRestartCommand } from "./src/login"
 import { sendMessageResponses } from "./src/messageResponses"
@@ -146,10 +146,18 @@ client.on('messageCreate', async msg => {
     ]
   )
 
+  var botChannelRequirement = new BotCommandUnionRequirement(
+    [
+      new BotCommandChannelIDRequirement("720018214448398346"), // #technolog (negativity)
+      new BotCommandChannelIDRequirement("865504790502965248"), // #betabot (jacksonjude.com)
+      new BotCommandChannelIDRequirement("781235106832580638"), // #bot-stuff (TMMRAAC)
+    ]
+  )
+
   var botCommands = [
     ...getMessageCommands(),
     ...getDateCommands(),
-    getEmoteSpellCommand(),
+    getEmoteSpellCommand().setRequirement(botChannelRequirement),
     getClearCommand(),
     getDMVoteCommand(),
     getExportPollResultsCommand(),
