@@ -1,6 +1,6 @@
 import { Client, Guild, TextChannel, Collection, Message } from "discord.js"
 import { Firestore, Timestamp } from "firebase-admin/firestore"
-import { BotCommand, BotCommandError } from "./botCommand"
+import { BotCommand, BotCommandError, BotCommandRequirement } from "./botCommand"
 
 import { CronJob } from "cron"
 import { DateTime } from "luxon"
@@ -285,21 +285,25 @@ async function updateMessageCounts(guild: Guild, hoursPerSegment: number, tracki
   }
 }
 
-export const sendMessageCountsUpdateCommand = async function(msg: Message, messageContent: string, firestoreDB: Firestore)
+export function getMessageCountsUpdateCommand(commandRequirement: BotCommandRequirement): BotCommand
 {
-  const updateMessageCountsRegex = /^updateleaderboard$/
+  return BotCommand.fromRegex(
+    "updateleaderboard", "updates the message counts for this server",
+    /^updateleaderboard$/, null,
+    "updateleaderboard",
+    async (_, message: Message, __, firestoreDB: Firestore) => {
+      if (!statsData[message.guildId] || !statsData[message.guildId].messageCounts)
+      {
+        return new BotCommandError("Leaderboard not available in this server", false)
+      }
 
-  if (updateMessageCountsRegex.test(messageContent) && statsData[msg.guildId] && statsData[msg.guildId].messageCounts)
-  {
-    let guild = await msg.guild.fetch()
-    let messageCountsData = statsData[msg.guildId].messageCounts
+      let guild = await message.guild.fetch()
+      let messageCountsData = statsData[message.guildId].messageCounts
 
-    updateMessageCounts(guild, messageCountsData.hours, messageCountsData.startTime.toMillis(), messageCountsData.timeZone, firestoreDB, true)
-
-    return true
-  }
-
-  return false
+      updateMessageCounts(guild, messageCountsData.hours, messageCountsData.startTime.toMillis(), messageCountsData.timeZone, firestoreDB, true)
+    },
+    commandRequirement
+  )
 }
 
 Date.prototype.toDMYString = function() {

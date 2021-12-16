@@ -1,5 +1,5 @@
 import { Client, Message } from "discord.js"
-import { BotCommand, BotCommandError } from "./botCommand"
+import { BotCommand, BotCommandError, BotCommandRequirement } from "./botCommand"
 
 const messageCommands = [
   { command: "hi", responses: ["hello :wave:"] },
@@ -180,6 +180,40 @@ const letterBitmaps = {
   ]
 }
 
+export const getHelpCommand = function(botCommands: BotCommand[]): BotCommand
+{
+  return BotCommand.fromRegex(
+    "help", "displays the list of commands, or usage info of a specific command",
+    /^help(\s+(\w+))?$/, null,
+    "help [command]",
+    async (commandArguments: string[], message: Message) => {
+      if (!commandArguments[2])
+      {
+        let helpMessageString = "__**Commands**__"
+        for (let command of botCommands)
+        {
+          if (command.executionRequirement && !(await command.executionRequirement.testMessage(message))) { continue }
+          helpMessageString += "\n" + "**" + command.name + "**: *" + command.description + "*"
+        }
+        message.channel.send(helpMessageString)
+      }
+      else
+      {
+        let foundCommand = botCommands.find(command => command.parseCommandString(commandArguments[2]) !== false)
+        if (foundCommand)
+        {
+          await message.channel.send("**" + foundCommand.name + "**: *" + foundCommand.description + "*")
+          foundCommand.usageMessage && await message.channel.send(foundCommand.usageMessage)
+        }
+        else
+        {
+          message.channel.send("**Error: " + "'" + commandArguments[2] + "' command not found" + "**")
+        }
+      }
+    }
+  )
+}
+
 export const getMessageCommands = function(): BotCommand[]
 {
   return messageCommands.map(messageCommandData => {
@@ -187,7 +221,7 @@ export const getMessageCommands = function(): BotCommand[]
       messageCommandData.command, "gives a message",
       new RegExp("^" + messageCommandData.command + "$"), null,
       messageCommandData.command,
-      async (_, message: Message, __, ___) => {
+      async (_, message: Message) => {
         let index = Math.floor((Math.random() * messageCommandData.responses.length))
         await message.channel.send(messageCommandData.responses[index])
       }
@@ -202,7 +236,7 @@ export const getDateCommands = function(): BotCommand[]
       dateCommandData.command, "gives a date",
       new RegExp("^" + dateCommandData.command + "$"), null,
       dateCommandData.command,
-      async (_, message: Message, __, ___) => {
+      async (_, message: Message) => {
         let millisDifference = Math.abs(Date.now()-dateCommandData.timestamp)
         let days = Math.floor(millisDifference/(1000*60*60*24))
         let hours = Math.floor((millisDifference-days*1000*60*60*24)/(1000*60*60))
@@ -219,7 +253,7 @@ export const getEmoteSpellCommand = function(): BotCommand
     "spell", "spells a word using emotes",
     /^spell\s+([a-zA-Z]+)(\s+((<)?:[^\s:]+?:(\d+>)?))?(\s+((<)?:[^\s:]+?:(\d+>)?))?$/, /^spell(\s+.*)?$/,
     "spell <word> [interior emote] [exterior emote]",
-    async (commandArguments: string[], message: Message, __, ___) => {
+    async (commandArguments: string[], message: Message) => {
       let wordToSpell = commandArguments[1]
 
       if (wordToSpell.length > 10)
@@ -261,7 +295,7 @@ export const getClearCommand = function(): BotCommand
     "clear", "clears bot messages from DMs",
     /^clear(\s+(\d+))?$/, /^clear(\s+.*)?$/,
     "clear [message count]",
-    async (commandArguments: string[], message: Message, client: Client, ___) => {
+    async (commandArguments: string[], message: Message, client: Client) => {
       let dmChannel = message.author.dmChannel || await message.author.createDM()
 
       let clearMessageAmount = parseInt(commandArguments[2] ?? "100")
@@ -278,13 +312,13 @@ export const getClearCommand = function(): BotCommand
   )
 }
 
-export const getRepeatCommand = function(): BotCommand
+export const getRepeatCommand = function(commandRequirement: BotCommandRequirement): BotCommand
 {
   return BotCommand.fromRegex(
     "repeat", "repeats the last message sent to the channel",
     /^repeat\s+(\d+)$/, /^repeat(\s+.*)?$/,
     "repeat [count]",
-    async (commandArguments: string[], message: Message, __, ___) => {
+    async (commandArguments: string[], message: Message) => {
       let multiplier = parseInt(commandArguments[1])
       let messageArray = message.channel.messages.cache.toJSON()
       if (messageArray.length >= 2)
@@ -294,19 +328,21 @@ export const getRepeatCommand = function(): BotCommand
           message.channel.send(messageArray[messageArray.length-2].toString())
         }
       }
-    }
+    },
+    commandRequirement
   )
 }
 
-export const getSpeakCommand = function(): BotCommand
+export const getSpeakCommand = function(commandRequirement: BotCommandRequirement): BotCommand
 {
   return BotCommand.fromRegex(
     "speak", "reads the last message sent to the channel in tts",
     /^speak\s+(.+)$/, null,
     "speak [message]",
-    async (commandArguments: string[], message: Message, __, ___) => {
+    async (commandArguments: string[], message: Message) => {
       let phraseToSay = commandArguments[1]
       message.channel.send({content: phraseToSay, tts: true})
-    }
+    },
+    commandRequirement
   )
 }

@@ -21,14 +21,14 @@ import { Firestore } from "firebase-admin/firestore"
 // import { Routes } from 'discord-api-types/v9'
 // const rest = new REST({ version: '9' }).setToken(process.env.DISCORD_TOKEN)
 
-import { BotCommand } from "./src/botCommand"
+import { BotCommand, BotCommandUserIDRequirement, BotCommandRoleIDRequirement, BotCommandServerIDRequirement, BotCommandInverseRequirement, BotCommandIntersectionRequirement } from "./src/botCommand"
 
 import { loginBot, printLoginMessage, prepareBotLogout, rebootBot, logoutBot, endLogMessage } from "./src/login"
 import { sendMessageResponses } from "./src/messageResponses"
-import { getMessageCommands, getDateCommands, getEmoteSpellCommand, getClearCommand, getRepeatCommand, getSpeakCommand } from "./src/miscCommands"
+import { getHelpCommand, getMessageCommands, getDateCommands, getEmoteSpellCommand, getClearCommand, getRepeatCommand, getSpeakCommand } from "./src/miscCommands"
 
 import { setupVoiceChannelEventHandler } from "./src/linkedTextChannels"
-import { setupMemberStatsEventHandlers, sendMessageCountsUpdateCommand, getMessageCountsLeaderboardCommand } from "./src/serverStats"
+import { setupMemberStatsEventHandlers, getMessageCountsUpdateCommand, getMessageCountsLeaderboardCommand } from "./src/serverStats"
 
 import { getExportPollResultsCommand } from "./src/poll/sharedPoll"
 import { getDMVoteCommand } from "./src/poll/dmPoll"
@@ -132,15 +132,30 @@ client.on('messageCreate', async msg => {
     return false
   }
 
+  var ownerUserRequirement = new BotCommandInverseRequirement(
+    new BotCommandUserIDRequirement(CREATOR_USER_ID)
+  )
+
+  var developmentRequirement = new BotCommandIntersectionRequirement(
+    [
+      new BotCommandServerIDRequirement(HOME_GUILD_ID),
+      new BotCommandRoleIDRequirement(TECHNICIAN_ROLE_ID)
+    ]
+  )
+
   var botCommands = [
     ...getMessageCommands(),
     ...getDateCommands(),
     getEmoteSpellCommand(),
-    getClearCommand(),
     getDMVoteCommand(),
     getExportPollResultsCommand(),
-    getMessageCountsLeaderboardCommand()
+    getMessageCountsLeaderboardCommand(),
+    getClearCommand(),
+    getMessageCountsUpdateCommand(ownerUserRequirement),
+    getRepeatCommand(developmentRequirement),
+    getSpeakCommand(developmentRequirement)
   ]
+  botCommands.unshift(getHelpCommand(botCommands))
   if (await runBotCommands(botCommands)) { return }
 
   switch (messageContent)
@@ -154,71 +169,28 @@ client.on('messageCreate', async msg => {
     return
   }
 
-  let helpRegex = new RegExp(/^help(\s+(\w+))?$/, "i")
-  if (helpRegex.test(messageContent))
-  {
-    let helpArguments = helpRegex.exec(messageContent)
-    if (!helpArguments[2])
-    {
-      let helpMessageString = "__**Commands**__"
-      for (let command of botCommands)
-      {
-        helpMessageString += "\n" + "**" + command.name + "**: *" + command.description + "*"
-      }
-      msg.channel.send(helpMessageString)
-    }
-    else
-    {
-      let foundCommand = botCommands.find(command => command.parseCommandString(helpArguments[2]) !== false)
-      if (foundCommand)
-      {
-        await msg.channel.send("**" + foundCommand.name + "**: *" + foundCommand.description + "*")
-        foundCommand.usageMessage && await msg.channel.send(foundCommand.usageMessage)
-      }
-      else
-      {
-        msg.channel.send("**Error: " + "'" + helpArguments[2] + "' command not found" + "**")
-      }
-    }
-
-    return
-  }
-
-  if (msg.author.id != CREATOR_USER_ID) { return }
-
-  if (sendMessageCountsUpdateCommand(msg, messageContent, firestoreDB)) { return }
-
-  if (!(msg.guildId == HOME_GUILD_ID && msg.member.roles.cache.find(role => role.id == TECHNICIAN_ROLE_ID))) { return }
-
-  botCommands = [getRepeatCommand(), getSpeakCommand()]
-  if (await runBotCommands(botCommands)) { return }
-
-  switch (messageContent)
-  {
-    case "randomize":
-    // updateRandomColorRole()
-    break
-
-    case "logout":
-    await prepareBotLogout(client, "Bye bye for now!", msg)
-    console.log(endLogMessage)
-
-    logoutBot(client)
-    break
-
-    case "restart":
-    prepareBotLogout(client, "Bye bye for now!", msg)
-      .then(() => client.destroy())
-      .then(() => loginBot(client, "And we're back!", msg.channel.id, msg.guild.id))
-    break
-
-    case "reboot":
-    rebootBot(client, "Bye bye for now!", "And we're back!", msg)
-    break
-
-    case "sleep":
-    msg.channel.send("zzz")
-    client.user.setPresence({status: "idle"})
-    break
-  }
+  // switch (messageContent)
+  // {
+  //   case "logout":
+  //   await prepareBotLogout(client, "Bye bye for now!", msg)
+  //   console.log(endLogMessage)
+  //
+  //   logoutBot(client)
+  //   break
+  //
+  //   case "restart":
+  //   prepareBotLogout(client, "Bye bye for now!", msg)
+  //     .then(() => client.destroy())
+  //     .then(() => loginBot(client, "And we're back!", msg.channel.id, msg.guild.id))
+  //   break
+  //
+  //   case "reboot":
+  //   rebootBot(client, "Bye bye for now!", "And we're back!", msg)
+  //   break
+  //
+  //   case "sleep":
+  //   msg.channel.send("zzz")
+  //   client.user.setPresence({status: "idle"})
+  //   break
+  // }
 })
