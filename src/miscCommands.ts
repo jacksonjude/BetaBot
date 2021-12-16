@@ -192,7 +192,7 @@ export const getHelpCommand = function(botCommands: BotCommand[]): BotCommand
         let helpMessageString = "__**Commands**__"
         for (let command of botCommands)
         {
-          if (command.executionRequirement && !(await command.executionRequirement.testMessage(message))) { continue }
+          if (command.executionRequirement && !command.executionRequirement.testMessage(message)) { continue }
           helpMessageString += "\n" + "**" + command.name + "**: *" + command.description + "*"
         }
         message.channel.send(helpMessageString)

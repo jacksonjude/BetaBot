@@ -21,7 +21,7 @@ import { Firestore } from "firebase-admin/firestore"
 // import { Routes } from 'discord-api-types/v9'
 // const rest = new REST({ version: '9' }).setToken(process.env.DISCORD_TOKEN)
 
-import { BotCommand, BotCommandUserIDRequirement, BotCommandRoleIDRequirement, BotCommandServerIDRequirement, BotCommandInverseRequirement, BotCommandIntersectionRequirement } from "./src/botCommand"
+import { BotCommand, BotCommandUserIDRequirement, BotCommandRoleIDRequirement, BotCommandServerIDRequirement, BotCommandIntersectionRequirement } from "./src/botCommand"
 
 import { loginBot, printLoginMessage, prepareBotLogout, rebootBot, logoutBot, endLogMessage } from "./src/login"
 import { sendMessageResponses } from "./src/messageResponses"
@@ -132,9 +132,7 @@ client.on('messageCreate', async msg => {
     return false
   }
 
-  var ownerUserRequirement = new BotCommandInverseRequirement(
-    new BotCommandUserIDRequirement(CREATOR_USER_ID)
-  )
+  var ownerUserRequirement = new BotCommandUserIDRequirement(CREATOR_USER_ID)
 
   var developmentRequirement = new BotCommandIntersectionRequirement(
     [
