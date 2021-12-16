@@ -11,17 +11,13 @@ const client = new Client({ intents: [
   Intents.FLAGS.GUILD_MESSAGE_REACTIONS,
   Intents.FLAGS.DIRECT_MESSAGES,
   Intents.FLAGS.DIRECT_MESSAGE_REACTIONS
-], partials: ['USER'] })
+], partials: ['USER'] }) // PARTIALS: https://github.com/discordjs/discord.js/issues/4980#issuecomment-723519865
 
-import { Firestore } from "firebase-admin/firestore"
-
-// PARTIALS: https://github.com/discordjs/discord.js/issues/4980#issuecomment-723519865
-
-// import { REST } from '@discordjs/rest'
-// import { Routes } from 'discord-api-types/v9'
-// const rest = new REST({ version: '9' }).setToken(process.env.DISCORD_TOKEN)
-
-import { BotCommand, BotCommandUserIDRequirement, BotCommandRoleIDRequirement, BotCommandChannelIDRequirement, BotCommandServerIDRequirement, BotCommandUnionRequirement, BotCommandIntersectionRequirement } from "./src/botCommand"
+import {
+  BotCommand,
+  BotCommandUserIDRequirement, BotCommandRoleIDRequirement, BotCommandChannelIDRequirement, BotCommandServerIDRequirement,
+  BotCommandUnionRequirement, BotCommandIntersectionRequirement
+} from "./src/botCommand"
 
 import { loginBot, getRestartCommand } from "./src/login"
 import { sendMessageResponses } from "./src/messageResponses"
@@ -33,10 +29,11 @@ import { setupMemberStatsEventHandlers, getMessageCountsUpdateCommand, getMessag
 import { getExportPollResultsCommand } from "./src/poll/sharedPoll"
 import { getDMVoteCommand } from "./src/poll/dmPoll"
 
-import { initFirestore, initFirestoreCollectionListeners } from "./src/firebase"
-
 const HOME_GUILD_ID = "704218896298934317"
 const TECHNICIAN_ROLE_ID = "804147385923403826"
+
+import { Firestore } from "firebase-admin/firestore"
+import { initFirestore, initFirestoreCollectionListeners } from "./src/firebase"
 
 var firestoreDB: Firestore
 
@@ -60,18 +57,7 @@ client.on('ready', async () => {
 
   firestoreDB = initFirestore()
   initFirestoreCollectionListeners(firestoreDB, client)
-
-  registerSlashCommands()
 })
-
-async function registerSlashCommands()
-{
-  // var commands = []
-
-  // await rest.put(Routes.applicationGuildCommands(client.id, HOME_GUILD_ID), { body: commands })
-	// .then(() => console.log('Successfully registered application commands.'))
-	// .catch(console.error)
-}
 
 // Nickname Enforcement
 
