@@ -180,6 +180,9 @@ var trackingStartTime = 1633071600000
 var hoursPerSegment = 24
 
 var segmentStartTime = messageCreatedTimestamp-((messageCreatedTimestamp-trackingStartTime)%(hoursPerSegment*60*60*1000))
+
+console.log(segmentStartTime, new Date(segmentStartTime).getOffsetDueToDST())
+
 if ((new Date(segmentStartTime)).isDSTObserved() != (new Date(trackingStartTime)).isDSTObserved())
 {
   segmentStartTime -= new Date(segmentStartTime).getOffsetDueToDST()
