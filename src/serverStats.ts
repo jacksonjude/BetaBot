@@ -1,5 +1,6 @@
 import { Client, Guild, TextChannel, Collection, Message } from "discord.js"
 import { Firestore, Timestamp } from "firebase-admin/firestore"
+import { BotCommand, BotCommandError } from "./botCommand"
 
 import { CronJob } from "cron"
 
@@ -307,145 +308,152 @@ Date.prototype.changeTimezone = function(ianatz: string, multiplier: number = nu
   this.setTime(this.getTime() - diff) // needs to substract
 }
 
-export const sendMessageCountsLeaderboardCommand = async function(client: Client, msg: Message, messageContent: string, firestoreDB: Firestore)
+export function getMessageCountsLeaderboardCommand(): BotCommand
 {
-  const leaderboardCommandRegex = /^leaderboard(\s+(false|true))?(\s+(\w+))?(\s+([\d\/]+))?(\s+([\d\/]+))?$/
-
-  if (leaderboardCommandRegex.test(messageContent.toLowerCase()) && statsData[msg.guildId] && statsData[msg.guildId].messageCounts)
-  {
-    let messageCountsData = statsData[msg.guildId].messageCounts
-
-    let commandGroups = leaderboardCommandRegex.exec(messageContent)
-    let leaderboardToShow = commandGroups[4]
-
-    let messageCountsCollection = await firestoreDB.collection(statChannelsCollectionID + "/" + msg.guildId + "/" + "messageCounts").get()
-
-    let currentTime = Date.now()
-
-    let isAllTime = false
-    let segmentSumType: MessageCountSegmentSumConfiguration
-    let segmentSumTimeRange = {start: messageCountsData.startTime.toMillis(), end: currentTime, startString: null, endString: null}
-
-    if (messageCountsData.segmentSums)
-    {
-      segmentSumType = statsData[msg.guildId].messageCounts.segmentSums.find((segmentSumType) => segmentSumType.key == leaderboardToShow)
-
-      if (segmentSumType)
+  return BotCommand.fromRegex(
+    /^leaderboard(\s+(false|true))?(\s+(\w+))?(\s+([\d\/]+))?(\s+([\d\/]+))?$/, /^leaderboard(\s+.*)?$/,
+    "leaderboard [mentions toggle (true | false)] [range preset (day | week | month)] [date 1 (M/D/YYYY)] [date 2 (M/D/YYYY)]",
+    async (commandArguments: string[], message: Message, client: Client, firestoreDB: Firestore) => {
+      if (!statsData[message.guildId] || !statsData[message.guildId].messageCounts)
       {
-        segmentSumTimeRange.start = currentTime-((currentTime-messageCountsData.startTime.toMillis())%(messageCountsData.hours*60*60*1000))-(segmentSumType.count*messageCountsData.hours*60*60*1000)
-        segmentSumTimeRange.startString = new Date(segmentSumTimeRange.start).toDMYString()
+        return new BotCommandError("Leaderboard not available in this server", false)
       }
 
-      segmentSumTimeRange.end = currentTime-((currentTime-messageCountsData.startTime.toMillis())%(messageCountsData.hours*60*60*1000))
-      segmentSumTimeRange.endString = new Date(segmentSumTimeRange.end).toDMYString()
-    }
+      let messageCountsData = statsData[message.guildId].messageCounts
 
-    if (!segmentSumType && commandGroups[6])
-    {
-      segmentSumTimeRange.startString = commandGroups[6]
-      segmentSumTimeRange.endString = commandGroups[8] ?? commandGroups[6]
+      let leaderboardToShow = commandArguments[4]
 
-      let startDateParts = segmentSumTimeRange.startString.split("/")
-      let endDateParts = segmentSumTimeRange.endString.split("/")
+      let messageCountsCollection = await firestoreDB.collection(statChannelsCollectionID + "/" + message.guildId + "/" + "messageCounts").get()
 
-      if (startDateParts.length != 3 || endDateParts.length != 3) { return false }
+      let currentTime = Date.now()
 
-      let startDate = new Date(parseInt(startDateParts[2]), parseInt(startDateParts[0])-1, parseInt(startDateParts[1]))
-      let endDate = new Date(parseInt(endDateParts[2]), parseInt(endDateParts[0])-1, parseInt(endDateParts[1]))
+      let isAllTime = false
+      let segmentSumType: MessageCountSegmentSumConfiguration
+      let segmentSumTimeRange = {start: messageCountsData.startTime.toMillis(), end: currentTime, startString: null, endString: null}
 
-      startDate.changeTimezone(messageCountsData.timeZone, -1)
-      endDate.changeTimezone(messageCountsData.timeZone, -1)
-
-      if (startDate.getTime() == NaN || endDate.getTime() == NaN) { return false }
-
-      segmentSumTimeRange.start = startDate.getTime()
-      segmentSumTimeRange.end = endDate.getTime()
-    }
-    else if (!segmentSumType)
-    {
-      isAllTime = true
-      segmentSumTimeRange.startString = new Date(messageCountsData.startTime.toMillis()).toDMYString()
-    }
-
-    let shouldUseMentions = true
-    if (commandGroups[2] == "false")
-    {
-      shouldUseMentions = false
-    }
-
-    await msg.channel.sendTyping()
-
-    let sortedMessageCountsDocs = messageCountsCollection.docs.sort((doc1, doc2) => parseInt(doc2.id)-parseInt(doc1.id))
-
-    let summedMessageCounts = {}
-    for (let docSnapshot of sortedMessageCountsDocs)
-    {
-      if (parseInt(docSnapshot.id) < segmentSumTimeRange.start || parseInt(docSnapshot.id) > segmentSumTimeRange.end) { continue }
-
-      let messageCountsSegment = docSnapshot.data()
-      for (let userID of Object.keys(messageCountsSegment))
+      if (messageCountsData.segmentSums)
       {
-        if (!summedMessageCounts[userID])
+        segmentSumType = statsData[message.guildId].messageCounts.segmentSums.find((segmentSumType) => segmentSumType.key == leaderboardToShow)
+
+        if (segmentSumType)
         {
-          summedMessageCounts[userID] = 0
+          segmentSumTimeRange.start = currentTime-((currentTime-messageCountsData.startTime.toMillis())%(messageCountsData.hours*60*60*1000))-(segmentSumType.count*messageCountsData.hours*60*60*1000)
+          segmentSumTimeRange.startString = new Date(segmentSumTimeRange.start).toDMYString()
         }
-        summedMessageCounts[userID] += messageCountsSegment[userID]
+
+        segmentSumTimeRange.end = currentTime-((currentTime-messageCountsData.startTime.toMillis())%(messageCountsData.hours*60*60*1000))
+        segmentSumTimeRange.endString = new Date(segmentSumTimeRange.end).toDMYString()
       }
-    }
 
-    let sortedSummedMessageCounts = []
-    for (let userID of Object.keys(summedMessageCounts))
-    {
-      sortedSummedMessageCounts.push({id: userID, count: summedMessageCounts[userID]})
-    }
-    sortedSummedMessageCounts.sort((messageCount1, messageCount2) => messageCount1.id-messageCount2.id)
-    sortedSummedMessageCounts.sort((messageCount1, messageCount2) => messageCount2.count-messageCount1.count)
-
-    let guild = await client.guilds.fetch(msg.guildId)
-
-    let leaderboardMessage = "__** Leaderboard (" + (segmentSumType ? segmentSumType.name + ": " : (isAllTime ? "All-Time: " : "")) + segmentSumTimeRange.startString + (segmentSumTimeRange.start != segmentSumTimeRange.end && segmentSumTimeRange.endString ? " to " + segmentSumTimeRange.endString : "") + ")**__"
-    for (let messageCountPairIndex in sortedSummedMessageCounts)
-    {
-      leaderboardMessage += "\n"
-
-      let userTag = "#0000"
-      let guildName: string
-
-      let userID = sortedSummedMessageCounts[messageCountPairIndex].id
-
-      try
+      if (!segmentSumType && commandArguments[6])
       {
-        guildName = (await guild.members.fetch(userID)).displayName
-      }
-      catch
-      {}
+        segmentSumTimeRange.startString = commandArguments[6]
+        segmentSumTimeRange.endString = commandArguments[8] ?? commandArguments[6]
 
-      try
+        let startDateParts = segmentSumTimeRange.startString.split("/")
+        let endDateParts = segmentSumTimeRange.endString.split("/")
+
+        if (startDateParts.length != 3 || endDateParts.length != 3)
+        {
+          return new BotCommandError("M/D/YYYY format is required", true)
+        }
+
+        let startDate = new Date(parseInt(startDateParts[2]), parseInt(startDateParts[0])-1, parseInt(startDateParts[1]))
+        let endDate = new Date(parseInt(endDateParts[2]), parseInt(endDateParts[0])-1, parseInt(endDateParts[1]))
+
+        startDate.changeTimezone(messageCountsData.timeZone, -1)
+        endDate.changeTimezone(messageCountsData.timeZone, -1)
+
+        if (startDate.getTime() == NaN || endDate.getTime() == NaN)
+        {
+          return new BotCommandError("M/D/YYYY format is required", true)
+        }
+
+        segmentSumTimeRange.start = startDate.getTime()
+        segmentSumTimeRange.end = endDate.getTime()
+      }
+      else if (!segmentSumType)
       {
-        let user = await client.users.fetch(userID)
-        userTag = user.tag
+        isAllTime = true
+        segmentSumTimeRange.startString = new Date(messageCountsData.startTime.toMillis()).toDMYString()
       }
-      catch {}
 
-      let messageCount = sortedSummedMessageCounts[messageCountPairIndex].count
-      let nextMessageCount: number
-      let placementIndex = parseInt(messageCountPairIndex)+1
-      do
+      let shouldUseMentions = true
+      if (commandArguments[2] == "false")
       {
-        placementIndex -= 1
-        nextMessageCount = placementIndex-1 >= 0 ? sortedSummedMessageCounts[placementIndex-1].count : null
+        shouldUseMentions = false
       }
-      while (nextMessageCount && messageCount == nextMessageCount)
 
-      leaderboardMessage += "**#" + (placementIndex+1) + "**  *(" + messageCount + ")*  " + (shouldUseMentions && guildName ? "<@" + userID + ">" : (!shouldUseMentions && guildName ? guildName : userTag))
+      await message.channel.sendTyping()
+
+      let sortedMessageCountsDocs = messageCountsCollection.docs.sort((doc1, doc2) => parseInt(doc2.id)-parseInt(doc1.id))
+
+      let summedMessageCounts = {}
+      for (let docSnapshot of sortedMessageCountsDocs)
+      {
+        if (parseInt(docSnapshot.id) < segmentSumTimeRange.start || parseInt(docSnapshot.id) > segmentSumTimeRange.end) { continue }
+
+        let messageCountsSegment = docSnapshot.data()
+        for (let userID of Object.keys(messageCountsSegment))
+        {
+          if (!summedMessageCounts[userID])
+          {
+            summedMessageCounts[userID] = 0
+          }
+          summedMessageCounts[userID] += messageCountsSegment[userID]
+        }
+      }
+
+      let sortedSummedMessageCounts = []
+      for (let userID of Object.keys(summedMessageCounts))
+      {
+        sortedSummedMessageCounts.push({id: userID, count: summedMessageCounts[userID]})
+      }
+      sortedSummedMessageCounts.sort((messageCount1, messageCount2) => messageCount1.id-messageCount2.id)
+      sortedSummedMessageCounts.sort((messageCount1, messageCount2) => messageCount2.count-messageCount1.count)
+
+      let guild = await client.guilds.fetch(message.guildId)
+
+      let leaderboardMessage = "__** Leaderboard (" + (segmentSumType ? segmentSumType.name + ": " : (isAllTime ? "All-Time: " : "")) + segmentSumTimeRange.startString + (segmentSumTimeRange.start != segmentSumTimeRange.end && segmentSumTimeRange.endString ? " to " + segmentSumTimeRange.endString : "") + ")**__"
+      for (let messageCountPairIndex in sortedSummedMessageCounts)
+      {
+        leaderboardMessage += "\n"
+
+        let userTag = "#0000"
+        let guildName: string
+
+        let userID = sortedSummedMessageCounts[messageCountPairIndex].id
+
+        try
+        {
+          guildName = (await guild.members.fetch(userID)).displayName
+        }
+        catch
+        {}
+
+        try
+        {
+          let user = await client.users.fetch(userID)
+          userTag = user.tag
+        }
+        catch {}
+
+        let messageCount = sortedSummedMessageCounts[messageCountPairIndex].count
+        let nextMessageCount: number
+        let placementIndex = parseInt(messageCountPairIndex)+1
+        do
+        {
+          placementIndex -= 1
+          nextMessageCount = placementIndex-1 >= 0 ? sortedSummedMessageCounts[placementIndex-1].count : null
+        }
+        while (nextMessageCount && messageCount == nextMessageCount)
+
+        leaderboardMessage += "**#" + (placementIndex+1) + "**  *(" + messageCount + ")*  " + (shouldUseMentions && guildName ? "<@" + userID + ">" : (!shouldUseMentions && guildName ? guildName : userTag))
+      }
+      message.channel.send({
+        "content": leaderboardMessage,
+        "allowedMentions": { "users" : []}
+      })
     }
-    msg.channel.send({
-      "content": leaderboardMessage,
-      "allowedMentions": { "users" : []}
-    })
-
-    return true
-  }
-
-  return false
+  )
 }

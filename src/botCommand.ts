@@ -20,17 +20,22 @@ export class BotCommand
 
   static fromRegex(fullRegex: RegExp, partialRegex: RegExp | null, usageMessage: string | null, executeCommand: ExecuteCommandFunction): BotCommand
   {
+    fullRegex = new RegExp(fullRegex, "i")
+    partialRegex = new RegExp(partialRegex, "i")
+
     return new BotCommand((messageString: string, channel: TextChannel, usageMessage: string) => {
-      if (partialRegex && !partialRegex.test(messageString.toLowerCase())) { return false }
-      if (!fullRegex.test(messageString.toLowerCase()))
+      let partialRegexTest = partialRegex && partialRegex.test(messageString)
+      let fullRegxTest = fullRegex.test(messageString)
+
+      if (!fullRegxTest)
       {
-        if (partialRegex)
+        if (partialRegexTest)
         {
           channel.send(usageMessage)
         }
         return false
       }
-      return fullRegex.exec(messageString.toLowerCase()) as string[]
+      return fullRegex.exec(messageString) as string[]
     }, usageMessage, executeCommand)
   }
 

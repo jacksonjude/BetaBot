@@ -214,7 +214,7 @@ export const getDateCommands = function(): BotCommand[]
 export const getEmoteSpellCommand = function(): BotCommand
 {
   return BotCommand.fromRegex(
-    /^spell\s+([a-zA-Z]+)(\s+((<)?:[^\s:]+?:(\d+>)?))?(\s+((<)?:[^\s:]+?:(\d+>)?))?$/, /^spell\s*.*$/,
+    /^spell\s+([a-zA-Z]+)(\s+((<)?:[^\s:]+?:(\d+>)?))?(\s+((<)?:[^\s:]+?:(\d+>)?))?$/, /^spell(\s+.*)?$/,
     "spell <word> [interior emote] [exterior emote]",
     async (commandArguments: string[], message: Message, __, ___) => {
       let wordToSpell = commandArguments[1]
@@ -255,7 +255,7 @@ export const getEmoteSpellCommand = function(): BotCommand
 export const getClearCommand = function(): BotCommand
 {
   return BotCommand.fromRegex(
-    /^clear(\s+(\d+))?$/, /^clear\s*.*$/,
+    /^clear(\s+(\d+))?$/, /^clear(\s+.*)?$/,
     "clear [message count]",
     async (commandArguments: string[], message: Message, client: Client, ___) => {
       let dmChannel = message.author.dmChannel || await message.author.createDM()
@@ -277,7 +277,7 @@ export const getClearCommand = function(): BotCommand
 export const getRepeatCommand = function(): BotCommand
 {
   return BotCommand.fromRegex(
-    /^repeat\s+(\d+)$/, /^repeat\s*.*$/,
+    /^repeat\s+(\d+)$/, /^repeat(\s+.*)?$/,
     "repeat [count]",
     async (commandArguments: string[], message: Message, __, ___) => {
       let multiplier = parseInt(commandArguments[1])

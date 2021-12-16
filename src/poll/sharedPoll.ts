@@ -1,5 +1,6 @@
 import { Client, User, GuildMember, Message, MessageReaction, GuildEmoji, ReactionEmoji, ReactionCollector } from "discord.js"
 import { Firestore, Timestamp } from "firebase-admin/firestore"
+import { BotCommand, BotCommandError } from "../botCommand"
 
 export const pollsCollectionID = "pollConfigurations"
 export const pollResponsesCollectionID = "responses"
@@ -110,28 +111,30 @@ export const checkVoteRequirements = function(pollData: PollConfiguration, serve
   return true
 }
 
-export const sendExportPollResultsCommand = async function(msg: Message, messageContent: string)
+export function getExportPollResultsCommand(): BotCommand
 {
-  if (/^pollresults\s(.+)$/.test(messageContent.toLowerCase()))
-  {
-    await msg.member.fetch()
+  return BotCommand.fromRegex(
+    /^pollresults\s+(.+)$/, /^pollresults$/,
+    "pollresults <poll id>",
+    async (commandArguments: string[], message: Message, __, firestoreDB: Firestore) => {
+      let pollID = commandArguments[1]
 
-    var pollID = /^pollresults\s(.+)$/.exec(messageContent)[1]
+      if (!(pollID in pollsData))
+      {
+        return new BotCommandError("Invalid poll id: '" + pollID + "'", false)
+      }
 
-    if (!(pollID in pollsData))
-    {
-      msg.channel.send("Invalid poll name: " + pollID)
-      return false
+      let pollData = pollsData[pollID]
+      let member = await message.member.fetch()
+
+      if (!checkExportPollResultsRequirements(pollData, member, message))
+      {
+        return new BotCommandError("Exporting requirements not met for " + pollID, false)
+      }
+
+      await executeExportPollResultsCommand(message.author, pollID, firestoreDB)
     }
-
-    var pollData = pollsData[pollID]
-
-    if (!checkExportPollResultsRequirements(pollData, msg.member, msg)) { return }
-
-    return pollID
-  }
-
-  return false
+  )
 }
 
 function checkExportPollResultsRequirements(pollData: PollConfiguration, member: GuildMember, msg: Message)

@@ -1,5 +1,6 @@
 import { Client, User, TextChannel, Message } from "discord.js"
 import { Firestore } from "firebase-admin/firestore"
+import { BotCommand, BotCommandError } from "../botCommand"
 
 import {
   PollConfiguration, PollVoteMessageConfiguration, PollResponseMap, PollResponse,
@@ -158,31 +159,33 @@ export const cleanDMPollResponseMessages = async function(client: Client, userID
   }
 }
 
-export const sendDMVoteCommand = async function(msg: Message, messageContent: string)
+export function getDMVoteCommand(): BotCommand
 {
-  if (/^vote\s(.+)$/.test(messageContent.toLowerCase()))
-  {
-    await msg.member.fetch()
+  return BotCommand.fromRegex(
+    /^vote\s+(.+)$/, /^vote$/,
+    "vote <poll id>",
+    async (commandArguments: string[], message: Message, client: Client, firestoreDB: Firestore) => {
+      let pollID = commandArguments[1]
 
-    var pollID = /^vote\s(.+)$/.exec(messageContent)[1]
+      if (!(pollID in pollsData))
+      {
+        return new BotCommandError("Invalid poll id: '" + pollID + "'", false)
+      }
 
-    if (!(pollID in pollsData))
-    {
-      msg.channel.send("Invalid poll name: " + pollID)
-      return false
+      let pollData = pollsData[pollID]
+      let member = await message.member.fetch()
+      
+      if (!checkVoteRequirements(pollData, (message.channel as TextChannel).guildId, member, message))
+      {
+        return new BotCommandError("Voting requirements not met for " + pollID, false)
+      }
+
+      await executeDMVoteCommand(client, message.author, pollID, firestoreDB)
     }
-
-    var pollData = pollsData[pollID]
-
-    if (!checkVoteRequirements(pollData, (msg.channel as TextChannel).guildId, msg.member, msg)) { return }
-
-    return pollID
-  }
-
-  return false
+  )
 }
 
-export const executeDMVoteCommand = async function(client: Client, user: User, pollID: string, firestoreDB: Firestore)
+async function executeDMVoteCommand(client: Client, user: User, pollID: string, firestoreDB: Firestore)
 {
   console.log("Init vote " + pollID + " for " + user.id)
 

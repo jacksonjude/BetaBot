@@ -28,10 +28,10 @@ import { sendMessageResponses } from "./src/messageResponses"
 import { getMessageCommands, getDateCommands, getEmoteSpellCommand, getClearCommand, getRepeatCommand, getSpeakCommand } from "./src/miscCommands"
 
 import { setupVoiceChannelEventHandler } from "./src/linkedTextChannels"
-import { setupMemberStatsEventHandlers, sendMessageCountsUpdateCommand, sendMessageCountsLeaderboardCommand } from "./src/serverStats"
+import { setupMemberStatsEventHandlers, sendMessageCountsUpdateCommand, getMessageCountsLeaderboardCommand } from "./src/serverStats"
 
-import { sendExportPollResultsCommand, executeExportPollResultsCommand } from "./src/poll/sharedPoll"
-import { sendDMVoteCommand, executeDMVoteCommand } from "./src/poll/dmPoll"
+import { getExportPollResultsCommand } from "./src/poll/sharedPoll"
+import { getDMVoteCommand } from "./src/poll/dmPoll"
 
 import { initFirestore, initFirestoreCollectionListeners } from "./src/firebase"
 
@@ -121,7 +121,7 @@ client.on('messageCreate', async msg => {
 
   messageContent = messageContent.replace(/^\s*/, "").replace(/\s*$/, "")
 
-  // console.log("Command from " + msg.author.id + " in " + msg.guildId + " '" + messageContent + "'")
+  console.log("Command from " + msg.author.username + " in " + msg.guild.name + " '" + messageContent + "'")
 
   const runBotCommands = async function(botCommands: BotCommand[]): Promise<boolean>
   {
@@ -132,34 +132,26 @@ client.on('messageCreate', async msg => {
     return false
   }
 
-  var botCommands = [...getMessageCommands(), ...getDateCommands(), getEmoteSpellCommand(), getClearCommand()]
+  var botCommands = [
+    ...getMessageCommands(),
+    ...getDateCommands(),
+    getEmoteSpellCommand(),
+    getClearCommand(),
+    getDMVoteCommand(),
+    getExportPollResultsCommand(),
+    getMessageCountsLeaderboardCommand()
+  ]
   if (await runBotCommands(botCommands)) { return }
-
-  let pollID = await sendDMVoteCommand(msg, messageContent)
-  if (pollID)
-  {
-    await executeDMVoteCommand(client, msg.author, pollID, firestoreDB)
-    return
-  }
-
-  let exportPollID = await sendExportPollResultsCommand(msg, messageContent)
-  if (exportPollID)
-  {
-    await executeExportPollResultsCommand(msg.author, exportPollID, firestoreDB)
-    return
-  }
-
-  if (await sendMessageCountsLeaderboardCommand(client, msg, messageContent, firestoreDB)) { return }
 
   switch (messageContent)
   {
     case "info":
     msg.channel.send(`βəτα Bot Dev 1.0\nCreated by <@${CREATOR_USER_ID}>\nwith inspiration from We4therman\n*\\*Powered By DELL OS\\**`)
-    break
+    return
 
     case "ping":
     msg.channel.send("pong")
-    break
+    return
   }
 
   if (msg.author.id != CREATOR_USER_ID) { return }
