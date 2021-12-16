@@ -183,7 +183,7 @@ const letterBitmaps = {
 export const getHelpCommand = function(botCommands: BotCommand[]): BotCommand
 {
   return BotCommand.fromRegex(
-    "help", "displays the list of commands, or usage info of a specific command",
+    "help", "get help for commands",
     /^help(\s+(\w+))?$/, null,
     "help [command]",
     async (commandArguments: string[], message: Message) => {
@@ -218,7 +218,7 @@ export const getMessageCommands = function(): BotCommand[]
 {
   return messageCommands.map(messageCommandData => {
     return BotCommand.fromRegex(
-      messageCommandData.command, messageCommandData.description ?? "gives a message",
+      messageCommandData.command, messageCommandData.description ?? "give a message",
       new RegExp("^" + messageCommandData.command + "$"), null,
       messageCommandData.command,
       async (_, message: Message) => {
@@ -233,7 +233,7 @@ export const getDateCommands = function(): BotCommand[]
 {
   return dateCommands.map(dateCommandData => {
     return BotCommand.fromRegex(
-      dateCommandData.command, dateCommandData.description ?? "gives a date",
+      dateCommandData.command, dateCommandData.description ?? "give a date",
       new RegExp("^" + dateCommandData.command + "$"), null,
       dateCommandData.command,
       async (_, message: Message) => {
@@ -250,7 +250,7 @@ export const getDateCommands = function(): BotCommand[]
 export const getEmoteSpellCommand = function(): BotCommand
 {
   return BotCommand.fromRegex(
-    "spell", "spells a word using emotes",
+    "spell", "spell a word using emotes",
     /^spell\s+([a-zA-Z]+)(\s+((<)?:[^\s:]+?:(\d+>)?))?(\s+((<)?:[^\s:]+?:(\d+>)?))?$/, /^spell(\s+.*)?$/,
     "spell <word> [interior emote] [exterior emote]",
     async (commandArguments: string[], message: Message) => {
@@ -292,7 +292,7 @@ export const getEmoteSpellCommand = function(): BotCommand
 export const getClearCommand = function(): BotCommand
 {
   return BotCommand.fromRegex(
-    "clear", "clears bot messages from DMs",
+    "clear", "clear bot messages from DMs",
     /^clear(\s+(\d+))?$/, /^clear(\s+.*)?$/,
     "clear [message count]",
     async (commandArguments: string[], message: Message, client: Client) => {
@@ -315,7 +315,7 @@ export const getClearCommand = function(): BotCommand
 export const getRepeatCommand = function(commandRequirement: BotCommandRequirement): BotCommand
 {
   return BotCommand.fromRegex(
-    "repeat", "repeats the last message sent to the channel",
+    "repeat", "repeat the last message sent to the channel",
     /^repeat\s+(\d+)$/, /^repeat(\s+.*)?$/,
     "repeat [count]",
     async (commandArguments: string[], message: Message) => {
@@ -336,7 +336,7 @@ export const getRepeatCommand = function(commandRequirement: BotCommandRequireme
 export const getSpeakCommand = function(commandRequirement: BotCommandRequirement): BotCommand
 {
   return BotCommand.fromRegex(
-    "speak", "reads the last message sent to the channel in tts",
+    "speak", "read the last message sent to the channel in tts",
     /^speak\s+(.+)$/, null,
     "speak [message]",
     async (commandArguments: string[], message: Message) => {

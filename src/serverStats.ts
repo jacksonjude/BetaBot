@@ -288,7 +288,7 @@ async function updateMessageCounts(guild: Guild, hoursPerSegment: number, tracki
 export function getMessageCountsUpdateCommand(commandRequirement: BotCommandRequirement): BotCommand
 {
   return BotCommand.fromRegex(
-    "updateleaderboard", "updates the message counts for this server",
+    "updateleaderboard", "update the message counts",
     /^updateleaderboard$/, null,
     "updateleaderboard",
     async (_, message: Message, __, firestoreDB: Firestore) => {
@@ -328,7 +328,7 @@ Date.prototype.changeTimezone = function(ianatz: string, multiplier: number = nu
 export function getMessageCountsLeaderboardCommand(): BotCommand
 {
   return BotCommand.fromRegex(
-    "leaderboard", "displays the message count leaderboard for the server",
+    "leaderboard", "display the message count leaderboard",
     /^leaderboard(\s+(false|true))?(\s+(\w+))?(\s+([\d\/]+))?(\s+([\d\/]+))?$/, /^leaderboard(\s+.*)?$/,
     "leaderboard [mentions toggle (true | false)] [range preset (day | week | month)] [date 1 (M/D/YYYY)] [date 2 (M/D/YYYY)]",
     async (commandArguments: string[], message: Message, client: Client, firestoreDB: Firestore) => {
