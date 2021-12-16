@@ -2,20 +2,20 @@ import { Client, Message } from "discord.js"
 import { BotCommand, BotCommandError, BotCommandRequirement } from "./botCommand"
 
 const messageCommands = [
-  { command: "hi", responses: ["hello :wave:"] },
-  { command: "cook", responses: ["🍕", "🍿", "🍤", "🍣", "🍪", "🍣", "🍔", "🥐", "🥓", "🍱", "🍩", "🍰", "🍳", "🧇", "🥨", "https://i.imgur.com/LOoSSoK.jpeg", "🍉", "🥫", "🌮", "🌭", "🥪", "🍚", "🥠"] },
-  { command: "roast me", responses: ["nah bro"] },
-  { command: "thanks", responses: ["ofc bro", "np", "dont mention it", "thank you!", ":)", "you\'re welcome"] },
-  { command: "make it rain", responses: ["\\*in british\\* £££9739797210100000000", ":chart_with_upwards_trend: *støønks*"] },
-  { command: "sad", responses: ["\\:("] },
-  { command: "flip", responses: [":b:", ":robot:"] },
-  { command: "d6", responses: [":one:", ":two:", ":three:", ":four:", ":five:", ":six:"] },
-  { command: "d20", responses: [":one:", ":two:", ":three:", ":four:", ":five:", ":six:", ":seven:", ":eight:", ":nine:", ":one::zero:", ":one::one:", ":one::two:", ":one::three:", ":one::four:", ":one::five:", ":one::six:", ":one::seven:", ":one::eight:", ":one::nine:", ":two::zero:"] }
+  { command: "hi", description: "say hello", responses: ["hello :wave:"] },
+  { command: "cook", description: "cook food", responses: ["🍕", "🍿", "🍤", "🍣", "🍪", "🍣", "🍔", "🥐", "🥓", "🍱", "🍩", "🍰", "🍳", "🧇", "🥨", "https://i.imgur.com/LOoSSoK.jpeg", "🍉", "🥫", "🌮", "🌭", "🥪", "🍚", "🥠"] },
+  { command: "roast me", description: "might burn", responses: ["nah bro"] },
+  { command: "thanks", description: "reciprocate politeness", responses: ["ofc bro", "np", "dont mention it", "thank you!", ":)", "you\'re welcome"] },
+  { command: "make it rain", description: "generate stacks", responses: ["\\*in british\\* £££9739797210100000000", ":chart_with_upwards_trend: *støønks*"] },
+  { command: "sad", description: "wallow in melancholy", responses: ["\\:("] },
+  { command: "flip", description: "flip a special coin", responses: [":b:", ":robot:"] },
+  { command: "d6", description: "roll a d6", responses: [":one:", ":two:", ":three:", ":four:", ":five:", ":six:"] },
+  { command: "d20", description: "roll a d20", responses: [":one:", ":two:", ":three:", ":four:", ":five:", ":six:", ":seven:", ":eight:", ":nine:", ":one::zero:", ":one::one:", ":one::two:", ":one::three:", ":one::four:", ":one::five:", ":one::six:", ":one::seven:", ":one::eight:", ":one::nine:", ":two::zero:"] }
 ]
 
 const dateCommands = [
+  { name: "Birthday", description: "the point of creation", timestamp: 1591728780000, command: "birf" },
   // { name: "Misty Not Rated", timestamp: 1586139240000, command: "misty" },
-  { name: "Birthday", timestamp: 1597993200000, command: "birf" },
   // { name: "Finals are over!!! :partying_face:", timestamp: 1639209600000, command: "finals" }
 ]
 
@@ -218,7 +218,7 @@ export const getMessageCommands = function(): BotCommand[]
 {
   return messageCommands.map(messageCommandData => {
     return BotCommand.fromRegex(
-      messageCommandData.command, "gives a message",
+      messageCommandData.command, messageCommandData.description ?? "gives a message",
       new RegExp("^" + messageCommandData.command + "$"), null,
       messageCommandData.command,
       async (_, message: Message) => {
@@ -233,7 +233,7 @@ export const getDateCommands = function(): BotCommand[]
 {
   return dateCommands.map(dateCommandData => {
     return BotCommand.fromRegex(
-      dateCommandData.command, "gives a date",
+      dateCommandData.command, dateCommandData.description ?? "gives a date",
       new RegExp("^" + dateCommandData.command + "$"), null,
       dateCommandData.command,
       async (_, message: Message) => {
