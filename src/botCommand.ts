@@ -1,29 +1,34 @@
 import { TextChannel, Message, Client } from "discord.js"
 import { Firestore } from "firebase-admin/firestore"
 
-type ParseCommandStringFunction = (messageString: string, channel: TextChannel, usageMessage: string) => boolean | string[]
+type ParseCommandStringFunction = (messageString: string, channel?: TextChannel, usageMessage?: string) => boolean | string[]
 type ExecuteCommandFunction = (commandArguments: string[], message: Message, client: Client, firestoreDB: Firestore) => Promise<BotCommandError | void>
 
 export class BotCommand
 {
+  name: string
+  description: string
+
   parseCommandString: ParseCommandStringFunction
   usageMessage: string | null
 
   executeCommand: ExecuteCommandFunction
 
-  constructor(parseCommandStringFunction: ParseCommandStringFunction, usageMessage: string | null, executeCommand: ExecuteCommandFunction)
+  constructor(name: string, description: string, parseCommandStringFunction: ParseCommandStringFunction, usageMessage: string | null, executeCommand: ExecuteCommandFunction)
   {
+    this.name = name
+    this.description = description
     this.parseCommandString = parseCommandStringFunction
     this.usageMessage = "**Usage: `@BetaBot " + usageMessage + "`**"
     this.executeCommand = executeCommand
   }
 
-  static fromRegex(fullRegex: RegExp, partialRegex: RegExp | null, usageMessage: string | null, executeCommand: ExecuteCommandFunction): BotCommand
+  static fromRegex(name: string, description: string, fullRegex: RegExp, partialRegex: RegExp | null, usageMessage: string | null, executeCommand: ExecuteCommandFunction): BotCommand
   {
     fullRegex = new RegExp(fullRegex, "i")
-    partialRegex = new RegExp(partialRegex, "i")
+    partialRegex = partialRegex ? new RegExp(partialRegex, "i") : null
 
-    return new BotCommand((messageString: string, channel: TextChannel, usageMessage: string) => {
+    return new BotCommand(name, description, (messageString: string, channel?: TextChannel, usageMessage?: string) => {
       let partialRegexTest = partialRegex && partialRegex.test(messageString)
       let fullRegxTest = fullRegex.test(messageString)
 
@@ -31,7 +36,8 @@ export class BotCommand
       {
         if (partialRegexTest)
         {
-          channel.send(usageMessage)
+          channel && usageMessage && channel.send(usageMessage)
+          return true
         }
         return false
       }
@@ -43,7 +49,7 @@ export class BotCommand
   {
     let textChannel = message.channel as TextChannel
     let parseCallback = this.parseCommandString(messageString, textChannel, this.usageMessage)
-    if (parseCallback === false || parseCallback === true) { return parseCallback }
+    if (parseCallback === false || parseCallback === true) { return false }
 
     let currentArguments = parseCallback
     let commandCallback = await this.executeCommand(currentArguments, message, client, firestoreDB)

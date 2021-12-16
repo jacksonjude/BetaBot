@@ -114,6 +114,7 @@ export const checkVoteRequirements = function(pollData: PollConfiguration, serve
 export function getExportPollResultsCommand(): BotCommand
 {
   return BotCommand.fromRegex(
+    "pollresults", "get poll results",
     /^pollresults\s+(.+)$/, /^pollresults$/,
     "pollresults <poll id>",
     async (commandArguments: string[], message: Message, __, firestoreDB: Firestore) => {
@@ -121,7 +122,7 @@ export function getExportPollResultsCommand(): BotCommand
 
       if (!(pollID in pollsData))
       {
-        return new BotCommandError("Invalid poll id: '" + pollID + "'", false)
+        return new BotCommandError("Invalid poll id '" + pollID + "'", false)
       }
 
       let pollData = pollsData[pollID]

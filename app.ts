@@ -1,7 +1,7 @@
 const CREATOR_USER_ID = process.env.CREATOR_USER_ID
 const DISCORD_NICKNAME = process.env.DISCORD_NICKNAME
 
-import { Client, Intents, GuildMember } from 'discord.js'
+import { Client, Intents, GuildMember, TextChannel } from 'discord.js'
 const client = new Client({ intents: [
   Intents.FLAGS.GUILDS,
   Intents.FLAGS.GUILD_MEMBERS,
@@ -151,6 +151,36 @@ client.on('messageCreate', async msg => {
 
     case "ping":
     msg.channel.send("pong")
+    return
+  }
+
+  let helpRegex = new RegExp(/^help(\s+(\w+))?$/, "i")
+  if (helpRegex.test(messageContent))
+  {
+    let helpArguments = helpRegex.exec(messageContent)
+    if (!helpArguments[2])
+    {
+      let helpMessageString = "__**Commands**__"
+      for (let command of botCommands)
+      {
+        helpMessageString += "\n" + "**" + command.name + "**: *" + command.description + "*"
+      }
+      msg.channel.send(helpMessageString)
+    }
+    else
+    {
+      let foundCommand = botCommands.find(command => command.parseCommandString(helpArguments[2]) !== false)
+      if (foundCommand)
+      {
+        await msg.channel.send("**" + foundCommand.name + "**: *" + foundCommand.description + "*")
+        foundCommand.usageMessage && await msg.channel.send(foundCommand.usageMessage)
+      }
+      else
+      {
+        msg.channel.send("**Error: " + "'" + helpArguments[2] + "' command not found" + "**")
+      }
+    }
+
     return
   }
 

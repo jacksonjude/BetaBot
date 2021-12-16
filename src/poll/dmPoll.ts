@@ -162,6 +162,7 @@ export const cleanDMPollResponseMessages = async function(client: Client, userID
 export function getDMVoteCommand(): BotCommand
 {
   return BotCommand.fromRegex(
+    "vote", "vote in private DM polls",
     /^vote\s+(.+)$/, /^vote$/,
     "vote <poll id>",
     async (commandArguments: string[], message: Message, client: Client, firestoreDB: Firestore) => {
@@ -169,12 +170,12 @@ export function getDMVoteCommand(): BotCommand
 
       if (!(pollID in pollsData))
       {
-        return new BotCommandError("Invalid poll id: '" + pollID + "'", false)
+        return new BotCommandError("Invalid poll id '" + pollID + "'", false)
       }
 
       let pollData = pollsData[pollID]
       let member = await message.member.fetch()
-      
+
       if (!checkVoteRequirements(pollData, (message.channel as TextChannel).guildId, member, message))
       {
         return new BotCommandError("Voting requirements not met for " + pollID, false)
