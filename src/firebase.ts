@@ -141,6 +141,7 @@ export function initFirestoreCollectionListeners(firestoreDB: Firestore, client:
     firestoreCollectionListeners.push(
       collectionRef.onSnapshot((settingSnapshot) => {
         settingSnapshot.docChanges().forEach((docChange) => {
+          if (docChange.doc.data().active === false) { return }
           console.log("Firestore: " + docChange.type + " " + collectionData.collectionID + "/" + docChange.doc.id)
 
           switch (docChange.type)

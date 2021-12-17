@@ -26,7 +26,7 @@ import { getHelpCommand, getMessageCommands, getDateCommands, getEmoteSpellComma
 import { setupVoiceChannelEventHandler } from "./src/linkedTextChannels"
 import { setupMemberStatsEventHandlers, getMessageCountsUpdateCommand, getMessageCountsLeaderboardCommand } from "./src/serverStats"
 
-import { getExportPollResultsCommand } from "./src/poll/sharedPoll"
+import { getExportPollResultsCommand, getEditPollCommand } from "./src/poll/sharedPoll"
 import { getDMVoteCommand } from "./src/poll/dmPoll"
 
 const HOME_GUILD_ID = "704218896298934317"
@@ -88,14 +88,16 @@ client.on('messageCreate', async msg => {
     return
   }
 
-  if (sendMessageResponses(msg)) { return }
-
   var messageContent = msg.content
   if ((msg.mentions.members && msg.mentions.members.has(client.user.id)) || (msg.mentions.roles && msg.mentions.roles.find(role => role.name == DISCORD_NICKNAME)))
   {
     messageContent = messageContent.replace(/<@!?&?\d+?>/, "")
   }
-  else { return }
+  else
+  {
+    if (sendMessageResponses(msg)) { return }
+    return
+  }
 
   if (client.user.presence.status === "idle")
   {
@@ -147,6 +149,7 @@ client.on('messageCreate', async msg => {
     getClearCommand(),
     getDMVoteCommand(),
     getExportPollResultsCommand(),
+    getEditPollCommand().setRequirement(ownerUserAndDevelopmentRequirement),
     getMessageCountsLeaderboardCommand(),
     getMessageCountsUpdateCommand().setRequirement(ownerUserRequirement),
     getRepeatCommand().setRequirement(developmentRequirement),

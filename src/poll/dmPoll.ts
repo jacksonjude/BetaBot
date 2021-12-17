@@ -163,7 +163,7 @@ export function getDMVoteCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "vote", "vote in private DM polls",
-    /^vote\s+(.+)$/, /^vote$/,
+    /^vote\s+(\w+)$/, /^vote(\s+.*)?$/,
     "vote <poll id>",
     async (commandArguments: string[], message: Message, client: Client, firestoreDB: Firestore) => {
       let pollID = commandArguments[1]
