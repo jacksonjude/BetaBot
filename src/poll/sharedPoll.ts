@@ -118,7 +118,7 @@ export function getEditPollCommand(): BotCommand
 
   return BotCommand.fromRegex(
     "polledit", "edit the fields of a poll",
-    new RegExp("^polledit\\s+(?:(poll)\\s+(\\w+)|(object)\\s+(\\w+)\\s+([\\w\\/]+)|(array)\\s+(\\w+)\\s+([\\w\\/]+)|(question)\\s+(\\w+)\\s+(\\w+)|(option)\\s+(\\w+)\\s+(\\w+)\\s+(\\w+))(" + propertyListRegex + ")$"), /^polledit(\s+.*)?$/,
+    new RegExp("^polledit\\s+(?:(poll)\\s+(\\w+)|(object)\\s+(\\w+)\\s+([\\w\\.]+)|(array)\\s+(\\w+)\\s+([\\w\\.]+)|(question)\\s+(\\w+)\\s+(\\w+)|(option)\\s+(\\w+)\\s+(\\w+)\\s+(\\w+))(" + propertyListRegex + ")$"), /^polledit(\s+.*)?$/,
     "polledit <poll | object | array | question | option> <poll id> [subfield key path | question id] [option id] <property1='string1' property2=number2 property3=boolean3 ... | delete>",
     async (commandArguments: string[], message: Message, __, firestoreDB: Firestore) => {
       let subcommand = commandArguments[1] ?? commandArguments[3] ?? commandArguments[6] ?? commandArguments[9] ?? commandArguments[12]
@@ -182,7 +182,7 @@ export function getEditPollCommand(): BotCommand
 
       function getNestedObjectFromKeyPath(rootObject: any, keyPath: string, getParent: boolean = false)
       {
-        let keyPathParts = keyPath.split("/")
+        let keyPathParts = keyPath.split(".")
 
         let subObject = rootObject
         for (let keyPathOn in keyPathParts)
@@ -252,7 +252,7 @@ export function getEditPollCommand(): BotCommand
           else if (!(parentObject instanceof Array))
           {
             await message.channel.send("PollEdit: " + "Deleting keypath " + subfieldKeyPath + " from '" + pollID + "'")
-            parentObject[childKey] && delete parentObject[childKey]
+            delete parentObject[childKey]
           }
           break
         }
@@ -370,7 +370,7 @@ export function getEditPollCommand(): BotCommand
       }
 
       await message.channel.send("PollEdit: " + "Uploading poll '" + pollID + "'")
-      await pollDocRef.set(pollData)
+      await pollDocRef.set(pollData, {merge: false})
 
       await message.channel.send("PollEdit: " + "Execution complete")
     }
