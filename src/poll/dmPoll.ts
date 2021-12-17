@@ -1,4 +1,4 @@
-import { Client, User, TextChannel, Message } from "discord.js"
+import { Client, User, TextChannel, Message, GuildMember } from "discord.js"
 import { Firestore } from "firebase-admin/firestore"
 import { BotCommand, BotCommandError } from "../botCommand"
 
@@ -133,7 +133,10 @@ async function setupVoteMessageReactionCollector(client: Client, pollDataJSON: P
       catch {}
       return
     }
-    executeDMVoteCommand(client, user, pollDataJSON.id, firestoreDB)
+
+    let member = await reaction.message.guild.members.fetch(user.id)
+
+    executeDMVoteCommand(client, user, member, pollDataJSON.id, firestoreDB)
   })
 
   pollVoteMessageReactionCollectors[pollDataJSON.id] = voteReactionCollector
@@ -181,12 +184,12 @@ export function getDMVoteCommand(): BotCommand
         return new BotCommandError("Voting requirements not met for " + pollID, false)
       }
 
-      await executeDMVoteCommand(client, message.author, pollID, firestoreDB)
+      await executeDMVoteCommand(client, message.author, message.member, pollID, firestoreDB)
     }
   )
 }
 
-async function executeDMVoteCommand(client: Client, user: User, pollID: string, firestoreDB: Firestore)
+async function executeDMVoteCommand(client: Client, user: User, guildMember: GuildMember, pollID: string, firestoreDB: Firestore)
 {
   console.log("Init vote " + pollID + " for " + user.id)
 
@@ -204,7 +207,7 @@ async function executeDMVoteCommand(client: Client, user: User, pollID: string, 
 
   try
   {
-    let newPollResponseMessageIDs = await sendVoteDM(client, user, pollID, uploadPollResponse, previousPollResponseMessageIDs)
+    let newPollResponseMessageIDs = await sendVoteDM(client, user, guildMember, pollID, uploadPollResponse, previousPollResponseMessageIDs)
     await firestoreDB.doc(pollResponsePath).set({messageIDs: newPollResponseMessageIDs})
   }
   catch (error)
@@ -213,7 +216,7 @@ async function executeDMVoteCommand(client: Client, user: User, pollID: string, 
   }
 }
 
-async function sendVoteDM(client: Client, user: User, pollID: string, uploadPollResponse: (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => Promise<void>, previousPollResponseMessageIDs: string[])
+async function sendVoteDM(client: Client, user: User, guildMember: GuildMember, pollID: string, uploadPollResponse: (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => Promise<void>, previousPollResponseMessageIDs: string[])
 {
   var dmChannel = user.dmChannel || await user.createDM()
 
@@ -225,8 +228,10 @@ async function sendVoteDM(client: Client, user: User, pollID: string, uploadPoll
 
   for (let questionData of pollData.questions)
   {
+    if (questionData.roleIDs && !questionData.roleIDs.some(roleID => guildMember.roles.cache.has(roleID))) { continue }
+
     let questionString = "**" + questionData.prompt + "**"
-    for (let optionData of questionData.options)
+    for (let optionData of questionData.options ?? [])
     {
       questionString += "\n" + ":" + optionData.emote + ": \\: " + optionData.name
     }
@@ -236,7 +241,7 @@ async function sendVoteDM(client: Client, user: User, pollID: string, uploadPoll
 
     await setupPollQuestionReactionCollector(client, pollID, user, questionMessage.id)
 
-    for (let optionData of questionData.options)
+    for (let optionData of questionData.options ?? [])
     {
       let emoji = getEmoji(client, optionData.emote)
       if (emoji == null) { continue }
