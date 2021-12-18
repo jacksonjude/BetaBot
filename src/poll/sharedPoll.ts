@@ -115,7 +115,7 @@ export function checkVoteRequirements(pollData: PollConfiguration, serverID: str
 
 export function getEditPollCommand(): BotCommand
 {
-  const propertyListRegex = "\\s+delete|(?:\\s+\\w+='[\\w\\s\\?\\*\\.!_\\(\\)]+'|\\s+\\w+=\\d+|\\s+\\w+=\\d+ms|\\s+\\w+=(?:true|false))*"
+  const propertyListRegex = "\\s+delete|(?:\\s+[\\w\\*]+='[\\w\\s\\?\\*\\.!_\\(\\)]+'|\\s+[\\w\\*]+=\\d+|\\s+[\\w\\*]+=\\d+ms|\\s+[\\w\\*]+=(?:true|false))*"
 
   return BotCommand.fromRegex(
     "polledit", "edit the fields of a poll",
@@ -271,6 +271,11 @@ export function getEditPollCommand(): BotCommand
         }
         for (let propertyKey in propertyList)
         {
+          if (propertyKey == "*")
+          {
+            parentObject[childKey] = propertyList[propertyKey]
+            break
+          }
           parentObject[childKey][propertyKey] = propertyList[propertyKey]
         }
         break
@@ -304,6 +309,11 @@ export function getEditPollCommand(): BotCommand
         if (Object.keys(propertyList).length > 0 || !justCreatedArray)
         {
           await message.channel.send("PollEdit: " + "Creating array item '" + subfieldKeyPath + "/" + parentObject[childKey].length + "' for poll '" + pollID + "'")
+          if (Object.keys(propertyList)[0] == "*")
+          {
+            parentObject[childKey].push(propertyList[Object.keys(propertyList)[0]])
+            break
+          }
           parentObject[childKey].push(propertyList)
         }
         break
