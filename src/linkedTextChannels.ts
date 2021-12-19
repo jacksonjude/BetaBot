@@ -25,7 +25,7 @@ export function setupVoiceChannelEventHandler(client: Client)
     let prevTextChannelName: string
     if (oldState.channelId != null)
     {
-      let voiceTextChannelPair = voiceToTextChannelData[oldState.guild.id].find((voiceTextChannelPair) => voiceTextChannelPair.voiceChannel == oldState.channelId)
+      let voiceTextChannelPair = voiceToTextChannelData[oldState.guild.id] ? voiceToTextChannelData[oldState.guild.id].find((voiceTextChannelPair) => voiceTextChannelPair.voiceChannel == oldState.channelId) : null
       if (voiceTextChannelPair != null)
       {
         let textChannelIDToFind = voiceTextChannelPair.textChannel
@@ -36,7 +36,7 @@ export function setupVoiceChannelEventHandler(client: Client)
     let newTextChannelName: string
     if (newState.channelId != null)
     {
-      let voiceTextChannelPair = voiceToTextChannelData[newState.guild.id].find((voiceTextChannelPair) => voiceTextChannelPair.voiceChannel == newState.channelId)
+      let voiceTextChannelPair = voiceToTextChannelData[newState.guild.id] ? voiceToTextChannelData[newState.guild.id].find((voiceTextChannelPair) => voiceTextChannelPair.voiceChannel == newState.channelId) : null
       if (voiceTextChannelPair != null)
       {
         let textChannelIDToFind = voiceTextChannelPair.textChannel
