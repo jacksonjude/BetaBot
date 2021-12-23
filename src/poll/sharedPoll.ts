@@ -150,7 +150,7 @@ export function getEditPollCommand(): BotCommand
 
             if (/^'[\w\s\?\*\.!_\(\)\/]+'$/.test(propertyValue))
             {
-              propertyList[propertyKey] = /^'([\w\s\?\*\.!_\(\)]+)'$/.exec(propertyValue)[1]
+              propertyList[propertyKey] = /^'([\w\s\?\*\.!_\(\)\/]+)'$/.exec(propertyValue)[1]
             }
             else if (/^\d+$/.test(propertyValue))
             {
