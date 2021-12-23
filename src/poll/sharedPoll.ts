@@ -477,7 +477,12 @@ export async function executeExportPollResultsCommand(user: User, pollID: string
   formattedPollResults = formattedPollResults.map((pollResponseData) => {
     Object.keys(pollResponseData.responseMap).forEach((responseMapKey) => {
       responseMapKeys.add(responseMapKey)
-      pollResponseData[responseMapKey] = pollResponseData.responseMap[responseMapKey]
+      let responseValueID = pollResponseData.responseMap[responseMapKey]
+
+      let currentQuestionData = pollsData[pollID].questions.find(questionData => questionData.id == responseMapKey)
+      let currentOptionData = currentQuestionData ? currentQuestionData.options.find(optionData => optionData.id == responseValueID) : null
+
+      pollResponseData[responseMapKey] = currentOptionData ? currentOptionData.name : responseValueID
     })
     delete pollResponseData.responseMap
 
@@ -486,6 +491,12 @@ export async function executeExportPollResultsCommand(user: User, pollID: string
   var responseMapKeyArray = Array.from(responseMapKeys)
 
   formattedPollResults.sort((pollResult1, pollResult2) => pollResult1.timestamp-pollResult2.timestamp)
+  responseMapKeyArray.sort((questionID1, questionID2) => {
+    let questionIndex1 = pollsData[pollID].questions.findIndex(questionData => questionData.id == questionID1)
+    let questionIndex2 = pollsData[pollID].questions.findIndex(questionData => questionData.id == questionID2)
+
+    return questionIndex1-questionIndex2
+  })
 
   var pollResultsCSVParser = new Parser({fields: responseMapKeyArray})
   var pollResultsCSV = pollResultsCSVParser.parse(formattedPollResults)
