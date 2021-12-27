@@ -5,12 +5,12 @@ const kRemovedReaction = 1
 
 // Update Roles
 
-export async function setRole(user: User, guild: Guild, roleName: string, shouldAddRole: boolean)
+export async function setRole(user: User, guild: Guild, roleID: string, shouldAddRole: boolean)
 {
   var guildRoles = await guild.roles.fetch()
   var rolesArray = Array.from(guildRoles.values())
 
-  var roleObject = rolesArray.find(roleToTest => roleToTest.name == roleName)
+  var roleObject = rolesArray.find(roleToTest => roleToTest.id == roleID)
   if (roleObject == null) { return false }
 
   var guildMember = await guild.members.fetch(user)
