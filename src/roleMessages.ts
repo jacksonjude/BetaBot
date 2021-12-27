@@ -117,7 +117,7 @@ export async function removeRoleSetting(client: Client, roleSettingID: string, r
 async function sendRoleAddMessage(client: Client, roleDataJSON: RoleMessageConfiguration)
 {
   var channel = await client.channels.fetch(roleDataJSON.channelID) as TextChannel
-  var messageContent = getRoleAddMessageContent(roleDataJSON)
+  var messageContent = await getRoleAddMessageContent(roleDataJSON, channel.guild)
   var sentMessage = await channel.send(messageContent)
   roleDataJSON.messageID = sentMessage.id
 
@@ -133,7 +133,7 @@ async function editRoleAddMessage(client: Client, roleDataJSON: RoleMessageConfi
 {
   var channel = await client.channels.fetch(roleDataJSON.channelID) as TextChannel
   var message = await channel.messages.fetch(roleDataJSON.messageID)
-  var messageContent = getRoleAddMessageContent(roleDataJSON)
+  var messageContent = await getRoleAddMessageContent(roleDataJSON, channel.guild)
 
   if (message.content != messageContent)
   {
@@ -148,13 +148,14 @@ async function editRoleAddMessage(client: Client, roleDataJSON: RoleMessageConfi
   }
 }
 
-function getRoleAddMessageContent(roleDataJSON: any)
+async function getRoleAddMessageContent(roleDataJSON: RoleMessageConfiguration, guild: Guild)
 {
   var messageContent = "**" + roleDataJSON.name + "**"
   for (let emoteRolePair of roleDataJSON.roleMap)
   {
+    let roleObject = await guild.roles.fetch(emoteRolePair.role)
     messageContent += "\n"
-    messageContent += ":" + emoteRolePair.emote + ": \\: " + emoteRolePair.role
+    messageContent += ":" + emoteRolePair.emote + ": \\: " + roleObject ? roleObject.name : emoteRolePair.role
   }
   return messageContent
 }
