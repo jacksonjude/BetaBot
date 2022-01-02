@@ -541,6 +541,7 @@ export function getCurrentOptionDataFromReaction(reaction: MessageReaction, user
   var emoteName = getEmoteName(reaction.emoji)
 
   var { currentPollID, currentQuestionID } = getCurrentPollQuestionIDFromMessageID(reaction.message.id, user.id)
+  if (!currentPollID) return {}
   var currentQuestionData = pollsData[currentPollID].questions.find(questionData => questionData.id == currentQuestionID)
   var currentOptionData = currentQuestionData.options.find(optionData => optionData.emote == emoteName)
 
