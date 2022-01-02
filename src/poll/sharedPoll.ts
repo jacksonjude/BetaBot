@@ -122,7 +122,7 @@ export function checkVoteRequirements(pollData: PollConfiguration, serverID: str
 
 export function getEditPollCommand(): BotCommand
 {
-  const propertyListRegex = "\\s+delete|(?:\\s+[\\w\\*]+='[\\w\\s\\?\\*\\.!_\\(\\)/\\]+'|\\s+[\\w\\*]+=\\d+|\\s+[\\w\\*]+=\\d+ms|\\s+[\\w\\*]+=(?:true|false))*"
+  const propertyListRegex = "\\s+delete|(?:\\s+[\\w\\*]+='[\\w\\s\\?\\*\\.!_\\(\\)/\\\\]+'|\\s+[\\w\\*]+=\\d+|\\s+[\\w\\*]+=\\d+ms|\\s+[\\w\\*]+=(?:true|false))*"
 
   return BotCommand.fromRegex(
     "polledit", "edit the fields of a poll",
