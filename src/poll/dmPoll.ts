@@ -205,17 +205,15 @@ async function executeDMVoteCommand(client: Client, user: User, guildMember: Gui
     previousPollResponseMessageIDs = pollResponseDoc.data().messageIDs
   }
 
-  let newPollResponseMessageIDs = await sendVoteDM(client, user, guildMember, pollID, uploadPollResponse, previousPollResponseMessageIDs)
-  await firestoreDB.doc(pollResponsePath).set({messageIDs: newPollResponseMessageIDs})
-
-  // try
-  // {
-  //
-  // }
-  // catch (error)
-  // {
-  //   console.log("Vote DM Error: " + error)
-  // }
+  try
+  {
+    let newPollResponseMessageIDs = await sendVoteDM(client, user, guildMember, pollID, uploadPollResponse, previousPollResponseMessageIDs)
+    await firestoreDB.doc(pollResponsePath).set({messageIDs: newPollResponseMessageIDs})
+  }
+  catch (error)
+  {
+    console.log("Vote DM Error: " + error)
+  }
 }
 
 async function sendVoteDM(client: Client, user: User, guildMember: GuildMember, pollID: string, uploadPollResponse: (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => Promise<void>, previousPollResponseMessageIDs: string[])
