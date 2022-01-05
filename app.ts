@@ -170,3 +170,7 @@ client.on('messageCreate', async msg => {
     return
   }
 })
+
+process.on('unhandledRejection', error => {
+  console.log('Unhandled error: ', error)
+})
