@@ -1,4 +1,4 @@
-import { Client } from "discord.js"
+import { Client, TextChannel, VoiceChannel } from "discord.js"
 
 // Update Roles
 
@@ -10,53 +10,103 @@ var voiceToTextChannelData: { [k: string]: VoiceToTextPair[] } = {}
 
 class VoiceToTextPair
 {
-  textChannel: string
-  voiceChannel: string
+  voiceChannelID: string
+  textChannelID?: string
+  roleID?: string
 }
 
-export async function interpretVoiceToTextChannelSetting(guildID: string, voiceToTextChannelMap: VoiceToTextPair[])
+export async function interpretVoiceToTextChannelSetting(client: Client, guildID: string, voiceToTextChannelMap: VoiceToTextPair[]): Promise<boolean>
 {
   voiceToTextChannelData[guildID] = voiceToTextChannelMap
+
+  let shouldUpdateSetting = false
+
+  for (let voiceTextChannelPair of voiceToTextChannelMap)
+  {
+    let guild = await client.guilds.fetch(guildID)
+    let voiceChannel = await guild.channels.fetch(voiceTextChannelPair.voiceChannelID) as VoiceChannel
+    let textChannel: TextChannel
+
+    if (voiceTextChannelPair.textChannelID == null)
+    {
+      textChannel = await guild.channels.create(voiceChannel.name + "-text", {
+        type: "GUILD_TEXT",
+        permissionOverwrites: [
+          {
+            id: client.user.id,
+            allow: "VIEW_CHANNEL"
+          },
+          {
+            id: guild.roles.everyone,
+            deny: "VIEW_CHANNEL"
+          }
+        ],
+
+      })
+
+      if (voiceChannel.parent != null)
+      {
+        await textChannel.setParent(voiceChannel.parent, {lockPermissions: false})
+      }
+
+      voiceTextChannelPair.textChannelID = textChannel.id
+      shouldUpdateSetting = true
+    }
+
+    if (voiceTextChannelPair.roleID == null)
+    {
+      textChannel = textChannel ?? await guild.channels.fetch(voiceTextChannelPair.textChannelID) as TextChannel
+
+      let textChannelRole = await guild.roles.create({
+        name: textChannel.name
+      })
+
+      await textChannel.permissionOverwrites.create(textChannelRole, {
+        VIEW_CHANNEL: true
+      })
+
+      voiceTextChannelPair.roleID = textChannelRole.id
+      shouldUpdateSetting = true
+    }
+  }
+
+  return shouldUpdateSetting
 }
 
 export function setupVoiceChannelEventHandler(client: Client)
 {
   client.on('voiceStateUpdate', async (oldState, newState) => {
-    let prevTextChannelName: string
+    let roleIDToRemove: string
     if (oldState.channelId != null)
     {
-      let voiceTextChannelPair = voiceToTextChannelData[oldState.guild.id] ? voiceToTextChannelData[oldState.guild.id].find((voiceTextChannelPair) => voiceTextChannelPair.voiceChannel == oldState.channelId) : null
+      let voiceTextChannelPair = voiceToTextChannelData[oldState.guild.id] ? voiceToTextChannelData[oldState.guild.id].find((voiceTextChannelPair) => voiceTextChannelPair.voiceChannelID == oldState.channelId) : null
       if (voiceTextChannelPair != null)
       {
-        let textChannelIDToFind = voiceTextChannelPair.textChannel
-        let prevTextChannel = await oldState.guild.channels.fetch(textChannelIDToFind)
-        prevTextChannelName = prevTextChannel != null ? prevTextChannel.name : null
+        roleIDToRemove = voiceTextChannelPair.roleID
       }
     }
-    let newTextChannelName: string
+    let roleIDToAdd: string
     if (newState.channelId != null)
     {
-      let voiceTextChannelPair = voiceToTextChannelData[newState.guild.id] ? voiceToTextChannelData[newState.guild.id].find((voiceTextChannelPair) => voiceTextChannelPair.voiceChannel == newState.channelId) : null
+      let voiceTextChannelPair = voiceToTextChannelData[newState.guild.id] ? voiceToTextChannelData[newState.guild.id].find((voiceTextChannelPair) => voiceTextChannelPair.voiceChannelID == newState.channelId) : null
       if (voiceTextChannelPair != null)
       {
-        let textChannelIDToFind = voiceTextChannelPair.textChannel
-        let newTextChannel = await newState.guild.channels.fetch(textChannelIDToFind)
-        newTextChannelName = newTextChannel != null ? newTextChannel.name : null
+        roleIDToAdd = voiceTextChannelPair.roleID
       }
     }
 
-    if (oldState.channelId == null && newState.channelId != null && newTextChannelName != null)
+    if (oldState.channelId == null && newState.channelId != null && roleIDToAdd != null)
     {
-      setRole(newState.member.user, newState.guild, newTextChannelName, true)
+      setRole(newState.member.user, newState.guild, roleIDToAdd, true)
     }
-    else if (oldState.channelId != null && newState.channelId == null && prevTextChannelName != null)
+    else if (oldState.channelId != null && newState.channelId == null && roleIDToRemove != null)
     {
-      setRole(oldState.member.user, oldState.guild, prevTextChannelName, false)
+      setRole(oldState.member.user, oldState.guild, roleIDToRemove, false)
     }
-    else if (oldState.channelId != newState.channelId && prevTextChannelName != null && newTextChannelName != null)
+    else if (oldState.channelId != newState.channelId && roleIDToRemove != null && roleIDToAdd != null)
     {
-      setRole(oldState.member.user, oldState.guild, prevTextChannelName, false)
-      setRole(newState.member.user, newState.guild, newTextChannelName, true)
+      setRole(oldState.member.user, oldState.guild, roleIDToRemove, false)
+      setRole(newState.member.user, newState.guild, roleIDToAdd, true)
     }
   })
 }

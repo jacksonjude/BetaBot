@@ -35,13 +35,13 @@ var firestoreCollectionListeners = []
 const firestoreCollectionSyncHandlers = [
   {
     collectionID: roleMessageCollectionID,
-    updateDocFunction: async function(roleSettingDoc: QueryDocumentSnapshot, shouldDelete: boolean, client: Client) {
+    updateDocFunction: async function(roleSettingDoc: QueryDocumentSnapshot, shouldDelete: boolean, client: Client, firestoreDB: Firestore) {
       let roleSettingDocData = roleSettingDoc.data()
       let roleSettingID = roleSettingDoc.id
 
       if (!shouldDelete && await interpretRoleSetting(client, roleSettingID, roleSettingDocData as RoleMessageConfiguration))
       {
-        roleSettingDocData.set(roleSettingDocData)
+        firestoreDB.doc(roleMessageCollectionID + "/" + roleSettingID).set(roleSettingDocData)
       }
       else if (shouldDelete)
       {
@@ -51,13 +51,13 @@ const firestoreCollectionSyncHandlers = [
   },
   {
     collectionID: voiceToTextCollectionID,
-    updateDocFunction: async function(voiceToTextSettingDoc: QueryDocumentSnapshot, shouldDelete: boolean) {
+    updateDocFunction: async function(voiceToTextSettingDoc: QueryDocumentSnapshot, shouldDelete: boolean, client: Client, firestoreDB: Firestore) {
       let voiceToTextSettingDocData = voiceToTextSettingDoc.data()
       let voiceToTextGuildID = voiceToTextSettingDoc.id
 
-      if (!shouldDelete)
+      if (!shouldDelete && await interpretVoiceToTextChannelSetting(client, voiceToTextGuildID, voiceToTextSettingDocData["voiceToTextMap"]))
       {
-        await interpretVoiceToTextChannelSetting(voiceToTextGuildID, voiceToTextSettingDocData["voiceToTextMap"])
+        firestoreDB.doc(voiceToTextCollectionID + "/" + voiceToTextGuildID).set(voiceToTextSettingDocData)
       }
     }
   },
