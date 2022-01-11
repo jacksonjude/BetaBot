@@ -78,10 +78,10 @@ export function setupMemberStatsEventHandlers(client: Client)
   })
   onlineMemberCountCronJob.start()
 
-  client.on('guildMemberUpdate', async (oldMember, _) => {
+  client.on('messageCreate', (message) => {
     // Update boost stat
-    if (oldMember == null || oldMember.guild == null) { return }
-    updateBoostMembersStat(oldMember.guild)
+    if (message.type != "USER_PREMIUM_GUILD_SUBSCRIPTION") { return }
+    updateBoostMembersStat(message.guild)
   })
 }
 
