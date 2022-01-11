@@ -1,4 +1,4 @@
-import { Client, Message } from "discord.js"
+import { Client, Message, Collection, DMChannel, TextChannel } from "discord.js"
 import { BotCommand, BotCommandError } from "./botCommand"
 
 const messageCommands = [
@@ -292,22 +292,104 @@ export function getEmoteSpellCommand(): BotCommand
 export function getClearCommand(): BotCommand
 {
   return BotCommand.fromRegex(
-    "clear", "clear bot messages from DMs",
-    /^clear(\s+(\d+))?$/, /^clear(\s+.*)?$/,
+    "clear", "clear bot messages",
+    /^clear(\s+(dm|\d+))?(\s+(\d+))?(\s+(true|false))?$/, /^clear(\s+.*)?$/,
     "clear [message count]",
     async (commandArguments: string[], message: Message, client: Client) => {
-      let dmChannel = message.author.dmChannel || await message.author.createDM()
-
-      let clearMessageAmount = parseInt(commandArguments[2] ?? "100")
-      let dmMessages = await dmChannel.messages.fetch()
-      dmMessages.forEach((message) => {
-        if (clearMessageAmount <= 0) { return }
-        if (message.author.id == client.user.id)
+      const processMessages = async function(channelMessageArray: Message[]): Promise<boolean>
+      {
+        if (!commandArguments[4] && message.reference)
         {
-          message.delete()
-          clearMessageAmount -= 1
+          let endpointMessage: Message
+          try
+          {
+            endpointMessage = await channelToClear.messages.fetch(message.reference.messageId)
+          }
+          catch {}
+          if (!endpointMessage) { return }
+
+          let foundEndpointMessage = false
+          for (let message of channelMessageArray)
+          {
+            if (message.id == endpointMessage.id)
+            {
+              foundEndpointMessage = true
+              break
+            }
+            if (message.author.id == client.user.id || shouldClearAll)
+            {
+              message.delete()
+            }
+          }
+
+          return foundEndpointMessage
         }
-      })
+        else
+        {
+          let clearMessageAmount = parseInt(commandArguments[4] ?? "10")
+
+          let reachedClearMessageCount = false
+          for (let message of channelMessageArray)
+          {
+            if (clearMessageAmount <= 0)
+            {
+              reachedClearMessageCount = true
+              break
+            }
+            if (message.author.id == client.user.id || shouldClearAll)
+            {
+              message.delete()
+              clearMessageAmount -= 1
+            }
+          }
+
+          return reachedClearMessageCount
+        }
+      }
+
+      let channelToClear: DMChannel | TextChannel
+      try
+      {
+        if (commandArguments[2] == "dm")
+        {
+          channelToClear = message.author.dmChannel ?? await message.author.createDM()
+        }
+        else if (/\d+/.test(commandArguments[2]))
+        {
+          channelToClear = await client.channels.fetch(commandArguments[2]) as TextChannel
+        }
+      }
+      catch {}
+      channelToClear ??= message.channel as TextChannel
+      let shouldClearAll = commandArguments[6] ?? false
+
+      let channelMessages: Collection<string,Message>
+      try
+      {
+        channelMessages = await channelToClear.messages.fetch({limit: 100})
+      }
+      catch (error)
+      {
+        return
+      }
+
+      let shouldBreakMessageLoop = false
+      while (channelMessages.size > 0 && !shouldBreakMessageLoop)
+      {
+        shouldBreakMessageLoop = await processMessages(Array.from(channelMessages.values()))
+
+        if (channelMessages.size > 0 && channelMessages.last().id)
+        {
+          try
+          {
+            channelMessages = await channelToClear.messages.fetch({before: channelMessages.last().id, limit: 100})
+          }
+          catch
+          {
+            shouldBreakMessageLoop = true
+          }
+        }
+      }
     }
   )
 }
