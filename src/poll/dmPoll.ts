@@ -1,15 +1,16 @@
-import { Client, User, TextChannel, Message, GuildMember } from "discord.js"
+import { Client, User, TextChannel, Message, GuildMember, MessageReaction } from "discord.js"
+import { ActionMessage, MessageReactionEventType } from "../actionMessage"
 import { Firestore } from "firebase-admin/firestore"
 import { BotCommand, BotCommandError } from "../botCommand"
 
 import {
-  PollConfiguration, PollVoteMessageConfiguration, PollResponseMap, PollResponse,
+  PollConfiguration, PollQuestion, PollResponseMap, PollResponse,
   pollsCollectionID, pollResponsesCollectionID,
   pollsData,
-  pollResponses, pollResponseReactionCollectors,
-  pollsMessageIDs, pollVoteMessageReactionCollectors,
+  pollResponses,
+  pollsActionMessages, pollVoteActionMessages,
   voteMessageEmoji, submitResponseEmote,
-  catchAllFilter, checkVoteRequirements, getCurrentPollQuestionIDFromMessageID, getCurrentOptionDataFromReaction, getEmoji, getEmoteName
+  checkVoteRequirements, getEmoji, getEmoteName
 } from "./sharedPoll"
 
 export async function interpretDMPollSetting(client: Client, pollID: string, pollDataJSON: PollConfiguration, firestoreDB: Firestore)
@@ -18,55 +19,47 @@ export async function interpretDMPollSetting(client: Client, pollID: string, pol
 
   if (pollDataJSON.voteMessageSettings != null && pollDataJSON.voteMessageSettings.channelID != null)
   {
-    if (pollDataJSON.voteMessageSettings.messageID == null)
-    {
-      await sendVoteMessage(client, pollDataJSON.voteMessageSettings)
-    }
-    else
-    {
-      await editVoteMessage(client, pollDataJSON.voteMessageSettings)
-    }
+    let liveChannel = await client.channels.fetch(pollDataJSON.voteMessageSettings.channelID) as TextChannel
+    let pollVoteActionMessage = new ActionMessage<PollConfiguration>(
+      liveChannel,
+      pollDataJSON.voteMessageSettings.messageID,
+      pollDataJSON,
+      async (pollData: PollConfiguration) => {
+        return pollData.voteMessageSettings.messageText
+      }, async (message: Message, pollData: PollConfiguration) => {
+        pollData.voteMessageSettings.messageID = message.id
+        message.react(voteMessageEmoji)
+      }, (reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, pollData: PollConfiguration) => {
+        if (reactionEventType !== "added") { return }
+        handlePollVoteMessageReaction(client, reaction, user, pollData, firestoreDB)
+      }
+    )
+    await pollVoteActionMessage.initActionMessage()
 
-    if (pollDataJSON.voteMessageSettings.messageID != null && !pollVoteMessageReactionCollectors[pollDataJSON.id])
-    {
-      await setupVoteMessageReactionCollector(client, pollDataJSON, firestoreDB)
-    }
+    pollVoteActionMessages[pollID] = pollVoteActionMessage
   }
 
   return pollDataJSON
 }
 
-export async function removeDMPollSetting(client: Client, pollID: string, pollDataJSON: PollConfiguration)
+export async function removeDMPollSetting(pollID: string)
 {
-  if (pollDataJSON.voteMessageSettings != null && pollDataJSON.voteMessageSettings.channelID != null && pollDataJSON.voteMessageSettings.messageID != null)
+  if (pollVoteActionMessages[pollID])
   {
-    var channel = await client.channels.fetch(pollDataJSON.voteMessageSettings.channelID) as TextChannel
-    var message = await channel.messages.fetch(pollDataJSON.voteMessageSettings.messageID)
-
-    await message.delete()
+    pollVoteActionMessages[pollID].removeActionMessage()
+    delete pollVoteActionMessages[pollID]
   }
 
-  if (pollVoteMessageReactionCollectors[pollID])
+  if (pollsActionMessages[pollID])
   {
-    pollVoteMessageReactionCollectors[pollID].stop()
-    delete pollVoteMessageReactionCollectors[pollID]
-  }
-
-  if (pollsMessageIDs[pollID])
-  {
-    delete pollsMessageIDs[pollID]
-  }
-
-  if (pollResponseReactionCollectors[pollID])
-  {
-    for (let responseReactionCollectors of Object.values(pollResponseReactionCollectors[pollID]))
+    for (let pollActionMessageSet of Object.values(pollsActionMessages[pollID]))
     {
-      for (let responseReactionCollector of responseReactionCollectors)
+      for (let pollActionMessage of Object.values(pollActionMessageSet) as ActionMessage<PollQuestion>[])
       {
-        responseReactionCollector.stop()
+        pollActionMessage.removeActionMessage()
       }
     }
-    delete pollResponseReactionCollectors[pollID]
+    delete pollsActionMessages[pollID]
   }
 
   if (pollsData[pollID])
@@ -75,71 +68,38 @@ export async function removeDMPollSetting(client: Client, pollID: string, pollDa
   }
 }
 
-async function sendVoteMessage(client: Client, voteMessageSettings: PollVoteMessageConfiguration)
+async function handlePollVoteMessageReaction(client: Client, reaction: MessageReaction, user: User, pollData: PollConfiguration, firestoreDB: Firestore)
 {
-  var channel = await client.channels.fetch(voteMessageSettings.channelID) as TextChannel
-  var messageContent = voteMessageSettings.messageText
-  var sentMessage = await channel.send(messageContent)
-  voteMessageSettings.messageID = sentMessage.id
+  if (user.id == client.user.id) { return }
+  if (reaction.emoji.name != voteMessageEmoji)
+  {
+    try
+    {
+      await reaction.users.remove(user.id)
+    }
+    catch {}
+    return
+  }
 
-  sentMessage.react(voteMessageEmoji)
-}
-
-async function editVoteMessage(client: Client, voteMessageSettings: PollVoteMessageConfiguration)
-{
-  var channel = await client.channels.fetch(voteMessageSettings.channelID) as TextChannel
+  await user.fetch()
+  let member: GuildMember
   try
   {
-    var message = await channel.messages.fetch(voteMessageSettings.messageID)
-    var messageContent = voteMessageSettings.messageText
-
-    if (message.content != messageContent)
-    {
-      await message.edit(messageContent)
-      message.react(voteMessageEmoji)
-    }
+    member = await reaction.message.guild.members.fetch(user.id)
   }
-  catch
+  catch { return }
+
+  if (!checkVoteRequirements(pollData, reaction.message.guildId, member))
   {
-    await sendVoteMessage(client, voteMessageSettings)
+    try
+    {
+      await reaction.users.remove(user.id)
+    }
+    catch {}
+    return
   }
-}
 
-async function setupVoteMessageReactionCollector(client: Client, pollDataJSON: PollConfiguration, firestoreDB: Firestore)
-{
-  var channel = await client.channels.fetch(pollDataJSON.voteMessageSettings.channelID) as TextChannel
-  var voteMessage = await channel.messages.fetch(pollDataJSON.voteMessageSettings.messageID)
-
-  var voteReactionCollector = voteMessage.createReactionCollector({ filter: catchAllFilter })
-  voteReactionCollector.on('collect', async (reaction, user) => {
-    if (user.id == client.user.id) { return }
-    if (reaction.emoji.name != voteMessageEmoji)
-    {
-      try
-      {
-        await reaction.users.remove(user.id)
-      }
-      catch {}
-      return
-    }
-
-    await user.fetch()
-    if (!checkVoteRequirements(pollDataJSON, channel.guildId, channel.members.get(user.id)))
-    {
-      try
-      {
-        await reaction.users.remove(user.id)
-      }
-      catch {}
-      return
-    }
-
-    let member = await reaction.message.guild.members.fetch(user.id)
-
-    executeDMVoteCommand(client, user, member, pollDataJSON.id, firestoreDB)
-  })
-
-  pollVoteMessageReactionCollectors[pollDataJSON.id] = voteReactionCollector
+  executeDMVoteCommand(client, user, member, pollData.id, firestoreDB)
 }
 
 export async function cleanDMPollResponseMessages(client: Client, userID: string, pollResponseData: PollResponse)
@@ -191,7 +151,7 @@ export function getDMVoteCommand(): BotCommand
 
 async function executeDMVoteCommand(client: Client, user: User, guildMember: GuildMember, pollID: string, firestoreDB: Firestore)
 {
-  console.log("Init vote " + pollID + " for " + user.id)
+  console.log("Init vote " + pollID + " for " + user.username)
 
   var uploadPollResponse = async (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => {
     await firestoreDB.doc(pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID + "/" + userID).set({responseMap: questionIDToOptionIDMap, updatedAt: Date.now()})
@@ -222,40 +182,60 @@ async function sendVoteDM(client: Client, user: User, guildMember: GuildMember, 
 
   var pollData = pollsData[pollID]
   var pollMessageIDs = {}
+  var pollActionMessages = {}
 
-  var titleMessage = await dmChannel.send("__**" + pollData.name + "**__")
-  pollMessageIDs["title"] = titleMessage.id
+  let titleActionMessage = new ActionMessage(dmChannel, null, null,
+    async () => {
+      return "__**" + pollData.name + "**__"
+    }, async (message: Message) => {
+      pollMessageIDs["title"] = message.id
+    },
+    null
+  )
+  await titleActionMessage.initActionMessage()
+  pollActionMessages["title"] = titleActionMessage
 
   for (let questionData of pollData.questions)
   {
     if (questionData.roleIDs && !questionData.roleIDs.some(roleID => guildMember.roles.cache.has(roleID))) { continue }
 
-    let questionString = "**" + questionData.prompt + "**"
-    for (let optionData of questionData.options ?? [])
-    {
-      questionString += "\n" + ":" + optionData.emote + ": \\: " + optionData.name
-    }
-
-    let questionMessage = await dmChannel.send(questionString)
-    pollMessageIDs[questionData.id] = questionMessage.id
-
-    await setupPollQuestionReactionCollector(client, pollID, user, questionMessage.id)
-
-    for (let optionData of questionData.options ?? [])
-    {
-      let emoji = getEmoji(client, optionData.emote)
-      if (emoji == null) { continue }
-      await questionMessage.react(emoji)
-    }
+    let questionActionMessage = new ActionMessage<PollQuestion>(dmChannel, null, questionData,
+      async (questionData: PollQuestion) => {
+        let questionString = "**" + questionData.prompt + "**"
+        for (let optionData of questionData.options ?? [])
+        {
+          questionString += "\n" + ":" + optionData.emote + ": \\: " + optionData.name
+        }
+        return questionString
+      }, async (message: Message, questionData: PollQuestion) => {
+        pollMessageIDs[questionData.id] = message.id
+        for (let optionData of questionData.options ?? [])
+        {
+          let emoji = getEmoji(client, optionData.emote)
+          if (emoji == null) { continue }
+          await message.react(emoji)
+        }
+      }, (reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, questionData: PollQuestion) => {
+        handlePollQuestionReaction(client, reaction, user, reactionEventType, questionData, pollID)
+      }
+    )
+    await questionActionMessage.initActionMessage()
+    pollActionMessages[questionData.id] = questionActionMessage
   }
 
-  var submitMessage = await dmChannel.send("**" + ":arrow_down: Submit below :arrow_down:" + "**")
-  pollMessageIDs["submit"] = submitMessage.id
-
-  await setupPollSubmitReactionCollector(client, pollID, user, submitMessage.id, uploadPollResponse)
-
-  var submitEmoji = getEmoji(client, submitResponseEmote)
-  await submitMessage.react(submitEmoji)
+  let submitActionMessage = new ActionMessage(dmChannel, null, null,
+    async () => {
+      return "**" + ":arrow_down: Submit below :arrow_down:" + "**"
+    }, async (message: Message) => {
+      pollMessageIDs["submit"] = message.id
+      let submitEmoji = getEmoji(client, submitResponseEmote)
+      await message.react(submitEmoji)
+    }, (reaction: MessageReaction, user: User) => {
+      handlePollSubmitReaction(client, reaction, user, pollID, uploadPollResponse)
+    }
+  )
+  await submitActionMessage.initActionMessage()
+  pollActionMessages["submit"] = submitActionMessage
 
   if (previousPollResponseMessageIDs)
   {
@@ -269,119 +249,70 @@ async function sendVoteDM(client: Client, user: User, guildMember: GuildMember, 
     }
   }
 
-  if (!(pollID in pollsMessageIDs))
+  if (!(pollID in pollsActionMessages))
   {
-    pollsMessageIDs[pollID] = {}
+    pollsActionMessages[pollID] = {}
   }
-  pollsMessageIDs[pollID][user.id] = pollMessageIDs
+  pollsActionMessages[pollID][user.id] = pollActionMessages
 
   return pollMessageIDs
 }
 
-async function setupPollQuestionReactionCollector(client: Client, pollID: string, user: User, messageID: string)
+async function handlePollQuestionReaction(client: Client, reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, questionData: PollQuestion, currentPollID: string)
 {
-  var dmChannel = user.dmChannel || await user.createDM()
-  if (!dmChannel) { return }
+  if (user.id == client.user.id) { return }
+  await user.fetch()
 
-  var questionMessage = await dmChannel.messages.fetch(messageID)
-  if (!questionMessage) { return }
-
-  var questionReactionCollector = questionMessage.createReactionCollector({ filter: catchAllFilter, dispose: true })
-  questionReactionCollector.on('collect', async (reaction, user) => {
-    if (user.id == client.user.id) { return }
-    await user.fetch()
-
-    let { currentPollID, currentQuestionID, currentOptionData } = getCurrentOptionDataFromReaction(reaction, user)
-    if (!currentOptionData) { return }
-
-    let currentOptionID = currentOptionData.id
-
-    if (!(currentPollID in pollResponses))
-    {
-      pollResponses[currentPollID] = {}
-    }
-    if (!(user.id in pollResponses[currentPollID]))
-    {
-      pollResponses[currentPollID][user.id] = {}
-    }
-    pollResponses[currentPollID][user.id][currentQuestionID] = currentOptionID
+  let currentOptionData = questionData.options.find(optionData => {
+    let emoteName = getEmoteName(reaction.emoji)
+    return optionData.emote == emoteName
   })
-  questionReactionCollector.on('remove', async (reaction, user) => {
-    if (user.id == client.user.id) { return }
-    await user.fetch()
+  if (!currentOptionData) { return }
 
-    let { currentPollID, currentQuestionID, currentOptionData } = getCurrentOptionDataFromReaction(reaction, user)
-    if (!currentOptionData) { return }
-
-    let currentOptionID = currentOptionData.id
-
-    if (!(currentPollID in pollResponses))
-    {
-      pollResponses[currentPollID] = {}
-    }
-    if (!(user.id in pollResponses[currentPollID]))
-    {
-      pollResponses[currentPollID][user.id] = {}
-    }
-    if (pollResponses[currentPollID][user.id][currentQuestionID] == currentOptionID)
-    {
-      delete pollResponses[currentPollID][user.id][currentQuestionID]
-    }
-  })
-
-  if (!(pollID in pollResponseReactionCollectors))
+  if (!(currentPollID in pollResponses))
   {
-    pollResponseReactionCollectors[pollID] = {}
+    pollResponses[currentPollID] = {}
   }
-  if (!(user.id in pollResponseReactionCollectors[pollID]))
+  if (!(user.id in pollResponses[currentPollID]))
   {
-    pollResponseReactionCollectors[pollID][user.id] = []
+    pollResponses[currentPollID][user.id] = {}
   }
 
-  pollResponseReactionCollectors[pollID][user.id].push(questionReactionCollector)
+  switch (reactionEventType)
+  {
+    case "added":
+    pollResponses[currentPollID][user.id][questionData.id] = currentOptionData.id
+    break
+
+    case "removed":
+    if (pollResponses[currentPollID][user.id][questionData.id] == currentOptionData.id)
+    {
+      delete pollResponses[currentPollID][user.id][questionData.id]
+    }
+    break
+  }
 }
 
-async function setupPollSubmitReactionCollector(client: Client, pollID: string, user: User, messageID: string, uploadPollResponse: (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => Promise<void>)
+async function handlePollSubmitReaction(client: Client, reaction: MessageReaction, user: User, currentPollID: string, uploadPollResponse: (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => Promise<void>)
 {
-  var dmChannel = user.dmChannel || await user.createDM()
-  if (!dmChannel) { return }
+  if (user.id == client.user.id) { return }
+  if (getEmoteName(reaction.emoji) != submitResponseEmote) { return }
+  if (pollResponses[currentPollID] == null || pollResponses[currentPollID][user.id] == null) { return }
 
-  var submitMessage = await dmChannel.messages.fetch(messageID)
-  if (!submitMessage) { return }
+  await user.fetch()
 
-  var submitReactionCollector = submitMessage.createReactionCollector({ filter: catchAllFilter })
-  submitReactionCollector.on('collect', async (reaction, user) => {
-    if (user.id == client.user.id) { return }
-    if (getEmoteName(reaction.emoji) != submitResponseEmote) { return }
+  await uploadPollResponse(currentPollID, user.id, pollResponses[currentPollID][user.id])
 
-    await user.fetch()
-
-    let { currentPollID } = getCurrentPollQuestionIDFromMessageID(reaction.message.id, user.id)
-    if (pollResponses[currentPollID] == null || pollResponses[currentPollID][user.id] == null) { return }
-
-    await uploadPollResponse(currentPollID, user.id, pollResponses[currentPollID][user.id])
-
-    for (let reactionCollector of pollResponseReactionCollectors[currentPollID][user.id])
+  for (let [questionID, pollActionMessage] of Object.entries(pollsActionMessages[currentPollID][user.id]) as [string, ActionMessage<PollQuestion>][])
+  {
+    if (questionID == "submit")
     {
-      reactionCollector.stop()
+      pollActionMessage.reactionCollector.stop()
+
+      let submitMessage = await pollActionMessage.channel.messages.fetch(pollActionMessage.messageID)
+      submitMessage.edit("**" + ":" + submitResponseEmote + ": Submitted " + pollsData[currentPollID].name + "**")
+      continue
     }
-    delete pollResponseReactionCollectors[currentPollID][user.id]
-
-    if (!(currentPollID in pollsMessageIDs && user.id in pollsMessageIDs[currentPollID])) { return }
-
-    for (let questionKey of Object.keys(pollsMessageIDs[currentPollID][user.id]))
-    {
-      if (questionKey == "submit")
-      {
-        let message = await user.dmChannel.messages.fetch(pollsMessageIDs[currentPollID][user.id][questionKey])
-        await message.edit(":" + submitResponseEmote + ": Submitted " + pollsData[pollID].name)
-      }
-      else
-      {
-        await user.dmChannel.messages.delete(pollsMessageIDs[currentPollID][user.id][questionKey])
-      }
-    }
-  })
-
-  pollResponseReactionCollectors[pollID][user.id].push(submitReactionCollector)
+    await pollActionMessage.removeActionMessage()
+  }
 }

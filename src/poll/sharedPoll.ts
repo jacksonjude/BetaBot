@@ -1,4 +1,5 @@
-import { Client, User, GuildMember, Message, MessageReaction, GuildEmoji, ReactionEmoji, ReactionCollector } from "discord.js"
+import { Client, User, GuildMember, Message, GuildEmoji, ReactionEmoji, ReactionCollector } from "discord.js"
+import { ActionMessage } from "../actionMessage"
 import { Firestore, Timestamp } from "firebase-admin/firestore"
 import { BotCommand, BotCommandError } from "../botCommand"
 
@@ -18,8 +19,8 @@ export var pollsData: { [k: string]: PollConfiguration } = {}
 export var pollResponses: { [k: string]: { [k: string]: { [k: string]: string } } } = {}
 export var pollResponseReactionCollectors: { [k: string]: { [k: string]: ReactionCollector[] } | ReactionCollector[] } = {}
 
-export var pollsMessageIDs: { [k: string]: { [k: string]: { [k: string]: string } | string } } = {}
-export var pollVoteMessageReactionCollectors: { [k: string]: ReactionCollector } = {}
+export var pollsActionMessages: { [k: string]: { [k: string]: { [k: string]: ActionMessage<PollQuestion> } | ActionMessage<PollQuestion> } } = {}
+export var pollVoteActionMessages: { [k: string]: ActionMessage<PollConfiguration> } = {}
 
 export class PollConfiguration
 {
@@ -41,7 +42,7 @@ export class PollConfiguration
   exportAccess?: PollExportAccessConfiguration[]
 }
 
-class PollQuestion
+export class PollQuestion
 {
   id: string
   prompt: string
@@ -508,45 +509,45 @@ export async function executeExportPollResultsCommand(user: User, pollID: string
   })
 }
 
-export function getCurrentPollQuestionIDFromMessageID(messageID: string, userID: string = null)
-{
-  var currentQuestionID: string
-  var currentPollID = Object.keys(pollsMessageIDs).find((pollID) => {
-    if (userID && pollsMessageIDs[pollID][userID])
-    {
-      let questionID = Object.keys(pollsMessageIDs[pollID][userID]).find((questionID) => pollsMessageIDs[pollID][userID][questionID] == messageID)
-      if (questionID)
-      {
-        currentQuestionID = questionID
-        return true
-      }
-    }
-    else
-    {
-      let questionID = Object.keys(pollsMessageIDs[pollID]).find((questionID) => pollsMessageIDs[pollID][questionID] == messageID)
-      if (questionID)
-      {
-        currentQuestionID = questionID
-        return true
-      }
-    }
-    return false
-  })
-
-  return { currentQuestionID: currentQuestionID, currentPollID: currentPollID }
-}
-
-export function getCurrentOptionDataFromReaction(reaction: MessageReaction, user: User)
-{
-  var emoteName = getEmoteName(reaction.emoji)
-
-  var { currentPollID, currentQuestionID } = getCurrentPollQuestionIDFromMessageID(reaction.message.id, user.id)
-  if (!currentPollID) return {}
-  var currentQuestionData = pollsData[currentPollID].questions.find(questionData => questionData.id == currentQuestionID)
-  var currentOptionData = currentQuestionData.options.find(optionData => optionData.emote == emoteName)
-
-  return { currentPollID: currentPollID, currentQuestionID: currentQuestionID, currentOptionData: currentOptionData }
-}
+// export function getCurrentPollQuestionIDFromMessageID(messageID: string, userID: string = null)
+// {
+//   var currentQuestionID: string
+//   var currentPollID = Object.keys(pollsMessageIDs).find((pollID) => {
+//     if (userID && pollsMessageIDs[pollID][userID])
+//     {
+//       let questionID = Object.keys(pollsMessageIDs[pollID][userID]).find((questionID) => pollsMessageIDs[pollID][userID][questionID] == messageID)
+//       if (questionID)
+//       {
+//         currentQuestionID = questionID
+//         return true
+//       }
+//     }
+//     else
+//     {
+//       let questionID = Object.keys(pollsMessageIDs[pollID]).find((questionID) => pollsMessageIDs[pollID][questionID] == messageID)
+//       if (questionID)
+//       {
+//         currentQuestionID = questionID
+//         return true
+//       }
+//     }
+//     return false
+//   })
+//
+//   return { currentQuestionID: currentQuestionID, currentPollID: currentPollID }
+// }
+//
+// export function getCurrentOptionDataFromReaction(reaction: MessageReaction, user: User)
+// {
+//   var emoteName = getEmoteName(reaction.emoji)
+//
+//   var { currentPollID, currentQuestionID } = getCurrentPollQuestionIDFromMessageID(reaction.message.id, user.id)
+//   if (!currentPollID) return {}
+//   var currentQuestionData = pollsData[currentPollID].questions.find(questionData => questionData.id == currentQuestionID)
+//   var currentOptionData = currentQuestionData.options.find(optionData => optionData.emote == emoteName)
+//
+//   return { currentPollID: currentPollID, currentQuestionID: currentQuestionID, currentOptionData: currentOptionData }
+// }
 
 export function getEmoji(client: Client, emoteName: string)
 {

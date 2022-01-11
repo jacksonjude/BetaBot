@@ -1,68 +1,41 @@
-import { Client, TextChannel } from "discord.js"
+import { Client, User, TextChannel, Message, MessageReaction } from "discord.js"
+import { ActionMessage, MessageReactionEventType } from "../actionMessage"
 import { Firestore } from "firebase-admin/firestore"
 
 import {
-  PollConfiguration, PollResponseMap,
+  PollConfiguration, PollResponseMap, PollQuestion,
   pollsCollectionID, pollResponsesCollectionID,
   pollsData,
-  pollResponses, pollResponseReactionCollectors,
-  pollsMessageIDs,
-  catchAllFilter, checkVoteRequirements, getCurrentPollQuestionIDFromMessageID, getCurrentOptionDataFromReaction, getEmoji
+  pollResponses,
+  pollsActionMessages,
+  checkVoteRequirements, getEmoji, getEmoteName
 } from "./sharedPoll"
 
 export async function interpretServerPollSetting(client: Client, pollID: string, pollDataJSON: PollConfiguration, firestoreDB: Firestore)
 {
   pollsData[pollID] = pollDataJSON
 
-  if (pollDataJSON.channelID != null)
+  if (pollDataJSON.channelID != null && !pollsActionMessages[pollID])
   {
     var uploadPollResponse = async (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => {
       await firestoreDB.doc(pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID + "/" + userID).set({responseMap: questionIDToOptionIDMap, updatedAt: Date.now()})
     }
 
-    if (pollDataJSON.messageIDs == null)
-    {
-      pollDataJSON.messageIDs = await sendServerVoteMessage(client, pollDataJSON, uploadPollResponse)
-    }
-    else
-    {
-      for (let questionData of pollDataJSON.questions)
-      {
-        if (pollResponseReactionCollectors[pollID] && pollResponseReactionCollectors[pollID][questionData.id]) { continue }
-        await setupPollQuestionReactionCollector(client, pollID, pollDataJSON.messageIDs[questionData.id], uploadPollResponse)
-      }
-    }
-
-    pollsMessageIDs[pollID] = pollDataJSON.messageIDs
+    await sendServerVoteMessage(client, pollDataJSON, uploadPollResponse)
   }
 
   return pollDataJSON
 }
 
-export async function removeServerPollSetting(client: Client, pollID: string, pollDataJSON: PollConfiguration)
+export async function removeServerPollSetting(pollID: string)
 {
-  if (pollDataJSON.channelID != null && pollDataJSON.messageIDs != null)
+  if (pollsActionMessages[pollID])
   {
-    var channel = await client.channels.fetch(pollDataJSON.channelID) as TextChannel
-    for (let messageID of Object.values(pollDataJSON.messageIDs))
+    for (let pollActionMessage of Object.values(pollsActionMessages[pollID]) as ActionMessage<PollQuestion>[])
     {
-      var message = await channel.messages.fetch(messageID)
-      await message.delete()
+      pollActionMessage.removeActionMessage()
     }
-  }
-
-  if (pollsMessageIDs[pollID])
-  {
-    delete pollsMessageIDs[pollID]
-  }
-
-  if (pollResponseReactionCollectors[pollID])
-  {
-    for (let responseReactionCollector of Object.values(pollResponseReactionCollectors[pollID]))
-    {
-      responseReactionCollector.stop()
-    }
-    delete pollResponseReactionCollectors[pollID]
+    delete pollsActionMessages[pollID]
   }
 
   if (pollsData[pollID])
@@ -76,87 +49,111 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
   var pollChannel = await client.channels.fetch(pollData.channelID) as TextChannel
   if (!pollChannel) { return }
 
-  var pollMessageIDs = {}
+  var pollActionMessages = {}
 
-  var titleMessage = await pollChannel.send("__**" + pollData.name + "**__")
-  pollMessageIDs["title"] = titleMessage.id
+  let titleActionMessage = new ActionMessage(pollChannel, pollData.messageIDs["title"], null,
+    async () => {
+      return "__**" + pollData.name + "**__"
+    }, async (message: Message) => {
+      pollData.messageIDs["title"] = message.id
+    },
+    null
+  )
+  await titleActionMessage.initActionMessage()
+  pollActionMessages["title"] = titleActionMessage
 
   for (let questionData of pollData.questions)
   {
-    let questionString = "**" + questionData.prompt + "**"
-    for (let optionData of questionData.options)
-    {
-      questionString += "\n" + ":" + optionData.emote + ": \\: " + optionData.name
-    }
-
-    let questionMessage = await pollChannel.send(questionString)
-    pollMessageIDs[questionData.id] = questionMessage.id
-
-    await setupPollQuestionReactionCollector(client, pollData.id, questionMessage.id, uploadPollResponse)
-
-    for (let optionData of questionData.options)
-    {
-      let emoji = getEmoji(client, optionData.emote)
-      if (emoji == null) { continue }
-      await questionMessage.react(emoji)
-    }
+    let pollQuestionActionMessage = new ActionMessage<PollQuestion>(
+      pollChannel,
+      pollData.messageIDs[questionData.id],
+      questionData,
+      async (questionData: PollQuestion) => {
+        let questionString = "**" + questionData.prompt + "**"
+        for (let optionData of questionData.options)
+        {
+          questionString += "\n" + ":" + optionData.emote + ": \\: " + optionData.name
+        }
+        return questionString
+      }, async (message: Message, questionData: PollQuestion) => {
+        pollData.messageIDs[questionData.id] = message.id
+        for (let optionData of questionData.options)
+        {
+          let emoji = getEmoji(client, optionData.emote)
+          if (emoji == null) { continue }
+          await message.react(emoji)
+        }
+      }, (reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, questionData: PollQuestion) => {
+        handlePollMessageReaction(client, reaction, user, reactionEventType, questionData, pollData.id, uploadPollResponse)
+      }
+    )
+    await pollQuestionActionMessage.initActionMessage()
+    pollActionMessages[questionData.id] = pollQuestionActionMessage
   }
 
-  return pollMessageIDs
+  pollsActionMessages[pollData.id] = pollActionMessages
 }
 
-async function setupPollQuestionReactionCollector(client: Client, pollID: string, messageID: string, uploadPollResponse: (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => Promise<void>)
+async function handlePollMessageReaction(client: Client, reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, questionData: PollQuestion, currentPollID: string, uploadPollResponse: (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => Promise<void>)
 {
-  var pollData = pollsData[pollID]
+  if (user.id == client.user.id) { return }
+  await user.fetch()
 
-  var pollChannel = await client.channels.fetch(pollData.channelID) as TextChannel
-  if (!pollChannel) { return }
-
-  var questionMessage = await pollChannel.messages.fetch(messageID)
-  if (!questionMessage) { return }
-
-  var questionReactionCollector = questionMessage.createReactionCollector({ filter: catchAllFilter, dispose: true })
-  questionReactionCollector.on('collect', async (reaction, user) => {
-    if (user.id == client.user.id) { return }
-
-    await user.fetch()
-
-    let { currentPollID, currentQuestionID, currentOptionData } = getCurrentOptionDataFromReaction(reaction, user)
-    if (!currentOptionData)
+  let currentOptionData = questionData.options.find(optionData => {
+    let emoteName = getEmoteName(reaction.emoji)
+    return optionData.emote == emoteName
+  })
+  if (!currentOptionData)
+  {
+    if (reactionEventType != "added") { return }
+    try
     {
-      try
-      {
-        await reaction.users.remove(user.id)
-      }
-      catch {}
-      return
+      await reaction.users.remove(user.id)
     }
+    catch {}
+    return
+  }
 
-    let guildMember = await pollChannel.guild.members.fetch(user.id)
-    if (!checkVoteRequirements(pollData, pollChannel.guildId, guildMember))
+  let guildMember = await reaction.message.guild.members.fetch(user.id)
+  if (!checkVoteRequirements(pollsData[currentPollID], reaction.message.guildId, guildMember))
+  {
+    try
     {
-      try
-      {
-        await reaction.users.remove(user.id)
-      }
-      catch {}
-      return
+      await reaction.users.remove(user.id)
     }
+    catch {}
+    return
+  }
 
-    let currentOptionID = currentOptionData.id
+  let currentOptionID = currentOptionData.id
 
-    if (!(currentPollID in pollResponses))
+  if (!(currentPollID in pollResponses))
+  {
+    pollResponses[currentPollID] = {}
+  }
+  if (!(user.id in pollResponses[currentPollID]))
+  {
+    pollResponses[currentPollID][user.id] = {}
+  }
+
+  switch (reactionEventType)
+  {
+    case "added":
+    pollResponses[currentPollID][user.id][questionData.id] = currentOptionID
+    break
+
+    case "removed":
+    if (pollResponses[currentPollID][user.id][questionData.id] == currentOptionID)
     {
-      pollResponses[currentPollID] = {}
+      delete pollResponses[currentPollID][user.id][questionData.id]
     }
-    if (!(user.id in pollResponses[currentPollID]))
-    {
-      pollResponses[currentPollID][user.id] = {}
-    }
-    pollResponses[currentPollID][user.id][currentQuestionID] = currentOptionID
+    break
+  }
 
-    await uploadPollResponse(currentPollID, user.id, pollResponses[currentPollID][user.id])
+  await uploadPollResponse(currentPollID, user.id, pollResponses[currentPollID][user.id])
 
+  if (reactionEventType == "added")
+  {
     await reaction.message.fetch()
 
     reaction.message.reactions.cache.forEach(async (otherReaction) => {
@@ -172,38 +169,108 @@ async function setupPollQuestionReactionCollector(client: Client, pollID: string
         catch {}
       }
     })
-  })
-  questionReactionCollector.on('remove', async (reaction, user) => {
-    if (user.id == client.user.id) { return }
-    await user.fetch()
-
-    let { currentPollID, currentQuestionID, currentOptionData } = getCurrentOptionDataFromReaction(reaction, user)
-    if (!currentOptionData) { return }
-
-    let currentOptionID = currentOptionData.id
-
-    if (!(currentPollID in pollResponses))
-    {
-      pollResponses[currentPollID] = {}
-    }
-    if (!(user.id in pollResponses[currentPollID]))
-    {
-      pollResponses[currentPollID][user.id] = {}
-    }
-    if (pollResponses[currentPollID][user.id][currentQuestionID] == currentOptionID)
-    {
-      delete pollResponses[currentPollID][user.id][currentQuestionID]
-    }
-
-    await uploadPollResponse(currentPollID, user.id, pollResponses[currentPollID][user.id])
-  })
-
-  var { currentQuestionID } = getCurrentPollQuestionIDFromMessageID(messageID)
-
-  if (!(pollID in pollResponseReactionCollectors))
-  {
-    pollResponseReactionCollectors[pollID] = {}
   }
-
-  pollResponseReactionCollectors[pollID][currentQuestionID] = questionReactionCollector
 }
+
+// async function setupPollQuestionReactionCollector(client: Client, pollID: string, messageID: string, uploadPollResponse: (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => Promise<void>)
+// {
+//   var pollData = pollsData[pollID]
+//
+//   var pollChannel = await client.channels.fetch(pollData.channelID) as TextChannel
+//   if (!pollChannel) { return }
+//
+//   var questionMessage = await pollChannel.messages.fetch(messageID)
+//   if (!questionMessage) { return }
+//
+//   var questionReactionCollector = questionMessage.createReactionCollector({ filter: catchAllFilter, dispose: true })
+//   questionReactionCollector.on('collect', async (reaction, user) => {
+//     if (user.id == client.user.id) { return }
+//
+//     await user.fetch()
+//
+//     let { currentPollID, currentQuestionID, currentOptionData } = getCurrentOptionDataFromReaction(reaction, user)
+//     if (!currentOptionData)
+//     {
+//       try
+//       {
+//         await reaction.users.remove(user.id)
+//       }
+//       catch {}
+//       return
+//     }
+//
+//     let guildMember = await pollChannel.guild.members.fetch(user.id)
+//     if (!checkVoteRequirements(pollData, pollChannel.guildId, guildMember))
+//     {
+//       try
+//       {
+//         await reaction.users.remove(user.id)
+//       }
+//       catch {}
+//       return
+//     }
+//
+//     let currentOptionID = currentOptionData.id
+//
+//     if (!(currentPollID in pollResponses))
+//     {
+//       pollResponses[currentPollID] = {}
+//     }
+//     if (!(user.id in pollResponses[currentPollID]))
+//     {
+//       pollResponses[currentPollID][user.id] = {}
+//     }
+//     pollResponses[currentPollID][user.id][currentQuestionID] = currentOptionID
+//
+//     await uploadPollResponse(currentPollID, user.id, pollResponses[currentPollID][user.id])
+//
+//     await reaction.message.fetch()
+//
+//     reaction.message.reactions.cache.forEach(async (otherReaction) => {
+//       if (otherReaction.emoji.name == reaction.emoji.name) { return }
+//
+//       await otherReaction.users.fetch()
+//       if (otherReaction.users.cache.has(user.id))
+//       {
+//         try
+//         {
+//           await otherReaction.users.remove(user.id)
+//         }
+//         catch {}
+//       }
+//     })
+//   })
+//   questionReactionCollector.on('remove', async (reaction, user) => {
+//     if (user.id == client.user.id) { return }
+//     await user.fetch()
+//
+//     let { currentPollID, currentQuestionID, currentOptionData } = getCurrentOptionDataFromReaction(reaction, user)
+//     if (!currentOptionData) { return }
+//
+//     let currentOptionID = currentOptionData.id
+//
+//     if (!(currentPollID in pollResponses))
+//     {
+//       pollResponses[currentPollID] = {}
+//     }
+//     if (!(user.id in pollResponses[currentPollID]))
+//     {
+//       pollResponses[currentPollID][user.id] = {}
+//     }
+//     if (pollResponses[currentPollID][user.id][currentQuestionID] == currentOptionID)
+//     {
+//       delete pollResponses[currentPollID][user.id][currentQuestionID]
+//     }
+//
+//     await uploadPollResponse(currentPollID, user.id, pollResponses[currentPollID][user.id])
+//   })
+//
+//   var { currentQuestionID } = getCurrentPollQuestionIDFromMessageID(messageID)
+//
+//   if (!(pollID in pollResponseReactionCollectors))
+//   {
+//     pollResponseReactionCollectors[pollID] = {}
+//   }
+//
+//   pollResponseReactionCollectors[pollID][currentQuestionID] = questionReactionCollector
+// }

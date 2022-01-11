@@ -45,7 +45,7 @@ const firestoreCollectionSyncHandlers = [
       }
       else if (shouldDelete)
       {
-        await removeRoleSetting(client, roleSettingID, roleSettingDocData as RoleMessageConfiguration)
+        await removeRoleSetting(roleSettingID)
       }
     }
   },
@@ -99,11 +99,11 @@ const firestoreCollectionSyncHandlers = [
         switch (pollSettingDocData.pollType)
         {
           case "dm":
-          await removeDMPollSetting(client, pollSettingID, pollSettingDocData as PollConfiguration)
+          await removeDMPollSetting(pollSettingID)
           break
 
           case "server":
-          await removeServerPollSetting(client, pollSettingID, pollSettingDocData as PollConfiguration)
+          await removeServerPollSetting(pollSettingID)
           break
         }
       }

@@ -1,7 +1,7 @@
-import { Client, TextChannel, Message, GuildMember, Role, ReactionCollector } from "discord.js"
+import { Client, TextChannel, Message, GuildMember, Role, MessageReaction, User } from "discord.js"
+import { ActionMessage, MessageReactionEventType } from "./actionMessage"
 
-var roleAssignmentData: { [k: string]: RoleAssignmentConfiguration } = {}
-var roleAssignmentMessageReactionCollectors: { [k: string]: ReactionCollector } = {}
+var roleAssignmentActionMessages: { [k: string]: ActionMessage<RoleAssignmentConfiguration> } = {}
 
 export class RoleAssignmentConfiguration
 {
@@ -38,75 +38,64 @@ class RoleAssignmentMessageConfiguration
 
 export async function interpretRoleAssignmentSetting(client: Client, roleAssignmentID: string, roleAssignmentDataJSON: RoleAssignmentConfiguration)
 {
-  roleAssignmentData[roleAssignmentID] = roleAssignmentDataJSON
-
   if (roleAssignmentDataJSON.messageSettings != null && roleAssignmentDataJSON.messageSettings.channelID != null)
   {
-    if (roleAssignmentDataJSON.messageSettings.messageID == null)
-    {
-      await sendRoleAssignMessage(client, roleAssignmentDataJSON.messageSettings)
-    }
+    let liveChannel = await client.channels.fetch(roleAssignmentDataJSON.messageSettings.channelID) as TextChannel
+    let roleAssignmentActionMessage = new ActionMessage<RoleAssignmentConfiguration>(
+      liveChannel,
+      roleAssignmentDataJSON.messageSettings.messageID,
+      roleAssignmentDataJSON,
+      async (roleAssignmentData: RoleAssignmentConfiguration) => {
+        return roleAssignmentData.messageSettings.messageText
+      }, async (message: Message, roleAssignmentData: RoleAssignmentConfiguration) => {
+        roleAssignmentData.messageSettings.messageID = message.id
+        message.react(roleAssignmentData.messageSettings.messageEmoji)
+      }, (reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, roleAssignmentData: RoleAssignmentConfiguration) => {
+        if (reactionEventType !== "added") { return }
+        handleRoleAssignmentMessageReaction(client, reaction, user, roleAssignmentData)
+      }
+    )
 
-    if (roleAssignmentDataJSON.messageSettings.messageID != null && !roleAssignmentMessageReactionCollectors[roleAssignmentID])
-    {
-      setupRoleAssignmentMessageReactionCollector(client, roleAssignmentID, roleAssignmentDataJSON)
-    }
+    await roleAssignmentActionMessage.initActionMessage()
+
+    roleAssignmentActionMessages[roleAssignmentID] = roleAssignmentActionMessage
   }
 
   return roleAssignmentDataJSON
 }
 
-async function sendRoleAssignMessage(client: Client, messageSettings: RoleAssignmentMessageConfiguration)
+async function handleRoleAssignmentMessageReaction(client: Client, reaction: MessageReaction, user: User, roleAssignmentData: RoleAssignmentConfiguration)
 {
-  var channel = await client.channels.fetch(messageSettings.channelID) as TextChannel
-  var messageContent = messageSettings.messageText
-  var sentMessage = await channel.send(messageContent)
-  messageSettings.messageID = sentMessage.id
-
-  sentMessage.react(messageSettings.messageEmoji)
-}
-
-async function setupRoleAssignmentMessageReactionCollector(client: Client, roleAssignmentID: string, roleAssignmentDataJSON: RoleAssignmentConfiguration)
-{
-  var channel = await client.channels.fetch(roleAssignmentDataJSON.messageSettings.channelID) as TextChannel
-  var roleAssignMessage = await channel.messages.fetch(roleAssignmentDataJSON.messageSettings.messageID)
-
-  const catchAllFilter = () => true
-
-  var roleAssignReactionCollector = roleAssignMessage.createReactionCollector({ filter: catchAllFilter })
-  roleAssignReactionCollector.on('collect', async (reaction, user) => {
-    if (user.id == client.user.id) { return }
-    if (reaction.emoji.name != roleAssignmentDataJSON.messageSettings.messageEmoji)
-    {
-      try
-      {
-        await reaction.users.remove(user.id)
-      }
-      catch {}
-      return
-    }
-
-    await user.fetch()
-    if (!checkRoleAssignmentRequirements(roleAssignmentData[roleAssignmentID], channel.guildId, channel.members.get(user.id)))
-    {
-      try
-      {
-        await reaction.users.remove(user.id)
-      }
-      catch {}
-      return
-    }
-
-    let member: GuildMember
+  if (user.id == client.user.id) { return }
+  if (reaction.emoji.name != roleAssignmentData.messageSettings.messageEmoji)
+  {
     try
     {
-      member = await roleAssignMessage.guild.members.fetch(user.id)
+      await reaction.users.remove(user.id)
     }
-    catch { return }
-    executeRoleAssignment(member, roleAssignmentData[roleAssignmentID])
-  })
+    catch {}
+    return
+  }
 
-  roleAssignmentMessageReactionCollectors[roleAssignmentID] = roleAssignReactionCollector
+  await user.fetch()
+  let member: GuildMember
+  try
+  {
+    member = await reaction.message.guild.members.fetch(user.id)
+  }
+  catch { return }
+
+  if (!checkRoleAssignmentRequirements(roleAssignmentData, reaction.message.guildId, member))
+  {
+    try
+    {
+      await reaction.users.remove(user.id)
+    }
+    catch {}
+    return
+  }
+
+  executeRoleAssignment(member, roleAssignmentData)
 }
 
 function checkRoleAssignmentRequirements(roleAssignmentData: RoleAssignmentConfiguration, serverID: string, member: GuildMember, msg: Message = null)
@@ -159,7 +148,7 @@ async function executeRoleAssignment(member: GuildMember, roleAssignmentData: Ro
   }
 
   let roleToAssign = await member.guild.roles.fetch(roleIDToAssign)
-  console.log("Assigned " + roleToAssign.name + " to " + member.user.id + " in " + member.guild.name)
+  console.log("Assigned " + roleToAssign.name + " to " + member.user.username + " in " + member.guild.name)
 
   await member.roles.add(roleIDToAssign)
 }
