@@ -146,7 +146,7 @@ client.on('messageCreate', async msg => {
     ...getMessageCommands(),
     ...getDateCommands(),
     getEmoteSpellCommand().withRequirement(botChannelRequirement),
-    getClearCommand(),
+    getClearCommand().withRequirement(ownerUserRequirement),
     getDMVoteCommand(),
     getExportPollResultsCommand(),
     getEditPollCommand().withRequirement(ownerUserAndDevelopmentRequirement),
