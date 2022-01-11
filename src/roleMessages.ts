@@ -1,5 +1,6 @@
 import { Client, User, Guild, TextChannel, MessageReaction, Message } from "discord.js"
 import { ActionMessage, MessageReactionEventType } from "./actionMessage"
+import * as emojiConverter from 'node-emoji'
 
 // Update Roles
 
@@ -26,8 +27,6 @@ export async function setRole(user: User, guild: Guild, roleID: string, shouldAd
 }
 
 // Role Messages
-
-import * as emojiConverter from 'node-emoji'
 
 var roleActionMessages: { [k: string]: ActionMessage<RoleMessageConfiguration> } = {}
 
@@ -62,9 +61,11 @@ export async function interpretRoleSetting(client: Client, roleSettingID: string
       roleSettingJSON.messageID = message.id
       for (let emoteRolePair of roleSettingJSON.roleMap)
       {
-        let emoteID = getEmoteID(client, emoteRolePair.emote)
-        if (emoteID == null) { continue }
-        message.react(emoteID)
+        try
+        {
+          message.react(emoteRolePair.emote)
+        }
+        catch {}
       }
     }, (reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, roleSettingJSON: RoleMessageConfiguration) => {
       handleRoleReaction(client, reaction, user, reactionEventType, roleSettingJSON)
@@ -93,34 +94,25 @@ async function getRoleAddMessageContent(roleDataJSON: RoleMessageConfiguration, 
   {
     let roleObject = await guild.roles.fetch(emoteRolePair.role)
     messageContent += "\n"
-    messageContent += ":" + emoteRolePair.emote + ": \\: " + (roleObject ? roleObject.name : emoteRolePair.role)
+    messageContent += (emoteRolePair.emote.containsEmoji() ? emoteRolePair.emote : ":" + emoteRolePair.emote + ":") + " \\: " + (roleObject ? roleObject.name : emoteRolePair.role)
   }
   return messageContent
-}
-
-function getEmoteID(client: Client, emoteName: string)
-{
-  var emoji = client.emojis.cache.find(emoji => emoji.name == emoteName)
-  if (emoji != null)
-  {
-    return emoji.id
-  }
-
-  var emoteString = emojiConverter.get(":" + emoteName + ":")
-  if (emoteString != null && !emoteString.includes(":"))
-  {
-    return emoteString
-  }
-
-  return null
 }
 
 async function handleRoleReaction(client: Client, reaction: MessageReaction, user: User, action: MessageReactionEventType, roleData: RoleMessageConfiguration)
 {
   if (user.id == client.user.id) { return false }
 
-  var emoteName = emojiConverter.unemojify(reaction.emoji.name).replace(/:/g, '')
-  var emoteRolePair = roleData.roleMap.find((emoteRolePair) => emoteRolePair.emote == emoteName)
+  var emoteRolePair = roleData.roleMap.find((emoteRolePair) => {
+    if (reaction.emoji.name.containsEmoji())
+    {
+      return emoteRolePair.emote.charCodeAt(0) == reaction.emoji.name.charCodeAt(0) || emojiConverter.unemojify(reaction.emoji.name).replace(/:/g, "") == emoteRolePair.emote
+    }
+    else
+    {
+      return emoteRolePair.emote == reaction.emoji.name
+    }
+  })
 
   if (!emoteRolePair)
   {
