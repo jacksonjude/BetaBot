@@ -81,7 +81,6 @@ async function handlePollVoteMessageReaction(client: Client, reaction: MessageRe
     return
   }
 
-  await user.fetch()
   let member: GuildMember
   try
   {
@@ -261,7 +260,6 @@ async function sendVoteDM(client: Client, user: User, guildMember: GuildMember, 
 async function handlePollQuestionReaction(client: Client, reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, questionData: PollQuestion, currentPollID: string)
 {
   if (user.id == client.user.id) { return }
-  await user.fetch()
 
   let currentOptionData = questionData.options.find(optionData => {
     let emoteName = getEmoteName(reaction.emoji)
@@ -298,8 +296,6 @@ async function handlePollSubmitReaction(client: Client, reaction: MessageReactio
   if (user.id == client.user.id) { return }
   if (getEmoteName(reaction.emoji) != submitResponseEmote) { return }
   if (pollResponses[currentPollID] == null || pollResponses[currentPollID][user.id] == null) { return }
-
-  await user.fetch()
 
   await uploadPollResponse(currentPollID, user.id, pollResponses[currentPollID][user.id])
 

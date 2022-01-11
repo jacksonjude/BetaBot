@@ -145,16 +145,16 @@ client.on('messageCreate', async msg => {
   var botCommands = [
     ...getMessageCommands(),
     ...getDateCommands(),
-    getEmoteSpellCommand().setRequirement(botChannelRequirement),
+    getEmoteSpellCommand().withRequirement(botChannelRequirement),
     getClearCommand(),
     getDMVoteCommand(),
     getExportPollResultsCommand(),
-    getEditPollCommand().setRequirement(ownerUserAndDevelopmentRequirement),
+    getEditPollCommand().withRequirement(ownerUserAndDevelopmentRequirement),
     getMessageCountsLeaderboardCommand(),
-    getMessageCountsUpdateCommand().setRequirement(ownerUserRequirement),
-    getRepeatCommand().setRequirement(developmentRequirement),
-    getSpeakCommand().setRequirement(developmentRequirement),
-    getRestartCommand().setRequirement(ownerUserAndDevelopmentRequirement)
+    getMessageCountsUpdateCommand().withRequirement(ownerUserRequirement),
+    getRepeatCommand().withRequirement(developmentRequirement),
+    getSpeakCommand().withRequirement(developmentRequirement),
+    getRestartCommand().withRequirement(ownerUserAndDevelopmentRequirement)
   ]
   botCommands.unshift(getHelpCommand(botCommands))
   if (await runBotCommands(botCommands)) { return }

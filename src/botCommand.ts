@@ -66,7 +66,7 @@ export class BotCommand
     return true
   }
 
-  setRequirement(requirement: BotCommandRequirement): BotCommand
+  withRequirement(requirement: BotCommandRequirement): BotCommand
   {
     this.executionRequirement = requirement
     return this

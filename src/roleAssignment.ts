@@ -77,7 +77,6 @@ async function handleRoleAssignmentMessageReaction(client: Client, reaction: Mes
     return
   }
 
-  await user.fetch()
   let member: GuildMember
   try
   {
