@@ -295,30 +295,30 @@ export function getClearCommand(): BotCommand
     "clear", "clear bot messages",
     /^clear(\s+(dm|\d+))?(\s+(\d+))?(\s+(true|false))?$/, /^clear(\s+.*)?$/,
     "clear [message count]",
-    async (commandArguments: string[], message: Message, client: Client) => {
+    async (commandArguments: string[], commandMessage: Message, client: Client) => {
       const processMessages = async function(channelMessageArray: Message[]): Promise<boolean>
       {
-        if (!commandArguments[4] && message.reference)
+        if (!commandArguments[4] && commandMessage.reference)
         {
           let endpointMessage: Message
           try
           {
-            endpointMessage = await channelToClear.messages.fetch(message.reference.messageId)
+            endpointMessage = await channelToClear.messages.fetch(commandMessage.reference.messageId)
           }
           catch {}
           if (!endpointMessage) { return }
 
           let foundEndpointMessage = false
-          for (let message of channelMessageArray)
+          for (let channelMessage of channelMessageArray)
           {
-            if (message.id == endpointMessage.id)
+            if (channelMessage.id == endpointMessage.id)
             {
               foundEndpointMessage = true
               break
             }
-            if (message.author.id == client.user.id || shouldClearAll)
+            if ((channelMessage.author.id == client.user.id && (allowedToClearAllMessages || userIsOwner)) || (shouldClearAll && channelMessage.author.id == commandMessage.author.id) || (shouldClearAll && allowedToClearAllMessages))
             {
-              message.delete()
+              channelMessage.delete()
             }
           }
 
@@ -352,7 +352,7 @@ export function getClearCommand(): BotCommand
       {
         if (commandArguments[2] == "dm")
         {
-          channelToClear = message.author.dmChannel ?? await message.author.createDM()
+          channelToClear = commandMessage.author.dmChannel ?? await commandMessage.author.createDM()
         }
         else if (/\d+/.test(commandArguments[2]))
         {
@@ -360,8 +360,20 @@ export function getClearCommand(): BotCommand
         }
       }
       catch {}
-      channelToClear ??= message.channel as TextChannel
+      channelToClear ??= commandMessage.channel as TextChannel
       let shouldClearAll = commandArguments[6] ?? false
+
+      let allowedToClearAllMessages: boolean
+      if (commandArguments[2] != "dm" && (channelToClear as TextChannel).guildId == commandMessage.guildId)
+      {
+        let memberToClearThrough = (channelToClear as TextChannel).members.find((member) => {
+          return member.user.id == commandMessage.author.id
+        })
+        if (!memberToClearThrough) { return }
+
+        allowedToClearAllMessages = (channelToClear as TextChannel).permissionsFor(memberToClearThrough).has("MANAGE_MESSAGES")
+      }
+      let userIsOwner = process.env.CREATOR_USER_ID == commandMessage.author.id
 
       let channelMessages: Collection<string,Message>
       try
