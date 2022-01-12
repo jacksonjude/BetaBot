@@ -438,3 +438,40 @@ export function getSpeakCommand(): BotCommand
     }
   )
 }
+
+export function getCleanReactionsCommand(): BotCommand
+{
+  return BotCommand.fromRegex(
+    "cleanreactions", "remove reactions on a message from members who have left the server",
+    /^cleanreactions$/, null,
+    "cleanreactions",
+    async (_, message: Message) => {
+      if (!message.reference || message.reference.guildId != message.guildId) { return }
+
+      await message.guild.members.fetch()
+
+      let messageChannel = await message.guild.channels.fetch(message.reference.channelId) as TextChannel
+      if (!messageChannel) { return }
+
+      let messageToClean = await messageChannel.messages.fetch(message.reference.messageId)
+      if (!messageToClean) { return }
+
+      for (let reaction of Array.from(messageToClean.reactions.cache.values()))
+      {
+        await reaction.users.fetch()
+        let reactionUsers = Array.from(reaction.users.cache.values())
+        for (let user of reactionUsers)
+        {
+          console.log("[Clean-Reactions] Checking", user.username, reaction.emoji.name)
+          if (!message.guild.members.cache.some(member => member.user.id == user.id))
+          {
+            console.log("[Clean-Reactions] Removing", user.username, reaction.emoji.name)
+            await reaction.users.remove(user)
+          }
+        }
+      }
+
+      console.log("[Clean-Reactions] Complete")
+    }
+  )
+}
