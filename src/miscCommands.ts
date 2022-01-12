@@ -329,16 +329,16 @@ export function getClearCommand(): BotCommand
           let clearMessageAmount = parseInt(commandArguments[4] ?? "10")
 
           let reachedClearMessageCount = false
-          for (let message of channelMessageArray)
+          for (let channelMessage of channelMessageArray)
           {
             if (clearMessageAmount <= 0)
             {
               reachedClearMessageCount = true
               break
             }
-            if (message.author.id == client.user.id || shouldClearAll)
+            if ((channelMessage.author.id == client.user.id && (allowedToClearAllMessages || userIsOwner)) || (shouldClearAll && channelMessage.author.id == commandMessage.author.id) || (shouldClearAll && allowedToClearAllMessages))
             {
-              message.delete()
+              channelMessage.delete()
               clearMessageAmount -= 1
             }
           }
