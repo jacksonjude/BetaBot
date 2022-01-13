@@ -104,14 +104,9 @@ async function handleRoleReaction(client: Client, reaction: MessageReaction, use
   if (user.id == client.user.id) { return false }
 
   var emoteRolePair = roleData.roleMap.find((emoteRolePair) => {
-    if (reaction.emoji.name.containsEmoji())
-    {
-      return emoteRolePair.emote.charCodeAt(0) == reaction.emoji.name.charCodeAt(0) || emojiConverter.unemojify(reaction.emoji.name).replace(/:/g, "") == emoteRolePair.emote
-    }
-    else
-    {
-      return emoteRolePair.emote == reaction.emoji.name
-    }
+    return emoteRolePair.emote == reaction.emoji.name
+     || emoteRolePair.emote.charCodeAt(0).toString()+emoteRolePair.emote.charCodeAt(1).toString() == reaction.emoji.name.charCodeAt(0).toString()+reaction.emoji.name.charCodeAt(1).toString()
+     || emojiConverter.unemojify(reaction.emoji.name).replace(/:/g, "") == emoteRolePair.emote
   })
 
   if (!emoteRolePair)
