@@ -446,7 +446,7 @@ export function getSpeakCommand(): BotCommand
 export function getCleanReactionsCommand(): BotCommand
 {
   return BotCommand.fromRegex(
-    "cleanreactions", "remove reactions on a message from members who have left the server",
+    "cleanreactions", "remove obsolete message reactions",
     /^cleanreactions$/, null,
     "cleanreactions",
     async (_, message: Message) => {
