@@ -184,14 +184,18 @@ export function getHelpCommand(botCommands: BotCommand[]): BotCommand
 {
   return BotCommand.fromRegex(
     "help", "get help for commands",
-    /^help(\s+(\w+))?$/, null,
+    /^help(\s+(true|false))?(\s+(\w+))?$/, null,
     "help [command]",
     async (commandArguments: string[], message: Message) => {
-      if (!commandArguments[2])
+      let shouldDisplayCommandsWithRequirements = commandArguments[2] === "false" ? false : true
+      let commandToDisplay = commandArguments[4]
+
+      if (!commandToDisplay)
       {
         let helpMessageString = "__**Commands**__"
         for (let command of botCommands)
         {
+          if (command.executionRequirement && !shouldDisplayCommandsWithRequirements) { continue }
           if (command.executionRequirement && !command.executionRequirement.testMessage(message)) { continue }
           helpMessageString += "\n" + "**" + command.name + "**: *" + command.description + "*"
         }
@@ -199,7 +203,7 @@ export function getHelpCommand(botCommands: BotCommand[]): BotCommand
       }
       else
       {
-        let foundCommand = botCommands.find(command => command.parseCommandString(commandArguments[2]) !== false)
+        let foundCommand = botCommands.find(command => command.parseCommandString(commandToDisplay) !== false)
         if (foundCommand)
         {
           await message.channel.send("**" + foundCommand.name + "**: *" + foundCommand.description + "*")
@@ -207,7 +211,7 @@ export function getHelpCommand(botCommands: BotCommand[]): BotCommand
         }
         else
         {
-          message.channel.send("**Error: " + "'" + commandArguments[2] + "' command not found" + "**")
+          message.channel.send("**Error: " + "'" + commandToDisplay + "' command not found" + "**")
         }
       }
     }
@@ -361,7 +365,7 @@ export function getClearCommand(): BotCommand
       }
       catch {}
       channelToClear ??= commandMessage.channel as TextChannel
-      let shouldClearAll = commandArguments[6] ?? false
+      let shouldClearAll = commandArguments[6] === "true" ? true : false
 
       let allowedToClearAllMessages: boolean
       if (commandArguments[2] != "dm" && (channelToClear as TextChannel).guildId == commandMessage.guildId)

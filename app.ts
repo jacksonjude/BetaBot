@@ -166,7 +166,7 @@ client.on('messageCreate', async msg => {
   switch (messageContent)
   {
     case "info":
-    msg.channel.send(`βəτα Bot **${APP_VERSION}** *(${APP_BUILD_NUMBER})*\nCreated by <@${CREATOR_USER_ID}>\nwith inspiration from We4therman\n*\\*Possibly Powered By DELL OS\\**`)
+    msg.channel.send(`βəταBot **${APP_VERSION}** *(${APP_BUILD_NUMBER})*\nCreated by <@${CREATOR_USER_ID}>\nwith inspiration from We4therman\n*\\*Possibly Powered By DELL OS\\**`)
     return
 
     case "ping":
