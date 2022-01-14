@@ -1,3 +1,6 @@
+const APP_VERSION = process.env.HEROKU_RELEASE_VERSION ?? "Local"
+const APP_BUILD_NUMBER = process.env.HEROKU_SLUG_DESCRIPTION ?? "Local"
+
 const CREATOR_USER_ID = process.env.CREATOR_USER_ID
 const DISCORD_NICKNAME = process.env.DISCORD_NICKNAME
 
@@ -163,7 +166,7 @@ client.on('messageCreate', async msg => {
   switch (messageContent)
   {
     case "info":
-    msg.channel.send(`βəτα Bot Dev 1.0\nCreated by <@${CREATOR_USER_ID}>\nwith inspiration from We4therman\n*\\*Powered By DELL OS\\**`)
+    msg.channel.send(`βəτα Bot **${APP_VERSION}** *(${APP_BUILD_NUMBER})*\nCreated by <@${CREATOR_USER_ID}>\nwith inspiration from We4therman\n*\\*Possibly Powered By DELL OS\\**`)
     return
 
     case "ping":
