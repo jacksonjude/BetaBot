@@ -209,7 +209,7 @@ client.on('messageCreate', async msg => {
     case "info":
 
 
-    msg.channel.send(`βəταBot **${APP_VERSION}** *(${APP_BUILD_NUMBER}, ${getFormattedBuildDateString(APP_BUILD_DATE)})*\nCreated by <@${CREATOR_USER_ID}>\nwith inspiration from We4therman\n*\\*Possibly Powered By DELL OS\\**`)
+    msg.channel.send(`βəταBot **${APP_VERSION}** *(${APP_BUILD_NUMBER}, ${getFormattedBuildDateString(APP_BUILD_DATE)})*\nCreated by <@${CREATOR_USER_ID}> (2020-2022)\nwith inspiration from We4therman\n*\\*Possibly Powered By DELL OS\\**`)
     return
 
     case "ping":
