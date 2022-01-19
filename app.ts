@@ -98,7 +98,7 @@ function getFormattedBuildDateString(rawBuildDateString: string): string
 
     if (timeSinceLastBuild < 1000*60)
     {
-      formattedBuildDateString = "<1m"
+      formattedBuildDateString = "Now"
     }
     else if (timeSinceLastBuild < 1000*60*60)
     {
@@ -106,11 +106,7 @@ function getFormattedBuildDateString(rawBuildDateString: string): string
     }
     else if (timeSinceLastBuild < 1000*60*60*24)
     {
-      formattedBuildDateString = timeSinceLastBuildComponents.hours + " " + timeSinceLastBuildComponents.minutes
-    }
-    else if (timeSinceLastBuild < 1000*60*60*24*7)
-    {
-      formattedBuildDateString = timeSinceLastBuildComponents.days + " " + timeSinceLastBuildComponents.hours
+      formattedBuildDateString = timeSinceLastBuildComponents.hours
     }
     else
     {
