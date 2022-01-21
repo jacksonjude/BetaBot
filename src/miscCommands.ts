@@ -1,4 +1,4 @@
-import { Client, Message, Collection, DMChannel, TextChannel } from "discord.js"
+import { Client, Message, Collection, DMChannel, TextChannel, GuildChannel, CategoryChannel } from "discord.js"
 import { BotCommand, BotCommandError } from "./botCommand"
 
 const messageCommands = [
@@ -298,7 +298,7 @@ export function getClearCommand(): BotCommand
   return BotCommand.fromRegex(
     "clear", "clear bot messages",
     /^clear(\s+(dm|\d+))?(\s+(\d+))?(\s+(true|false))?$/, /^clear(\s+.*)?$/,
-    "clear [message count]",
+    "clear [dm | channel id] [message count] [should clear all]",
     async (commandArguments: string[], commandMessage: Message, client: Client) => {
       const processMessages = async function(channelMessageArray: Message[]): Promise<boolean>
       {
@@ -476,6 +476,51 @@ export function getCleanReactionsCommand(): BotCommand
       }
 
       console.log("[Clean-Reactions] Complete")
+    }
+  )
+}
+
+export function getCloseChannelsCommand(): BotCommand
+{
+  return BotCommand.fromRegex(
+    "close", "closes channels or categories",
+    /^close(?:\s+(channel|category))?\s+(?:<#)?(\d+)(?:>)?(?:\s+(?:<@!?&?)?(\d+)(?:>)?)?$/, /^close(\s+.*)?$/,
+    "close [channel | category] <channel id> [role id]",
+    async (commandArguments: string[], commandMessage: Message) => {
+      let closeType = commandArguments[1] as "channel" | "category" ?? "channel"
+      let channelID = commandArguments[2]
+      let role = commandArguments[3] ? await commandMessage.guild.roles.fetch(commandArguments[3]) : commandMessage.guild.roles.everyone
+      let channelsToClose: GuildChannel[] = []
+
+      switch (closeType)
+      {
+        case "channel":
+        let channel = await commandMessage.guild.channels.fetch(channelID)
+        if (channel)
+        {
+          channelsToClose = [channel]
+        }
+        break
+
+        case "category":
+        let category = await commandMessage.guild.channels.fetch(channelID) as CategoryChannel
+        if (category)
+        {
+          channelsToClose = Array.from(category.children.values())
+        }
+        break
+      }
+
+      for (let channel of channelsToClose)
+      {
+        let modeToSet = !channel.permissionsFor(role).has("SEND_MESSAGES")
+
+        await channel.permissionOverwrites.edit(role, {
+          SEND_MESSAGES: modeToSet
+        })
+
+        await commandMessage.channel.send((modeToSet ? ":white_check_mark: Opened" : ":x: Closed") + " <#" + channel.id + "> for <@&" + role.id + ">")
+      }
     }
   )
 }

@@ -25,7 +25,11 @@ import {
 
 import { loginBot, getRestartCommand } from "./src/login"
 import { sendMessageResponses } from "./src/messageResponses"
-import { getHelpCommand, getMessageCommands, getDateCommands, getEmoteSpellCommand, getClearCommand, getRepeatCommand, getSpeakCommand, getCleanReactionsCommand } from "./src/miscCommands"
+import {
+  getHelpCommand,
+  getMessageCommands, getDateCommands, getEmoteSpellCommand, getClearCommand,
+  getRepeatCommand, getSpeakCommand, getCleanReactionsCommand,
+  getCloseChannelsCommand } from "./src/miscCommands"
 
 import { setupVoiceChannelEventHandler } from "./src/linkedTextChannels"
 import { setupMemberStatsEventHandlers, getMessageCountsUpdateCommand, getMessageCountsLeaderboardCommand } from "./src/serverStats"
@@ -200,6 +204,7 @@ export async function handleCommandExecution(messageContent: string, msg: Messag
     getMessageCountsLeaderboardCommand(),
     getMessageCountsUpdateCommand().withRequirement(ownerUserRequirement),
     getCleanReactionsCommand().withRequirement(ownerUserRequirement),
+    getCloseChannelsCommand().withRequirement(ownerUserRequirement),
     getScheduleCommand(handleCommandExecution).withRequirement(ownerUserRequirement),
     getRepeatCommand().withRequirement(developmentRequirement),
     getSpeakCommand().withRequirement(developmentRequirement),
