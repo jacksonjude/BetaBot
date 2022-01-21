@@ -5,7 +5,7 @@ const APP_BUILD_DATE = process.env.HEROKU_RELEASE_CREATED_AT
 const CREATOR_USER_ID = process.env.CREATOR_USER_ID
 const DISCORD_NICKNAME = process.env.DISCORD_NICKNAME
 
-import { Client, Intents, GuildMember } from 'discord.js'
+import { Client, Intents, GuildMember, Message } from 'discord.js'
 const client = new Client({ intents: [
   Intents.FLAGS.GUILDS,
   Intents.FLAGS.GUILD_MEMBERS,
@@ -32,6 +32,8 @@ import { setupMemberStatsEventHandlers, getMessageCountsUpdateCommand, getMessag
 
 import { getExportPollResultsCommand, getEditPollCommand } from "./src/poll/sharedPoll"
 import { getDMVoteCommand } from "./src/poll/dmPoll"
+
+import { getScheduleCommand } from "./src/scheduledCommands"
 
 const HOME_GUILD_ID = "704218896298934317"
 const TECHNICIAN_ROLE_ID = "804147385923403826"
@@ -149,6 +151,11 @@ client.on('messageCreate', async msg => {
 
   console.log("Command from " + msg.author.username + " in " + msg.guild.name + " '" + messageContent + "'")
 
+  await handleCommandExecution(messageContent, msg)
+})
+
+export async function handleCommandExecution(messageContent: string, msg: Message)
+{
   const runBotCommands = async function(botCommands: BotCommand[]): Promise<boolean>
   {
     for (let botCommand of botCommands)
@@ -193,6 +200,7 @@ client.on('messageCreate', async msg => {
     getMessageCountsLeaderboardCommand(),
     getMessageCountsUpdateCommand().withRequirement(ownerUserRequirement),
     getCleanReactionsCommand().withRequirement(ownerUserRequirement),
+    getScheduleCommand(handleCommandExecution).withRequirement(ownerUserRequirement),
     getRepeatCommand().withRequirement(developmentRequirement),
     getSpeakCommand().withRequirement(developmentRequirement),
     getRestartCommand().withRequirement(ownerUserAndDevelopmentRequirement)
@@ -212,7 +220,7 @@ client.on('messageCreate', async msg => {
     msg.channel.send("pong")
     return
   }
-})
+}
 
 process.on('unhandledRejection', error => {
   console.log('Unhandled error: ', error)

@@ -12,6 +12,7 @@ specifiers:
   json2csv: ^5.0.6
   luxon: ^2.2.0
   node-emoji: ^1.10.0
+  short-unique-id: ^4.4.4
   ts-node: 10.4.0
   typescript: 4.5.4
 
@@ -27,6 +28,7 @@ dependencies:
   json2csv: 5.0.6
   luxon: 2.2.0
   node-emoji: 1.11.0
+  short-unique-id: 4.4.4
   ts-node: 10.4.0_typescript@4.5.4
   typescript: 4.5.4
 
@@ -1339,6 +1341,11 @@ packages:
     hasBin: true
     dev: false
     optional: true
+
+  /short-unique-id/4.4.4:
+    resolution: {integrity: sha512-oLF1NCmtbiTWl2SqdXZQbo5KM1b7axdp0RgQLq8qCBBLoq+o3A5wmLrNM6bZIh54/a8BJ3l69kTXuxwZ+XCYuw==}
+    hasBin: true
+    dev: false
 
   /signal-exit/3.0.6:
     resolution: {integrity: sha512-sDl4qMFpijcGw22U5w63KmD3cZJfBuFlVNbVMKje2keoKML7X2UzWbc4XrmEbDwg0NXJc3yv4/ox7b+JWb57kQ==}

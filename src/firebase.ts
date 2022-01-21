@@ -24,12 +24,16 @@ import { interpretServerPollSetting, removeServerPollSetting } from "./poll/serv
 
 import { interpretRoleAssignmentSetting, RoleAssignmentConfiguration } from "./roleAssignment"
 
+import { interpretScheduledCommandSetting, removeScheduledCommandSetting, ScheduledCommand } from "./scheduledCommands"
+import { handleCommandExecution } from "../app"
+
 const roleMessageCollectionID = "roleMessageConfigurations"
 const voiceToTextCollectionID = "voiceToTextConfigurations"
 const statChannelsCollectionID = "statsConfigurations"
 const pollsCollectionID = "pollConfigurations"
 const pollResponsesCollectionID = "responses"
 const roleAssignmentCollectionID = "roleAssignmentConfigurations"
+const scheduledCommandCollectionID = "scheduledCommands"
 
 var firestoreCollectionListeners = []
 const firestoreCollectionSyncHandlers = [
@@ -128,6 +132,21 @@ const firestoreCollectionSyncHandlers = [
       {
         roleAssignmentSettingDocData = await interpretRoleAssignmentSetting(client, roleAssignmentSettingID, roleAssignmentSettingDocData as RoleAssignmentConfiguration)
         firestoreDB.doc(roleAssignmentCollectionID + "/" + roleAssignmentSettingID).set(roleAssignmentSettingDocData)
+      }
+    }
+  },
+  {
+    collectionID: scheduledCommandCollectionID,
+    updateDocFunction: async function(scheduledCommandSettingDoc: QueryDocumentSnapshot, shouldDelete: boolean, client: Client) {
+      let scheduledCommandSettingDocData = scheduledCommandSettingDoc.data()
+
+      if (!shouldDelete)
+      {
+        interpretScheduledCommandSetting(client, scheduledCommandSettingDocData as ScheduledCommand, handleCommandExecution)
+      }
+      else
+      {
+        removeScheduledCommandSetting(scheduledCommandSettingDocData as ScheduledCommand)
       }
     }
   }
