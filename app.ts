@@ -19,7 +19,8 @@ const client = new Client({ intents: [
 
 import {
   BotCommand,
-  BotCommandUserIDRequirement, BotCommandRoleIDRequirement, BotCommandChannelIDRequirement, BotCommandServerIDRequirement,
+  BotCommandUserIDRequirement, BotCommandRoleIDRequirement, BotCommandPermissionRequirement,
+  BotCommandChannelIDRequirement, BotCommandServerIDRequirement,
   BotCommandUnionRequirement, BotCommandIntersectionRequirement
 } from "./src/botCommand"
 
@@ -27,7 +28,7 @@ import { loginBot, getRestartCommand } from "./src/login"
 import { sendMessageResponses } from "./src/messageResponses"
 import {
   getHelpCommand,
-  getMessageCommands, getDateCommands, getEmoteSpellCommand, getClearCommand,
+  getMessageCommands, getDateCommands, getEmoteSpellCommand, getEchoCommand, getClearCommand,
   getRepeatCommand, getSpeakCommand, getCleanReactionsCommand,
   getCloseChannelsCommand } from "./src/miscCommands"
 
@@ -193,19 +194,33 @@ export async function handleCommandExecution(messageContent: string, msg: Messag
     ]
   )
 
+  var manageChannelsPermissionRequirement = new BotCommandUnionRequirement(
+    [
+      new BotCommandPermissionRequirement(["MANAGE_CHANNELS"]),
+      ownerUserRequirement
+    ]
+  )
+  var serverAdminPermissionRequirement = new BotCommandUnionRequirement(
+    [
+      new BotCommandPermissionRequirement(["ADMINISTRATOR"]),
+      ownerUserRequirement
+    ]
+  )
+
   var botCommands = [
     ...getMessageCommands(),
     ...getDateCommands(),
     getEmoteSpellCommand().withRequirement(botChannelRequirement),
+    getEchoCommand(),
     getClearCommand(),
     getDMVoteCommand(),
     getExportPollResultsCommand(),
+    getCloseChannelsCommand().withRequirement(manageChannelsPermissionRequirement),
+    getScheduleCommand(handleCommandExecution).withRequirement(serverAdminPermissionRequirement),
     getEditPollCommand().withRequirement(ownerUserAndDevelopmentRequirement),
     getMessageCountsLeaderboardCommand(),
     getMessageCountsUpdateCommand().withRequirement(ownerUserRequirement),
     getCleanReactionsCommand().withRequirement(ownerUserRequirement),
-    getCloseChannelsCommand().withRequirement(ownerUserRequirement),
-    getScheduleCommand(handleCommandExecution).withRequirement(ownerUserRequirement),
     getRepeatCommand().withRequirement(developmentRequirement),
     getSpeakCommand().withRequirement(developmentRequirement),
     getRestartCommand().withRequirement(ownerUserAndDevelopmentRequirement)

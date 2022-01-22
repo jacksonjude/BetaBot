@@ -40,7 +40,7 @@ export function getScheduleCommand(handleCommandExecutionFunction: HandleCommand
 {
   return BotCommand.fromRegex(
     "schedule", "schedules commands using cron strings",
-    /^schedule\s+(?:(?:create\s+)?"([^"]+)"\s+(.*))|(?:remove\s+(.*))|(?:list)$/, /^close(\s+.*)?$/,
+    /^schedule\s+(?:(?:create\s+)?"([^"]+)"\s+(.*))|(?:remove\s+(.*))|(?:list)$/, /^schedule(\s+.*)?$/,
     "schedule [create | remove | list] [\"cron string\" | schedule id] [command]",
     async (commandArguments: string[], commandMessage: Message) => {
       let scheduleAction: "create" | "remove" | "list" = commandArguments[3] != null ? "remove" : (commandArguments[1] ? "create" : "list")

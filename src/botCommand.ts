@@ -1,4 +1,4 @@
-import { TextChannel, Message, Client, User, GuildMember, Guild } from "discord.js"
+import { TextChannel, Message, Client, User, GuildMember, Guild, PermissionResolvable } from "discord.js"
 import { Firestore } from "firebase-admin/firestore"
 
 type ParseCommandStringFunction = (messageString: string, channel?: TextChannel, usageMessage?: string) => boolean | string[]
@@ -118,6 +118,16 @@ export class BotCommandRoleIDRequirement extends BotCommandRequirement
   {
     super((_, member: GuildMember) => {
       return member.roles.cache.some(role => role.id == roleID)
+    })
+  }
+}
+
+export class BotCommandPermissionRequirement extends BotCommandRequirement
+{
+  constructor(permissions: PermissionResolvable[])
+  {
+    super((_, member: GuildMember) => {
+      return permissions.every(permission => member.permissions.has(permission))
     })
   }
 }

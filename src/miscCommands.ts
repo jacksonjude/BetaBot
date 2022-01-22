@@ -1,4 +1,4 @@
-import { Client, Message, Collection, DMChannel, TextChannel, GuildChannel, CategoryChannel } from "discord.js"
+import { Client, Message, Collection, DMChannel, TextChannel, GuildChannel, CategoryChannel, PermissionResolvable } from "discord.js"
 import { BotCommand, BotCommandError } from "./botCommand"
 
 const messageCommands = [
@@ -410,12 +410,29 @@ export function getClearCommand(): BotCommand
   )
 }
 
+export function getEchoCommand(): BotCommand
+{
+  return BotCommand.fromRegex(
+    "echo", "print a message to a channel",
+    /^echo(?:\s+(?:<#)?(\d+)(?:>)?)?\s+(.+)$/, /^echo(\s+.*)?$/,
+    "echo [channel] <message>",
+    async (commandArguments: string[], message: Message, client: Client) => {
+      let channel = commandArguments[1] ? await client.channels.fetch(commandArguments[1]) as TextChannel : message.channel as TextChannel
+      if (!channel.permissionsFor(message.member).has("SEND_MESSAGES")) { return }
+
+      let messageToRepeat = commandArguments[2]
+
+      await channel.send(messageToRepeat)
+    }
+  )
+}
+
 export function getRepeatCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "repeat", "repeat the last message sent to the channel",
     /^repeat\s+(\d+)$/, /^repeat(\s+.*)?$/,
-    "repeat [count]",
+    "repeat <count>",
     async (commandArguments: string[], message: Message) => {
       let multiplier = parseInt(commandArguments[1])
       let messageArray = message.channel.messages.cache.toJSON()
@@ -434,8 +451,8 @@ export function getSpeakCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "speak", "read a message in tts",
-    /^speak\s+(.+)$/, null,
-    "speak [message]",
+    /^speak\s+(.+)$/, /^speak(\s+.*)?$/,
+    "speak <message>",
     async (commandArguments: string[], message: Message) => {
       let phraseToSay = commandArguments[1]
       message.channel.send({content: phraseToSay, tts: true})
@@ -484,12 +501,13 @@ export function getCloseChannelsCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "close", "closes channels or categories",
-    /^close(?:\s+(channel|category))?\s+(?:<#)?(\d+)(?:>)?(?:\s+(?:<@!?&?)?(\d+)(?:>)?)?$/, /^close(\s+.*)?$/,
-    "close [channel | category] <channel id> [role id]",
+    /^close(?:\s+(channel|category))?\s+(?:<#)?(\d+)(?:>)?(?:\s+(?:<@!?&?)?(\d+)(?:>)?)?(?:\s(true|false))?$/, /^close(\s+.*)?$/,
+    "close [channel | category] <channel id> [role id] [verbose]",
     async (commandArguments: string[], commandMessage: Message) => {
       let closeType = commandArguments[1] as "channel" | "category" ?? "channel"
       let channelID = commandArguments[2]
       let role = commandArguments[3] ? await commandMessage.guild.roles.fetch(commandArguments[3]) : commandMessage.guild.roles.everyone
+      let shouldPrintLogs = commandArguments[4] !== "false"
       let channelsToClose: GuildChannel[] = []
 
       switch (closeType)
@@ -506,20 +524,53 @@ export function getCloseChannelsCommand(): BotCommand
         let category = await commandMessage.guild.channels.fetch(channelID) as CategoryChannel
         if (category)
         {
-          channelsToClose = Array.from(category.children.values())
+          channelsToClose = [category, ...Array.from(category.children.values()).filter(channel => !channel.permissionsLocked)]
         }
         break
       }
 
       for (let channel of channelsToClose)
       {
-        let modeToSet = !channel.permissionsFor(role).has("SEND_MESSAGES")
+        let permissionsToToggle: PermissionResolvable[]
+        switch (channel.type)
+        {
+          case "GUILD_TEXT":
+          permissionsToToggle = ["SEND_MESSAGES"]
+          break
 
-        await channel.permissionOverwrites.edit(role, {
-          SEND_MESSAGES: modeToSet
+          case "GUILD_VOICE":
+          case "GUILD_STAGE_VOICE":
+          permissionsToToggle = ["CONNECT"]
+          break
+
+          case "GUILD_CATEGORY":
+          permissionsToToggle = ["SEND_MESSAGES", "CONNECT"]
+          break
+
+          default:
+          return
+        }
+
+        let modeToSet = !channel.permissionsFor(role).has(permissionsToToggle[0])
+
+        let permissionsMap: {[k: string]: boolean} = {}
+        permissionsToToggle.forEach(permission => {
+          permissionsMap[permission.toString()] = modeToSet
         })
 
-        await commandMessage.channel.send((modeToSet ? ":white_check_mark: Opened" : ":x: Closed") + " <#" + channel.id + "> for <@&" + role.id + ">")
+        console.log(permissionsMap, channel.id, role.id)
+
+        try
+        {
+          await channel.permissionOverwrites.edit(role, permissionsMap)
+        }
+        catch (error)
+        {
+          console.log(error)
+          continue
+        }
+
+        shouldPrintLogs && await commandMessage.channel.send((modeToSet ? ":white_check_mark: Opened" : ":x: Closed") + " " + (channel.type === "GUILD_CATEGORY" ? channel.name : "<#" + channel.id + ">") + " for <@&" + role.id + ">")
       }
     }
   )
