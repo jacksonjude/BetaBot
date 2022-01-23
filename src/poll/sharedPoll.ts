@@ -1,4 +1,4 @@
-import { Client, User, GuildMember, Message, GuildEmoji, ReactionEmoji, ReactionCollector } from "discord.js"
+import { Client, User, GuildMember, Message, GuildEmoji, ReactionEmoji } from "discord.js"
 import { ActionMessage } from "../actionMessage"
 import { Firestore, Timestamp } from "firebase-admin/firestore"
 import { BotCommand, BotCommandError } from "../botCommand"
@@ -17,7 +17,6 @@ const ExportAccessType = {
 export var pollsData: { [k: string]: PollConfiguration } = {}
 
 export var pollResponses: { [k: string]: { [k: string]: { [k: string]: string } } } = {}
-export var pollResponseReactionCollectors: { [k: string]: { [k: string]: ReactionCollector[] } | ReactionCollector[] } = {}
 
 export var pollsActionMessages: { [k: string]: { [k: string]: { [k: string]: ActionMessage<PollQuestion> } | ActionMessage<PollQuestion> } } = {}
 export var pollVoteActionMessages: { [k: string]: ActionMessage<PollConfiguration> } = {}

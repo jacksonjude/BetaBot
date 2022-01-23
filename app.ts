@@ -96,7 +96,6 @@ function getFormattedBuildDateString(rawBuildDateString: string): string
   if (APP_BUILD_DATE)
   {
     let timeSinceLastBuild = Date.now()-new Date(rawBuildDateString).getTime()
-    console.log(timeSinceLastBuild)
     let timeSinceLastBuildComponents = {
       minutes: Math.floor(timeSinceLastBuild/(1000*60)%60).toString()+"m",
       hours: Math.floor(timeSinceLastBuild/(1000*60*60)%24).toString()+"h",

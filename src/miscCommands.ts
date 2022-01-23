@@ -558,8 +558,6 @@ export function getCloseChannelsCommand(): BotCommand
           permissionsMap[permission.toString()] = modeToSet
         })
 
-        console.log(permissionsMap, channel.id, role.id)
-
         try
         {
           await channel.permissionOverwrites.edit(role, permissionsMap)
