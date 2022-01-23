@@ -109,7 +109,13 @@ export function getScheduleCommand(handleCommandExecutionFunction: HandleCommand
         case "list":
         scheduledCommands.sort((scheduleCommand1, scheduleCommand2) => scheduleCommand1.createdAt-scheduleCommand2.createdAt)
         await commandMessage.channel.send(":hourglass: Scheduled Commands" + scheduledCommands.map(scheduledCommand => {
-          return "\n" + scheduledCommand.id + ": \"" + scheduledCommand.cronString + "\"; " + scheduledCommand.commandString
+          let startDate = new Date(scheduledCommand.startAt)
+          let formattedStartString = startDate.getFullYear() + "-" + (startDate.getMonth()+1) + "-" + startDate.getDate() + " " + startDate.getHours() + ":" + (startDate.getMinutes() < 10 ? "0" + startDate.getMinutes() : startDate.getMinutes())
+
+          let endDate = new Date(scheduledCommand.endAt)
+          let formattedEndString = endDate.getFullYear() + "-" + (endDate.getMonth()+1) + "-" + endDate.getDate() + " " + endDate.getHours() + ":" + (endDate.getMinutes() < 10 ? "0" + endDate.getMinutes() : endDate.getMinutes())
+
+          return "\n" + scheduledCommand.id + ": " + (scheduledCommand.startAt ? formattedStartString + "; " : "") + (scheduledCommand.endAt ? formattedEndString + "; " : "") + "\"" + scheduledCommand.cronString + "\"; " + scheduledCommand.commandString
         }))
         break
       }
