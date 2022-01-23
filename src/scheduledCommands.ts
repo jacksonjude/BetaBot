@@ -12,10 +12,14 @@ export class ScheduledCommand
   id: string
   commandString: string
   cronString: string
+  startAt?: number
+  endAt?: number
   job?: CronJob
 
   channelID: string
   messageID: string
+
+  createdAt: number
 }
 
 var scheduledCommands: ScheduledCommand[] = []
@@ -27,38 +31,73 @@ export async function interpretScheduledCommandSetting(client: Client, scheduled
   let channel = await client.channels.fetch(scheduledCommand.channelID) as TextChannel
   let message = await channel.messages.fetch(scheduledCommand.messageID)
 
-  createScheduledCommand(scheduledCommand.commandString, scheduledCommand.cronString, message, scheduledCommand.id, handleCommandExecution)
+  createScheduledCommand(scheduledCommand.commandString, scheduledCommand.startAt, scheduledCommand.endAt, scheduledCommand.cronString,  message, scheduledCommand.createdAt, scheduledCommand.id, handleCommandExecution)
 }
 
-export function removeScheduledCommandSetting(scheduledCommand: ScheduledCommand)
+export function removeScheduledCommandSetting(scheduledCommandToDelete: ScheduledCommand)
 {
-  scheduledCommand.job && scheduledCommand.job.stop()
-  scheduledCommands = scheduledCommands.filter((scheduledCommand) => scheduledCommand.id !== scheduledCommand.id)
+  if (!scheduledCommandToDelete) { return }
+
+  scheduledCommandToDelete.job && scheduledCommandToDelete.job.stop()
+  scheduledCommands = scheduledCommands.filter((scheduledCommand) => scheduledCommand.id !== scheduledCommandToDelete.id)
 }
 
 export function getScheduleCommand(handleCommandExecutionFunction: HandleCommandExecution): BotCommand
 {
   return BotCommand.fromRegex(
     "schedule", "schedules commands using cron strings",
-    /^schedule\s+(?:(?:create\s+)?"([^"]+)"\s+(.*))|(?:remove\s+(.*))|(?:list)$/, /^schedule(\s+.*)?$/,
-    "schedule [create | remove | list] [\"cron string\" | schedule id] [command]",
+    /^schedule\s+(?:(?:create\s+)?(?:([\d\-T:\.Z,]+)\s+)?(?:([\d\-T:\.Z,]+)\s+)?"([^"]+)"\s+(.*))|(?:remove\s+(.*))|(?:list)$/, /^schedule(\s+.*)?$/,
+    "schedule [create | remove | list] [start date] [end date] [\"cron string\" | schedule id] [command]",
     async (commandArguments: string[], commandMessage: Message) => {
-      let scheduleAction: "create" | "remove" | "list" = commandArguments[3] != null ? "remove" : (commandArguments[1] ? "create" : "list")
+      let scheduleAction: "create" | "remove" | "list" = commandArguments[5] != null ? "remove" : (commandArguments[3] ? "create" : "list")
       switch (scheduleAction)
       {
         case "create":
-        let cronString = commandArguments[1]
-        let commandString = commandArguments[2].replace(/^\s*/, "").replace(/\s*$/, "")
+        let startDateString: string = commandArguments[1]
+        let endDateString: string = commandArguments[2]
+
+        let startDate: number
+        let endDate: number
+
+        if (!startDateString)
+        {
+          startDate = null
+        }
+        else if (!isNaN(new Date(startDateString).getTime()))
+        {
+          startDate = new Date(startDateString).getTime()
+        }
+        else
+        {
+          startDate = parseInt(startDateString)
+        }
+
+        if (!endDateString)
+        {
+          endDate = null
+        }
+        else if (!isNaN(new Date(endDateString).getTime()))
+        {
+          endDate = new Date(endDateString).getTime()
+        }
+        else
+        {
+          endDate = parseInt(endDateString)
+        }
+
+        let cronString = commandArguments[3]
+        let commandString = commandArguments[4].replace(/^\s*/, "").replace(/\s*$/, "")
         let scheduledCommandID = uid()
 
-        let newScheduledCommand = createScheduledCommand(commandString, cronString, commandMessage, scheduledCommandID, handleCommandExecutionFunction)
-        getFirestore().doc(scheduledCommandCollectionID + "/" + newScheduledCommand.id).set({id: newScheduledCommand.id, commandString: newScheduledCommand.commandString, cronString: newScheduledCommand.cronString, channelID: newScheduledCommand.channelID, messageID: newScheduledCommand.messageID})
+        let newScheduledCommand = createScheduledCommand(commandString, startDate, endDate, cronString, commandMessage, Date.now(), scheduledCommandID, handleCommandExecutionFunction)
+        let { job: _, ...scheduledCommandForUpload } = newScheduledCommand
+        getFirestore().doc(scheduledCommandCollectionID + "/" + newScheduledCommand.id).set(scheduledCommandForUpload)
 
         await commandMessage.reply(":hourglass_flowing_sand: Scheduled " + scheduledCommandID)
         break
 
         case "remove":
-        let commandIDToStop = commandArguments[3]
+        let commandIDToStop = commandArguments[5]
 
         let scheduledCommand = scheduledCommands.find((scheduledCommand) => scheduledCommand.id === commandIDToStop)
         removeScheduledCommandSetting(scheduledCommand)
@@ -68,8 +107,9 @@ export function getScheduleCommand(handleCommandExecutionFunction: HandleCommand
         break
 
         case "list":
+        scheduledCommands.sort((scheduleCommand1, scheduleCommand2) => scheduleCommand1.createdAt-scheduleCommand2.createdAt)
         await commandMessage.channel.send(":hourglass: Scheduled Commands" + scheduledCommands.map(scheduledCommand => {
-          return "\n" + scheduledCommand.id + ": '" + scheduledCommand.cronString + "'; " + scheduledCommand.commandString
+          return "\n" + scheduledCommand.id + ": \"" + scheduledCommand.cronString + "\"; " + scheduledCommand.commandString
         }))
         break
       }
@@ -77,18 +117,25 @@ export function getScheduleCommand(handleCommandExecutionFunction: HandleCommand
   )
 }
 
-function createScheduledCommand(commandString: string, cronString: string, commandMessage: Message, scheduledCommandID: string, handleCommandExecutionFunction: HandleCommandExecution): ScheduledCommand
+function createScheduledCommand(commandString: string, startAt: number, endAt: number, cronString: string, commandMessage: Message, createdAt: number, scheduledCommandIDToAdd: string, handleCommandExecutionFunction: HandleCommandExecution): ScheduledCommand
 {
-  if (scheduledCommands.some(scheduledCommand => scheduledCommand.id == scheduledCommandID)) { return }
+  if (scheduledCommands.some(scheduledCommand => scheduledCommand.id == scheduledCommandIDToAdd)) { return }
 
   let scheduledCommandJob = new CronJob(cronString, () => {
-    handleCommandExecutionFunction(commandString, commandMessage)
-  }, () => {
-    scheduledCommands = scheduledCommands.filter((scheduledCommand) => scheduledCommand.id !== scheduledCommandID)
-  }, true, "America/Los_Angeles")
-  scheduledCommandJob.start()
+    if (startAt && Date.now() < startAt) { return }
+    if (endAt && Date.now() > endAt)
+    {
+      let scheduledCommand = scheduledCommands.find((scheduledCommand) => scheduledCommand.id === scheduledCommandIDToAdd)
+      removeScheduledCommandSetting(scheduledCommand)
+      getFirestore().doc(scheduledCommandCollectionID + "/" + scheduledCommand.id).delete()
+      return
+    }
 
-  let newScheduledCommand: ScheduledCommand = {id: scheduledCommandID, commandString: commandString, cronString: cronString, job: scheduledCommandJob, channelID: commandMessage.channelId, messageID: commandMessage.id}
+    handleCommandExecutionFunction(commandString, commandMessage)
+  }, null, true, "America/Los_Angeles")
+
+  let newScheduledCommand: ScheduledCommand = {id: scheduledCommandIDToAdd, commandString: commandString, startAt: startAt, endAt: endAt, cronString: cronString, job: scheduledCommandJob, channelID: commandMessage.channelId, messageID: commandMessage.id, createdAt: createdAt}
   scheduledCommands.push(newScheduledCommand)
+
   return newScheduledCommand
 }
