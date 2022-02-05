@@ -148,8 +148,24 @@ export function getDMVoteCommand(): BotCommand
   )
 }
 
+var pollResponseTimeouts: {[k: string]: {[k: string]: number}} = {}
+
 async function executeDMVoteCommand(client: Client, user: User, guildMember: GuildMember, pollID: string, firestoreDB: Firestore)
 {
+  if (!pollResponseTimeouts[pollID])
+  {
+    pollResponseTimeouts[pollID] = {}
+  }
+  if (!pollResponseTimeouts[pollID][user.id] || Date.now()-pollResponseTimeouts[pollID][user.id] >= 1000*10)
+  {
+    pollResponseTimeouts[pollID][user.id] = Date.now()
+  }
+  else if (Date.now()-pollResponseTimeouts[pollID][user.id] < 1000*10)
+  {
+    console.log("Cancel vote" + pollID + " for " + user.username)
+    return
+  }
+
   console.log("Init vote " + pollID + " for " + user.username)
 
   var uploadPollResponse = async (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => {
