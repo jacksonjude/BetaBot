@@ -501,27 +501,59 @@ export function getCloseChannelsCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "close", "closes channels or categories",
-    /^close(?:\s+(channel|category))?\s+(?:<#)?(\d+)(?:>)?(?:\s+(?:<@!?&?)?(\d+)(?:>)?)?(?:\s(true|false))?$/, /^close(\s+.*)?$/,
-    "close [channel | category] <channel id> [role id] [verbose]",
+    /^close((?:\s+<#\d+>)+)((?:\s+<@!?&?\d+>)*)(?:\s*(true|false))?$/, /^close(\s+.*)?$/,
+    "close <channel ids> [role ids] [verbose]",
     async (commandArguments: string[], commandMessage: Message) => {
-      let closeType = commandArguments[1] as "channel" | "category" ?? "channel"
-      let channelID = commandArguments[2]
-      let role = commandArguments[3] ? await commandMessage.guild.roles.fetch(commandArguments[3]) : commandMessage.guild.roles.everyone
-      let shouldPrintLogs = commandArguments[4] !== "false"
+      let closeType: "channel" | "category" = "channel"
+      let channelIDsString = commandArguments[1]
+      let roleIDsString = commandArguments[2]
+      let shouldPrintLogs = commandArguments[3] !== "false"
+
+      let channelIDs = []
+      for (let channelIDString of channelIDsString.split(/\s+/))
+      {
+        let channelIDGroups = /\s*<#(\d+)>\s*/.exec(channelIDString)
+        if (channelIDGroups && channelIDGroups.length > 1)
+        {
+          channelIDs.push(channelIDGroups[1])
+        }
+      }
+
+      let roles = []
+      if (!roleIDsString)
+      {
+        roles = [commandMessage.guild.roles.everyone]
+      }
+      else
+      {
+        for (let roleIDString of roleIDsString.split(/\s+/))
+        {
+          let roleIDGroups = /\s*<@!?&?(\d+)>\s*/.exec(roleIDString)
+          if (!roleIDGroups || roleIDGroups.length <= 1) { continue }
+
+          let roleObject = await commandMessage.guild.roles.fetch(roleIDGroups[1])
+          if (!roleObject) { continue }
+          roles.push(roleObject)
+        }
+      }
+
       let channelsToClose: GuildChannel[] = []
 
       switch (closeType)
       {
         case "channel":
-        let channel = await commandMessage.guild.channels.fetch(channelID)
-        if (channel)
+        for (let channelID of channelIDs)
         {
-          channelsToClose = [channel]
+          let channel = await commandMessage.guild.channels.fetch(channelID)
+          if (channel)
+          {
+            channelsToClose.push(channel)
+          }
         }
         break
 
         case "category":
-        let category = await commandMessage.guild.channels.fetch(channelID) as CategoryChannel
+        let category = await commandMessage.guild.channels.fetch(channelIDs[0]) as CategoryChannel
         if (category)
         {
           channelsToClose = [category, ...Array.from(category.children.values()).filter(channel => !channel.permissionsLocked)]
@@ -551,24 +583,27 @@ export function getCloseChannelsCommand(): BotCommand
           return
         }
 
-        let modeToSet = !channel.permissionsFor(role).has(permissionsToToggle[0])
-
-        let permissionsMap: {[k: string]: boolean} = {}
-        permissionsToToggle.forEach(permission => {
-          permissionsMap[permission.toString()] = modeToSet
-        })
-
-        try
+        for (let role of roles)
         {
-          await channel.permissionOverwrites.edit(role, permissionsMap)
-        }
-        catch (error)
-        {
-          console.log(error)
-          continue
-        }
+          let modeToSet = !channel.permissionsFor(role).has(permissionsToToggle[0])
 
-        shouldPrintLogs && await commandMessage.channel.send((modeToSet ? ":white_check_mark: Opened" : ":x: Closed") + " " + (channel.type === "GUILD_CATEGORY" ? channel.name : "<#" + channel.id + ">") + " for <@&" + role.id + ">")
+          let permissionsMap: {[k: string]: boolean} = {}
+          permissionsToToggle.forEach(permission => {
+            permissionsMap[permission.toString()] = modeToSet
+          })
+
+          try
+          {
+            await channel.permissionOverwrites.edit(role, permissionsMap)
+          }
+          catch (error)
+          {
+            console.log(error)
+            continue
+          }
+
+          shouldPrintLogs && await commandMessage.channel.send((modeToSet ? ":white_check_mark: Opened" : ":x: Closed") + " " + (channel.type === "GUILD_CATEGORY" ? channel.name : "<#" + channel.id + ">") + " for <@&" + role.id + ">")
+        }
       }
     }
   )
