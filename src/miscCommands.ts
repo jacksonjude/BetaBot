@@ -504,7 +504,7 @@ export function getCloseChannelsCommand(): BotCommand
     /^close((?:\s+<#\d+>)+)((?:\s+<@!?&?\d+>)*)(?:\s*(true|false))?$/, /^close(\s+.*)?$/,
     "close <channel ids> [role ids] [verbose]",
     async (commandArguments: string[], commandMessage: Message) => {
-      let closeType: "channel" | "category" = "channel"
+      let closeType: string = "channel"
       let channelIDsString = commandArguments[1]
       let roleIDsString = commandArguments[2]
       let shouldPrintLogs = commandArguments[3] !== "false"
