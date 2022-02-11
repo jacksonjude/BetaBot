@@ -46,7 +46,7 @@ export function getScheduleCommand(handleCommandExecutionFunction: HandleCommand
 {
   return BotCommand.fromRegex(
     "schedule", "schedules commands using cron strings",
-    /^schedule\s+(?:(?:create\s+)?(?:([\d\-T:\.Z,]+)\s+)?(?:([\d\-T:\.Z,]+)\s+)?"([^"]+)"\s+(.*))|(?:remove\s+(.*))|(?:list)$/, /^schedule(\s+.*)?$/,
+    /^schedule\s+(?:(?:(?:create\s+)?(?:([\d\-T:\.Z,]+)\s+)?(?:([\d\-T:\.Z,]+)\s+)?"([^"]+)"\s+(.*))|(?:remove\s+(.*))|(?:list(?:\s+(\d+))?))$/, /^schedule(\s+.*)?$/,
     "schedule [create | remove | list] [start date] [end date] [\"cron string\" | schedule id] [command]",
     async (commandArguments: string[], commandMessage: Message) => {
       let scheduleAction: "create" | "remove" | "list" = commandArguments[5] != null ? "remove" : (commandArguments[3] ? "create" : "list")
@@ -107,11 +107,37 @@ export function getScheduleCommand(handleCommandExecutionFunction: HandleCommand
         break
 
         case "list":
-        scheduledCommands.sort((scheduleCommand1, scheduleCommand2) => scheduleCommand1.createdAt-scheduleCommand2.createdAt)
+        let listPage = parseInt(commandArguments[6] ?? "1")
+        let pageOn = 1
+
+        const schedulesListTitle = ":hourglass: **__Scheduled Commands__**" + " **(" + listPage + ")**"
+
+        scheduledCommands.sort((scheduledCommand1, scheduledCommand2) => scheduledCommand1.createdAt-scheduledCommand2.createdAt)
+
+        let schedulesListString = schedulesListTitle
+        for (let scheduledCommand of scheduledCommands)
+        {
+          let scheduleString = "\n**" + scheduledCommand.id + "**: " + (scheduledCommand.startAt ? "<t:" + Math.floor(scheduledCommand.startAt/1000) + ":f>; " : "") + (scheduledCommand.endAt ? "<t:" + Math.floor(scheduledCommand.endAt/1000) + ":f>; " : "") + "\"" + scheduledCommand.cronString + "\"; " + scheduledCommand.commandString
+          if (schedulesListString.length+scheduleString.length > 2000)
+          {
+            if (pageOn == listPage) { break }
+
+            schedulesListString = schedulesListTitle + scheduleString
+            pageOn += 1
+          }
+          else
+          {
+            schedulesListString += scheduleString
+          }
+        }
+
+        if (pageOn != listPage)
+        {
+          schedulesListString = schedulesListTitle
+        }
+
         await commandMessage.channel.send({
-          "content": ":hourglass: Scheduled Commands" + scheduledCommands.map(scheduledCommand => {
-            return "\n" + scheduledCommand.id + ": " + (scheduledCommand.startAt ? "<t:" + Math.floor(scheduledCommand.startAt/1000) + ":f>; " : "") + (scheduledCommand.endAt ? "<t:" + Math.floor(scheduledCommand.endAt/1000) + ":f>; " : "") + "\"" + scheduledCommand.cronString + "\"; " + scheduledCommand.commandString
-          }),
+          "content": schedulesListString,
           "allowedMentions": { "roles" : [] }
         })
         break
