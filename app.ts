@@ -40,6 +40,8 @@ import { getDMVoteCommand } from "./src/poll/dmPoll"
 
 import { getScheduleCommand } from "./src/scheduledCommands"
 
+import { setupRoleCounterEventHandlers } from "./src/roleCounter"
+
 const HOME_GUILD_ID = "704218896298934317"
 const TECHNICIAN_ROLE_ID = "804147385923403826"
 
@@ -54,6 +56,7 @@ loginBot(client)
 
 setupVoiceChannelEventHandler(client)
 setupMemberStatsEventHandlers(client)
+setupRoleCounterEventHandlers(client)
 
 // Client Init
 

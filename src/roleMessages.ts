@@ -48,7 +48,7 @@ export async function interpretRoleSetting(client: Client, roleSettingID: string
 {
   if (roleSettingJSON.channelID == null) { return }
 
-  let updateSettingInDatabase = false
+  let prevMessageID = roleSettingJSON.messageID
 
   let liveChannel = await client.channels.fetch(roleSettingJSON.channelID) as TextChannel
   let roleSettingActionMessage = new ActionMessage<RoleMessageConfiguration>(
@@ -75,7 +75,7 @@ export async function interpretRoleSetting(client: Client, roleSettingID: string
   await roleSettingActionMessage.initActionMessage()
   roleActionMessages[roleSettingID] = roleSettingActionMessage
 
-  return updateSettingInDatabase
+  return prevMessageID != roleSettingJSON.messageID
 }
 
 export async function removeRoleSetting(roleSettingID: string)

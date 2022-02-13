@@ -27,6 +27,8 @@ import { interpretRoleAssignmentSetting, RoleAssignmentConfiguration } from "./r
 import { interpretScheduledCommandSetting, removeScheduledCommandSetting, ScheduledCommand } from "./scheduledCommands"
 import { handleCommandExecution } from "../app"
 
+import { interpretRoleCounterSetting, RoleCounterConfiguration } from "./roleCounter"
+
 const roleMessageCollectionID = "roleMessageConfigurations"
 const voiceToTextCollectionID = "voiceToTextConfigurations"
 const statChannelsCollectionID = "statsConfigurations"
@@ -34,6 +36,7 @@ const pollsCollectionID = "pollConfigurations"
 const pollResponsesCollectionID = "responses"
 const roleAssignmentCollectionID = "roleAssignmentConfigurations"
 const scheduledCommandCollectionID = "scheduledCommands"
+const roleCounterCollectionID = "roleCounterConfigurations"
 
 var firestoreCollectionListeners = []
 const firestoreCollectionSyncHandlers = [
@@ -147,6 +150,18 @@ const firestoreCollectionSyncHandlers = [
       else
       {
         removeScheduledCommandSetting(scheduledCommandSettingDocData as ScheduledCommand)
+      }
+    }
+  },
+  {
+    collectionID: roleCounterCollectionID,
+    updateDocFunction: async function(roleCounterSettingDoc: QueryDocumentSnapshot, shouldDelete: boolean, client: Client, firestoreDB: Firestore) {
+      let roleCounterSettingDocData = roleCounterSettingDoc.data()
+      let roleCounterSettingID = roleCounterSettingDoc.id
+
+      if (!shouldDelete && await interpretRoleCounterSetting(client, roleCounterSettingID, roleCounterSettingDocData as RoleCounterConfiguration))
+      {
+        firestoreDB.doc(roleCounterCollectionID + "/" + roleCounterSettingID).set(roleCounterSettingDocData)
       }
     }
   }

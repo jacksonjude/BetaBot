@@ -62,6 +62,11 @@ export class ActionMessage<T>
 
     if (this.messageID != null)
     {
+      if (this.reactionCollector)
+      {
+        this.reactionCollector.stop()
+      }
+
       this.reactionCollector = liveMessage.createReactionCollector({ filter: catchAllFilter, dispose: true })
       this.reactionCollector.on('collect', async (reaction, user) => {
         await user.fetch()
