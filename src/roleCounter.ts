@@ -6,8 +6,13 @@ export class RoleCounterConfiguration
   name: string
   channelID: string
   messageID: string | null
+
   sortBySize: boolean | null
   showTotalMembers: boolean | null
+  filterRoleID: string
+  onlyMostSignificant: boolean
+  hideIfZero: boolean
+
   roleDisplayData: RoleTuple[]
 }
 
@@ -48,13 +53,26 @@ export async function interpretRoleCounterSetting(client: Client, roleCounterSet
 async function getRoleCounterText(roleCounterSettingJSON: RoleCounterConfiguration, guild: Guild): Promise<string>
 {
   let roleDisplayData = roleCounterSettingJSON.roleDisplayData
-  let totalCount = 0
+  let memberIDs = []
   for (let roleTuple of roleDisplayData)
   {
     let role = await guild.roles.fetch(roleTuple.roleID)
-    roleTuple.size = role.members.size
-    totalCount += roleTuple.size
+    let roleMembers = Object.values(role.members.toJSON())
+
+    if (roleCounterSettingJSON.filterRoleID)
+    {
+      roleMembers = roleMembers.filter(member => member.roles.cache.some(role => role.id == roleCounterSettingJSON.filterRoleID))
+    }
+
+    if (roleCounterSettingJSON.onlyMostSignificant === true)
+    {
+      roleMembers = roleMembers.filter(member => !memberIDs.includes(member.id))
+    }
+
+    roleTuple.size = roleMembers.length
+    memberIDs = memberIDs.concat(roleMembers.map(member => member.id))
   }
+  let totalCount = new Set(memberIDs).size
 
   if (roleCounterSettingJSON.sortBySize === true)
   {
@@ -64,6 +82,7 @@ async function getRoleCounterText(roleCounterSettingJSON: RoleCounterConfigurati
   let roleCounterText = ""
   for (let roleTuple of roleDisplayData)
   {
+    if (roleCounterSettingJSON.hideIfZero && roleTuple.size == 0) { continue }
     roleCounterText += "\n" + (roleTuple.emote ? ":" + roleTuple.emote + ": " : "") + "**" + roleTuple.name + ": " + roleTuple.size + "**"
   }
 
