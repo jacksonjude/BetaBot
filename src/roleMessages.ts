@@ -110,7 +110,7 @@ async function handleRoleReaction(client: Client, reaction: MessageReaction, use
      || emojiConverter.unemojify(reaction.emoji.name).replace(/:/g, "") == emoteRolePair.emote
   })
 
-  if (!emoteRolePair || roleData.blacklistUserIDs.includes(user.id))
+  if (!emoteRolePair || (roleData.blacklistUserIDs && roleData.blacklistUserIDs.includes(user.id)))
   {
     if (action == "added")
     {
