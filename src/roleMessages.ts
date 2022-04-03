@@ -36,6 +36,7 @@ export class RoleMessageConfiguration
   channelID: string
   messageID: string | null
   roleMap: RoleEmoteMap[]
+  blacklistUserIDs: string[]
 }
 
 class RoleEmoteMap
@@ -109,7 +110,7 @@ async function handleRoleReaction(client: Client, reaction: MessageReaction, use
      || emojiConverter.unemojify(reaction.emoji.name).replace(/:/g, "") == emoteRolePair.emote
   })
 
-  if (!emoteRolePair)
+  if (!emoteRolePair || roleData.blacklistUserIDs.includes(user.id))
   {
     if (action == "added")
     {
