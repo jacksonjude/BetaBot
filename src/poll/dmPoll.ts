@@ -216,10 +216,16 @@ async function sendVoteDM(client: Client, user: User, guildMember: GuildMember, 
 
     let questionActionMessage = new ActionMessage<PollQuestion>(dmChannel, null, questionData,
       async (questionData: PollQuestion) => {
+        let selectedOption: string
+        if (pollResponses[pollID] && pollResponses[pollID][user.id])
+        {
+          selectedOption = pollResponses[pollID][user.id][questionData.id]
+        }
+
         let questionString = "**" + questionData.prompt + "**"
         for (let optionData of questionData.options ?? [])
         {
-          questionString += "\n" + ":" + optionData.emote + ": \\: " + optionData.name
+          questionString += "\n" + (selectedOption == optionData.id ? "**" : "") + ":" + optionData.emote + ": \\: " + optionData.name + (selectedOption == optionData.id ? "**" : "")
         }
         return questionString
       }, async (message: Message, questionData: PollQuestion) => {
@@ -304,6 +310,12 @@ async function handlePollQuestionReaction(client: Client, reaction: MessageReact
       delete pollResponses[currentPollID][user.id][questionData.id]
     }
     break
+  }
+
+  let actionMessage = pollsActionMessages[currentPollID][user.id][questionData.id]
+  if (actionMessage)
+  {
+    (actionMessage as ActionMessage<PollQuestion>).sendMessage()
   }
 }
 

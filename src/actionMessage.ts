@@ -31,6 +31,31 @@ export class ActionMessage<T>
 
   async initActionMessage(): Promise<void>
   {
+    let liveMessage = await this.sendMessage()
+
+    if (this.messageID != null)
+    {
+      if (this.reactionCollector)
+      {
+        this.reactionCollector.stop()
+      }
+
+      this.reactionCollector = liveMessage.createReactionCollector({ filter: catchAllFilter, dispose: true })
+      this.reactionCollector.on('collect', async (reaction, user) => {
+        await user.fetch()
+        console.log("Add", reaction.emoji.name, user.username)
+        this.handleMessageReaction(reaction, user, "added", this.messageSettings)
+      })
+      this.reactionCollector.on('remove', async (reaction, user) => {
+        await user.fetch()
+        console.log("Remove", reaction.emoji.name, user.username)
+        this.handleMessageReaction(reaction, user, "removed", this.messageSettings)
+      })
+    }
+  }
+
+  async sendMessage(): Promise<Message>
+  {
     let shouldCreateMessage = this.messageID == null
     let messageContent = await this.getMessageContent(this.messageSettings, this.channel)
 
@@ -60,25 +85,7 @@ export class ActionMessage<T>
       await this.handleMessageCreation(liveMessage, this.messageSettings)
     }
 
-    if (this.messageID != null)
-    {
-      if (this.reactionCollector)
-      {
-        this.reactionCollector.stop()
-      }
-
-      this.reactionCollector = liveMessage.createReactionCollector({ filter: catchAllFilter, dispose: true })
-      this.reactionCollector.on('collect', async (reaction, user) => {
-        await user.fetch()
-        console.log("Add", reaction.emoji.name, user.username)
-        this.handleMessageReaction(reaction, user, "added", this.messageSettings)
-      })
-      this.reactionCollector.on('remove', async (reaction, user) => {
-        await user.fetch()
-        console.log("Remove", reaction.emoji.name, user.username)
-        this.handleMessageReaction(reaction, user, "removed", this.messageSettings)
-      })
-    }
+    return liveMessage
   }
 
   async removeActionMessage(): Promise<void>
