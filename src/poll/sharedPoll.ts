@@ -476,13 +476,15 @@ export async function executeExportPollResultsCommand(user: User, pollID: string
   var responseMapKeys = new Set(["timestamp"])
   formattedPollResults = formattedPollResults.map((pollResponseData) => {
     Object.keys(pollResponseData.responseMap).forEach((responseMapKey) => {
-      responseMapKeys.add(responseMapKey)
       let responseValueID = pollResponseData.responseMap[responseMapKey]
 
       let currentQuestionData = pollsData[pollID].questions.find(questionData => questionData.id == responseMapKey)
       let currentOptionData = currentQuestionData ? currentQuestionData.options.find(optionData => optionData.id == responseValueID) : null
 
-      pollResponseData[responseMapKey] = currentOptionData ? currentOptionData.name : responseValueID
+      let questionKey = currentQuestionData ? currentQuestionData.prompt : currentQuestionData.id
+      responseMapKeys.add(questionKey)
+
+      pollResponseData[questionKey] = currentOptionData ? currentOptionData.name : responseValueID
     })
     delete pollResponseData.responseMap
 
