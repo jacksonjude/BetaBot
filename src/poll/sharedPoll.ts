@@ -59,7 +59,7 @@ class PollQuestionOption
 export class PollVoteMessageConfiguration
 {
   channelID: string
-  messageID: string | null
+  messageID?: string
   messageText: string
 }
 

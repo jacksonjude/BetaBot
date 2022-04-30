@@ -6,6 +6,7 @@ export class ActionMessage<T>
 {
   client: Client
   channel: TextChannel | DMChannel
+  liveMessage: Message
   messageID: string
   messageSettings: T
 
@@ -31,7 +32,7 @@ export class ActionMessage<T>
 
   async initActionMessage(): Promise<void>
   {
-    let liveMessage = await this.sendMessage()
+    this.liveMessage = await this.sendMessage()
 
     if (this.messageID != null)
     {
@@ -40,7 +41,7 @@ export class ActionMessage<T>
         this.reactionCollector.stop()
       }
 
-      this.reactionCollector = liveMessage.createReactionCollector({ filter: catchAllFilter, dispose: true })
+      this.reactionCollector = this.liveMessage.createReactionCollector({ filter: catchAllFilter, dispose: true })
       this.reactionCollector.on('collect', async (reaction, user) => {
         await user.fetch()
         console.log("Add", reaction.emoji.name, user.username)
@@ -59,16 +60,16 @@ export class ActionMessage<T>
     let shouldCreateMessage = this.messageID == null
     let messageContent = await this.getMessageContent(this.messageSettings, this.channel)
 
-    let liveMessage: Message
+    let message: Message
 
     if (!shouldCreateMessage)
     {
       try
       {
-        liveMessage = await this.channel.messages.fetch(this.messageID)
-        if (liveMessage.content != messageContent)
+        message = this.liveMessage ?? await this.channel.messages.fetch(this.messageID)
+        if (message.content != messageContent)
         {
-          liveMessage.edit(messageContent)
+          message.edit(messageContent)
         }
       }
       catch
@@ -79,13 +80,13 @@ export class ActionMessage<T>
 
     if (shouldCreateMessage)
     {
-      liveMessage = await this.channel.send(messageContent)
-      this.messageID = liveMessage.id
+      message = await this.channel.send(messageContent)
+      this.messageID = message.id
 
-      await this.handleMessageCreation(liveMessage, this.messageSettings)
+      await this.handleMessageCreation(message, this.messageSettings)
     }
 
-    return liveMessage
+    return message
   }
 
   async removeActionMessage(): Promise<void>

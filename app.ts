@@ -37,6 +37,7 @@ import { setupMemberStatsEventHandlers, getMessageCountsUpdateCommand, getMessag
 
 import { getExportPollResultsCommand, getEditPollCommand } from "./src/poll/sharedPoll"
 import { getDMVoteCommand } from "./src/poll/dmPoll"
+import { getCreatePollCommand, setupPollEditTextInputEventHandlers } from "./src/poll/createPoll"
 
 import { getScheduleCommand } from "./src/scheduledCommands"
 
@@ -54,10 +55,6 @@ var firestoreDB: Firestore
 
 loginBot(client)
 
-setupVoiceChannelEventHandler(client)
-setupMemberStatsEventHandlers(client)
-setupRoleCounterEventHandlers(client)
-
 // Client Init
 
 client.on('ready', async () => {
@@ -71,6 +68,11 @@ client.on('ready', async () => {
 
   firestoreDB = initFirestore()
   initFirestoreCollectionListeners(firestoreDB, client)
+
+  setupVoiceChannelEventHandler(client)
+  setupMemberStatsEventHandlers(client)
+  setupRoleCounterEventHandlers(client)
+  setupPollEditTextInputEventHandlers(client, firestoreDB)
 })
 
 // Nickname Enforcement
@@ -220,6 +222,7 @@ export async function handleCommandExecution(messageContent: string, msg: Messag
     getEchoCommand().withRequirement(serverAdminPermissionRequirement),
     getScheduleCommand(handleCommandExecution).withRequirement(serverAdminPermissionRequirement),
     getEditPollCommand().withRequirement(ownerUserAndDevelopmentRequirement),
+    getCreatePollCommand().withRequirement(serverAdminPermissionRequirement),
     getMessageCountsLeaderboardCommand(),
     getMessageCountsUpdateCommand().withRequirement(ownerUserRequirement),
     getCleanReactionsCommand().withRequirement(ownerUserRequirement),
