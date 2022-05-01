@@ -285,6 +285,7 @@ async function handlePollQuestionReaction(client: Client, reaction: MessageReact
 
   let currentOptionData = questionData.options.find(optionData => {
     let emoteName = getEmoteName(reaction.emoji)
+    console.log(reaction.emoji, emoteName)
     return optionData.emote == emoteName
   })
   if (!currentOptionData) { return }
