@@ -233,7 +233,7 @@ async function sendVoteDM(client: Client, user: User, guildMember: GuildMember, 
         for (let optionData of questionData.options ?? [])
         {
           let emoji = getEmoji(client, optionData.emote)
-          if (emoji == null) { continue }
+          if (emoji == null) { console.log("Emote not found", optionData.emote); continue }
           await message.react(emoji)
         }
       }, (reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, questionData: PollQuestion) => {
@@ -312,7 +312,7 @@ async function handlePollQuestionReaction(client: Client, reaction: MessageReact
     break
   }
 
-  let actionMessage = pollsActionMessages[currentPollID][user.id][questionData.id]
+  let actionMessage = pollsActionMessages[currentPollID] && pollsActionMessages[currentPollID][user.id] ? pollsActionMessages[currentPollID][user.id][questionData.id] : null
   if (actionMessage)
   {
     (actionMessage as ActionMessage<PollQuestion>).sendMessage()
