@@ -535,5 +535,5 @@ export function getEmoji(client: Client, emoteName: string)
 
 export function getEmoteName(emoji: GuildEmoji | ReactionEmoji)
 {
-  return emojiConverter.unemojify(emoji.name).replace(/:/g, '') ?? overrideEmojiToEmoteNameMap[emoji.toString()]
+  return overrideEmojiToEmoteNameMap[emoji.toString()] ?? emojiConverter.unemojify(emoji.name).replace(/:/g, '')
 }
