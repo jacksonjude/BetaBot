@@ -87,8 +87,11 @@ export class PollResponseMap
 export const catchAllFilter = () => true
 
 import * as emojiConverter from 'node-emoji'
-const overrideEmojiMap = {
+const overrideEmoteNameToEmojiMap = {
   "white_heart": "🤍"
+}
+const overrideEmojiToEmoteNameMap = {
+  "🤍": "white_heart"
 }
 
 export function checkVoteRequirements(pollData: PollConfiguration, serverID: string, member: GuildMember, msg: Message = null)
@@ -527,10 +530,10 @@ export function getEmoji(client: Client, emoteName: string)
     return emote
   }
 
-  return overrideEmojiMap[emoteName] ?? null
+  return overrideEmoteNameToEmojiMap[emoteName] ?? null
 }
 
 export function getEmoteName(emoji: GuildEmoji | ReactionEmoji)
 {
-  return emojiConverter.unemojify(emoji.name).replace(/:/g, '')
+  return emojiConverter.unemojify(emoji.name).replace(/:/g, '') ?? overrideEmojiToEmoteNameMap[emoji.toString()]
 }
