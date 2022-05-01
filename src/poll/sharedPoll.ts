@@ -487,7 +487,7 @@ export async function executeExportPollResultsCommand(user: User, pollID: string
       let currentQuestionData = pollsData[pollID].questions.find(questionData => questionData.id == responseMapKey)
       let currentOptionData = currentQuestionData ? currentQuestionData.options.find(optionData => optionData.id == responseValueID) : null
 
-      let questionKey = currentQuestionData ? currentQuestionData.prompt : currentQuestionData.id
+      let questionKey = currentQuestionData ? currentQuestionData.prompt : responseMapKey
       responseMapKeys.add(questionKey)
 
       pollResponseData[questionKey] = currentOptionData ? currentOptionData.name : responseValueID
