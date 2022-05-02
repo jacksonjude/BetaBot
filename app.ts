@@ -221,7 +221,7 @@ export async function handleCommandExecution(messageContent: string, msg: Messag
     getCloseChannelsCommand().withRequirement(manageChannelsPermissionRequirement),
     getEchoCommand().withRequirement(serverAdminPermissionRequirement),
     getScheduleCommand(handleCommandExecution).withRequirement(serverAdminPermissionRequirement),
-    getEditPollCommand().withRequirement(ownerUserAndDevelopmentRequirement),
+    getEditPollCommand().withRequirement(serverAdminPermissionRequirement),
     getCreatePollCommand().withRequirement(serverAdminPermissionRequirement),
     getMessageCountsLeaderboardCommand(),
     getMessageCountsUpdateCommand().withRequirement(ownerUserRequirement),
