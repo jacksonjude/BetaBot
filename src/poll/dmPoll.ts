@@ -12,6 +12,9 @@ import {
   voteMessageEmoji, submitResponseEmote,
   checkVoteRequirements, getEmoji, getEmoteName
 } from "./sharedPoll"
+import {
+  setRole
+} from "../roleMessages"
 
 export async function interpretDMPollSetting(client: Client, pollID: string, pollDataJSON: PollConfiguration, firestoreDB: Firestore)
 {
@@ -339,4 +342,14 @@ async function handlePollSubmitReaction(client: Client, reaction: MessageReactio
     }
     await pollActionMessage.removeActionMessage()
   }
+
+  await addIVotedRole(client, user, pollsData[currentPollID].serverID, pollsData[currentPollID].iVotedRoleID)
+}
+
+async function addIVotedRole(client: Client, user: User, serverID: string, roleID: string)
+{
+  let guild = await client.guilds.fetch(serverID)
+  if (!guild) { return }
+
+  await setRole(user, guild, roleID, true)
 }
