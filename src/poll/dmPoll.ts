@@ -343,7 +343,10 @@ async function handlePollSubmitReaction(client: Client, reaction: MessageReactio
     await pollActionMessage.removeActionMessage()
   }
 
-  await addIVotedRole(client, user, pollsData[currentPollID].serverID, pollsData[currentPollID].iVotedRoleID)
+  if (pollsData[currentPollID].iVotedRoleID)
+  {
+    await addIVotedRole(client, user, pollsData[currentPollID].serverID, pollsData[currentPollID].iVotedRoleID)
+  }
 }
 
 async function addIVotedRole(client: Client, user: User, serverID: string, roleID: string)
