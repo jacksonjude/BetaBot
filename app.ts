@@ -35,9 +35,9 @@ import {
 import { setupVoiceChannelEventHandler } from "./src/linkedTextChannels"
 import { setupMemberStatsEventHandlers, getMessageCountsUpdateCommand, getMessageCountsLeaderboardCommand } from "./src/serverStats"
 
-import { getExportPollResultsCommand, getEditPollCommand } from "./src/poll/sharedPoll"
+import { getExportPollResultsCommand } from "./src/poll/sharedPoll"
 import { getDMVoteCommand } from "./src/poll/dmPoll"
-import { getCreatePollCommand, setupPollEditTextInputEventHandlers } from "./src/poll/createPoll"
+import { getCreatePollCommand, getEditPollCommand, setupPollEditTextInputEventHandlers } from "./src/poll/createPoll"
 
 import { getScheduleCommand } from "./src/scheduledCommands"
 
