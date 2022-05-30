@@ -10,11 +10,10 @@ import {
   pollResponses,
   pollsActionMessages, pollVoteActionMessages,
   voteMessageEmoji, submitResponseEmote,
-  checkVoteRequirements, getEmoji, getEmoteName
+  checkVoteRequirements
 } from "./sharedPoll"
-import {
-  setRole
-} from "../roleMessages"
+
+import { setRole, getEmoji, getEmoteName } from "../util"
 
 export async function interpretDMPollSetting(client: Client, pollID: string, pollDataJSON: PollConfiguration, firestoreDB: Firestore)
 {

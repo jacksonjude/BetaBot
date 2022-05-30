@@ -8,8 +8,9 @@ import {
   pollsData,
   pollResponses,
   pollsActionMessages,
-  checkVoteRequirements, getEmoji, getEmoteName
+  checkVoteRequirements
 } from "./sharedPoll"
+import { getEmoji, getEmoteName } from "../util"
 
 export async function interpretServerPollSetting(client: Client, pollID: string, pollDataJSON: PollConfiguration, firestoreDB: Firestore)
 {

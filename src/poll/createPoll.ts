@@ -8,9 +8,9 @@ const uid = new ShortUniqueID({ length: 10 })
 import {
   PollConfiguration, PollQuestion,
   pollsData,
-  getEmoji, getEmoteName,
   pollsCollectionID
 } from "./sharedPoll"
+import { getEmoji, getEmoteName } from "../util"
 
 import { BotCommand } from "../botCommand"
 

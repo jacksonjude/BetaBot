@@ -2,6 +2,7 @@ import { Client, User, GuildMember, Message, GuildEmoji, ReactionEmoji } from "d
 import { ActionMessage } from "../actionMessage"
 import { Firestore, Timestamp } from "firebase-admin/firestore"
 import { BotCommand, BotCommandError } from "../botCommand"
+import { getRolesByID } from "../util"
 
 export const pollsCollectionID = "pollConfigurations"
 export const pollResponsesCollectionID = "responses"
@@ -86,14 +87,6 @@ export class PollResponseMap
 }
 
 export const catchAllFilter = () => true
-
-import * as emojiConverter from 'node-emoji'
-const overrideEmoteNameToEmojiMap = {
-  "white_heart": "🤍"
-}
-const overrideEmojiToEmoteNameMap = {
-  "🤍": "white_heart"
-}
 
 export function checkVoteRequirements(pollData: PollConfiguration, serverID: string, member: GuildMember, msg: Message = null)
 {
@@ -239,26 +232,4 @@ export async function executeExportPollResultsCommand(user: User, pollID: string
   dmChannel.send({
     files: [csvMessageAttachment]
   })
-}
-
-export function getEmoji(client: Client, emoteName: string)
-{
-  var emoji = client.emojis.cache.find(emoji => emoji.name == emoteName)
-  if (emoji != null)
-  {
-    return emoji.id
-  }
-
-  var emote = emojiConverter.get(":" + emoteName + ":")
-  if (emote != null && !emote.includes(":"))
-  {
-    return emote
-  }
-
-  return overrideEmoteNameToEmojiMap[emoteName] ?? null
-}
-
-export function getEmoteName(emoji: GuildEmoji | ReactionEmoji)
-{
-  return overrideEmojiToEmoteNameMap[emoji.toString()] ?? emojiConverter.unemojify(emoji.name).replace(/:/g, '')
 }

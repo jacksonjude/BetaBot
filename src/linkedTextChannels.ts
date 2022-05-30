@@ -2,7 +2,7 @@ import { Client, TextChannel, VoiceChannel } from "discord.js"
 
 // Update Roles
 
-import { setRole } from "./roleMessages"
+import { setRole } from "./util"
 
 // Voice to text channel
 

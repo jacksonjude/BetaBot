@@ -2,29 +2,7 @@ import { Client, User, Guild, TextChannel, MessageReaction, Message } from "disc
 import { ActionMessage, MessageReactionEventType } from "./actionMessage"
 import * as emojiConverter from 'node-emoji'
 
-// Update Roles
-
-export async function setRole(user: User, guild: Guild, roleID: string, shouldAddRole: boolean)
-{
-  var guildRoles = await guild.roles.fetch()
-  var rolesArray = Array.from(guildRoles.values())
-
-  var roleObject = rolesArray.find(roleToTest => roleToTest.id == roleID)
-  if (roleObject == null) { return false }
-
-  var guildMember = await guild.members.fetch(user)
-
-  if (shouldAddRole)
-  {
-    guildMember.roles.add(roleObject)
-  }
-  else
-  {
-    guildMember.roles.remove(roleObject)
-  }
-
-  return true
-}
+import { setRole } from "./util"
 
 // Role Messages
 
