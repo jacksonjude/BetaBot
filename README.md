@@ -8,9 +8,9 @@ A multi-purpose Discord bot built using Discord.js and Typescript. Still in beta
 <img align="right" height=150 src="assets/readme/role-message.png">
 
 - Reaction role messages
-  - React to a message to get the desired role
+  - React to get the desired role
 - Auto-updated role counters
-  - Publically display updated role count stats
+  - Publically display updated role counts
 - Randomized role assignments
 
 ### Polls
