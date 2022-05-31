@@ -4,7 +4,7 @@ import { User, Guild, Role, Client, GuildEmoji, ReactionEmoji, EmojiResolvable }
 
 export async function setRole(user: User, guild: Guild, roleID: string, shouldAddRole: boolean)
 {
-  var roleObject = getRolesByID([roleID], guild)[0]
+  var roleObject = (await getRolesByID([roleID], guild))[0]
   if (roleObject == null) { return false }
 
   var guildMember = await guild.members.fetch(user)
