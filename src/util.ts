@@ -88,8 +88,8 @@ export class Emote
   constructor(emoteString: string)
   {
     this.name = /:(\w+):/.exec(emoteString)[1]
-    this.id = /:<a:\w+:(\d+)>:/.exec(emoteString)[1]
-    this.isAnimated = /:<a:\w+:\d+>:/.test(emoteString)
+    this.id = (/<a?:\w+:(\d+)>/.exec(emoteString) ?? [])[1]
+    this.isAnimated = /<a:\w+:\d+>/.test(emoteString)
   }
 
   static fromEmoji(emoji: EmojiResolvable)
@@ -128,7 +128,7 @@ export class Emote
   {
     if (emoji instanceof GuildEmoji || emoji instanceof ReactionEmoji)
     {
-      return `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}`
+      return `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}>`
     }
 
     let emojiString = emoji as string

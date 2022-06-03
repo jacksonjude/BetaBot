@@ -37,6 +37,7 @@ import { setupMemberStatsEventHandlers, getMessageCountsUpdateCommand, getMessag
 
 import { getExportPollResultsCommand } from "./src/poll/sharedPoll"
 import { getDMVoteCommand } from "./src/poll/dmPoll"
+import { getCreateServerPollCommand } from "./src/poll/serverPoll"
 import { getCreatePollCommand, getEditPollCommand, setupPollEditTextInputEventHandlers } from "./src/poll/createPoll"
 
 import { getScheduleCommand } from "./src/scheduledCommands"
@@ -223,6 +224,7 @@ export async function handleCommandExecution(messageContent: string, msg: Messag
     getScheduleCommand(handleCommandExecution).withRequirement(serverAdminPermissionRequirement),
     getEditPollCommand().withRequirement(serverAdminPermissionRequirement),
     getCreatePollCommand().withRequirement(serverAdminPermissionRequirement),
+    getCreateServerPollCommand().withRequirement(serverAdminPermissionRequirement),
     getMessageCountsLeaderboardCommand(),
     getMessageCountsUpdateCommand().withRequirement(ownerUserRequirement),
     getCleanReactionsCommand().withRequirement(ownerUserRequirement),

@@ -57,6 +57,11 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
 
   var pollActionMessages = {}
 
+  if (!pollData.messageIDs)
+  {
+    pollData.messageIDs = {}
+  }
+
   let titleActionMessage = new ActionMessage(pollChannel, pollData.messageIDs["title"], null,
     async () => {
       return "__**" + pollData.name + "**__"
@@ -76,9 +81,12 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
       questionData,
       async (questionData: PollQuestion) => {
         let questionString = "**" + questionData.prompt + "**"
-        for (let optionData of questionData.options)
+        if (questionData.showOptionNames)
         {
-          questionString += "\n" + ":" + optionData.emote + ": \\: " + optionData.name
+          for (let optionData of questionData.options)
+          {
+            questionString += "\n" + ":" + optionData.emote + ": \\: " + optionData.name
+          }
         }
         return questionString
       }, async (message: Message, questionData: PollQuestion) => {
@@ -181,21 +189,23 @@ export function getCreateServerPollCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "serverpoll", "create a new server poll",
-    /^serverpoll\s+([\w\s]+)(?:\s+(?:<#)?(\d+)(?:>)?)?(?:\s+(\d+(?:\.\d*)?))?(?:\s+<@!?&?\d+>)?((?:\s*<?a?:\w+:\d*>?)+)\s*(.+)$/, /^serverpoll(\s+.*)?$/,
+    /^serverpoll\s+([\w\s]+)(?:\s+(?:<#)?(\d+)(?:>)?)?(?:\s+<@!?&?(\d+)>)?(?:\s+(\d+(?:\.\d*)?))?((?:\s*<?a?:\w+:\d*>?)+)\s*(.+)$/, /^serverpoll(\s+.*)?$/,
     "serverpoll <name> [channel] [duration] [role] <emotes...> <message...>",
-    async (commandArguments: string[], message: Message, client: Client, firestoreDB: Firestore) => {
+    async (commandArguments: string[], message: Message, _, firestoreDB: Firestore) => {
       let pollName = commandArguments[1]
       let channelID = commandArguments[2] ?? message.channelId
       let roleID = commandArguments[3] ?? message.guild.roles.everyone.id
-      let duration = commandArguments[4] ? parseFloat(commandArguments[3]) : 24.0
+      let duration = commandArguments[4] ? parseFloat(commandArguments[4]) : 24.0
 
       let emotesString = commandArguments[5]
       let pollMessage = commandArguments[6]
 
       let emotes = Emote.fromStringList(emotesString)
 
+      let pollID = pollName + "-" + uid()
+
       let pollConfig = {
-        id: uid(),
+        id: pollID,
         name: pollName,
         pollType: "server" as "server",
         openTime: Timestamp.fromMillis(Date.now()),
@@ -217,9 +227,7 @@ export function getCreateServerPollCommand(): BotCommand
         roleID: roleID
       }
 
-      firestoreDB.doc(pollsCollectionID + "/" + uid()).set(pollConfig, {merge: false})
-
-      interpretServerPollSetting(client, uid(), pollConfig, firestoreDB)
+      firestoreDB.doc(pollsCollectionID + "/" + pollID).set(pollConfig)
     }
   )
 }
