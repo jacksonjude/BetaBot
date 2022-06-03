@@ -78,3 +78,98 @@ export function getEmoteName(emoji: EmojiResolvable)
   }
   return overrideEmojiToEmoteNameMap[emoji.toString()] ?? emojiConverter.unemojify(emojiString).replace(/:/g, '')
 }
+
+export class Emote
+{
+  name: string
+  id: string
+  isAnimated: boolean
+
+  constructor(emoteString: string)
+  {
+    this.name = /:(\w+):/.exec(emoteString)[1]
+    this.id = /:<a:\w+:(\d+)>:/.exec(emoteString)[1]
+    this.isAnimated = /:<a:\w+:\d+>:/.test(emoteString)
+  }
+
+  static fromEmoji(emoji: EmojiResolvable)
+  {
+    return new Emote(Emote.getEmoteString(emoji))
+  }
+
+  static fromStringList(emotesString: string)
+  {
+    let emotes: Emote[] = []
+    const emoteRegex = /^\s*(<?a?:\w+:\d*>?)/
+
+    while (emoteRegex.test(emotesString))
+    {
+      let singleEmoteString = emoteRegex.exec(emotesString)[1]
+      let newEmote = new Emote(singleEmoteString)
+
+      emotes.push(newEmote)
+      emotesString = emotesString.replace(singleEmoteString, "")
+    }
+
+    return emotes
+  }
+
+  toString()
+  {
+    return this.id ? `<${this.isAnimated ? "a" : ""}:${this.name}:${this.id}>` : `:${this.name}:`
+  }
+
+  toEmoji(client: Client): EmojiResolvable
+  {
+    return Emote.getEmoji(client, this.name, this.id)
+  }
+
+  private static getEmoteString(emoji: EmojiResolvable): string
+  {
+    if (emoji instanceof GuildEmoji || emoji instanceof ReactionEmoji)
+    {
+      return `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}`
+    }
+
+    let emojiString = emoji as string
+    return overrideEmojiToEmoteNameMap[emoji.toString()] ?? emojiConverter.unemojify(emojiString).replace(/:/g, '')
+  }
+
+  private static getEmoji(client: Client, emoteName: string, emoteID?: string): EmojiResolvable
+  {
+    let emojiCache = client.emojis.cache
+    let emoji = emojiCache.find(emoji => emoji.id == emoteID && emoji.name == emoteName)
+    if (emoji != null)
+    {
+      return emoji
+    }
+
+    let emote = emojiConverter.get(":" + emoteName + ":")
+    if (emote != null && !emote.includes(":"))
+    {
+      return emote
+    }
+
+    return overrideEmoteNameToEmojiMap[emoteName]
+  }
+}
+
+// class ServerEmote extends Emote
+// {
+//   constructor(emoteString: string)
+//   {
+//     super(emoteString)
+//     this.id = /:<a:\w+:(\d+)>:/.exec(emoteString)[1]
+//     this.isAnimated = /:<a:\w+:\d+>:/.test(emoteString)
+//   }
+//
+//   toString()
+//   {
+//     return `<${this.isAnimated ? "a" : ""}:${this.name}:${this.id}>`
+//   }
+//
+//   toEmoji(client: Client): EmojiResolvable
+//   {
+//     return getEmoji(client, this.name, this.id)
+//   }
+// }

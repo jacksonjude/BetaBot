@@ -47,6 +47,7 @@ export class PollQuestion
 {
   id: string
   prompt: string
+  showOptionNames?: boolean = false
   roleIDs?: string[]
   options: PollQuestionOption[]
 }
@@ -54,7 +55,7 @@ export class PollQuestion
 class PollQuestionOption
 {
   id: string
-  name: string
+  name?: string
   emote: string
 }
 

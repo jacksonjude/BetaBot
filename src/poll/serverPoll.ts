@@ -1,6 +1,6 @@
 import { Client, User, TextChannel, Message, MessageReaction } from "discord.js"
 import { ActionMessage, MessageReactionEventType } from "../actionMessage"
-import { Firestore } from "firebase-admin/firestore"
+import { Firestore, Timestamp } from "firebase-admin/firestore"
 
 import {
   PollConfiguration, PollResponseMap, PollQuestion,
@@ -10,7 +10,12 @@ import {
   pollsActionMessages,
   checkVoteRequirements
 } from "./sharedPoll"
-import { getEmoji, getEmoteName } from "../util"
+import { Emote } from "../util"
+
+import { BotCommand } from "../botCommand"
+
+import ShortUniqueID from "short-unique-id"
+const uid = new ShortUniqueID({ length: 10 })
 
 export async function interpretServerPollSetting(client: Client, pollID: string, pollDataJSON: PollConfiguration, firestoreDB: Firestore)
 {
@@ -80,7 +85,7 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
         pollData.messageIDs[questionData.id] = message.id
         for (let optionData of questionData.options)
         {
-          let emoji = getEmoji(client, optionData.emote)
+          let emoji = new Emote(optionData.emote).toEmoji(client)
           if (emoji == null) { continue }
           await message.react(emoji)
         }
@@ -100,7 +105,7 @@ async function handlePollMessageReaction(client: Client, reaction: MessageReacti
   if (user.id == client.user.id) { return }
 
   let currentOptionData = questionData.options.find(optionData => {
-    let emoteName = getEmoteName(reaction.emoji)
+    let emoteName = Emote.fromEmoji(reaction.emoji).toString()
     return optionData.emote == emoteName
   })
   if (!currentOptionData)
@@ -170,4 +175,51 @@ async function handlePollMessageReaction(client: Client, reaction: MessageReacti
       }
     })
   }
+}
+
+export function getCreateServerPollCommand(): BotCommand
+{
+  return BotCommand.fromRegex(
+    "serverpoll", "create a new server poll",
+    /^serverpoll\s+([\w\s]+)(?:\s+(?:<#)?(\d+)(?:>)?)?(?:\s+(\d+(?:\.\d*)?))?(?:\s+<@!?&?\d+>)?((?:\s*<?a?:\w+:\d*>?)+)\s*(.+)$/, /^serverpoll(\s+.*)?$/,
+    "serverpoll <name> [channel] [duration] [role] <emotes...> <message...>",
+    async (commandArguments: string[], message: Message, client: Client, firestoreDB: Firestore) => {
+      let pollName = commandArguments[1]
+      let channelID = commandArguments[2] ?? message.channelId
+      let roleID = commandArguments[3] ?? message.guild.roles.everyone.id
+      let duration = commandArguments[4] ? parseFloat(commandArguments[3]) : 24.0
+
+      let emotesString = commandArguments[5]
+      let pollMessage = commandArguments[6]
+
+      let emotes = Emote.fromStringList(emotesString)
+
+      let pollConfig = {
+        id: uid(),
+        name: pollName,
+        pollType: "server" as "server",
+        openTime: Timestamp.fromMillis(Date.now()),
+        closeTime: Timestamp.fromMillis(Date.now()+duration*1000*60*60),
+        questions: [
+          {
+            id: uid(),
+            prompt: pollMessage,
+            showOptionNames: false,
+            options: emotes.map(emote => {
+              return {
+                id: uid(),
+                emote: emote.toString()
+              }
+            })
+          }
+        ],
+        channelID: channelID,
+        roleID: roleID
+      }
+
+      firestoreDB.doc(pollsCollectionID + "/" + uid()).set(pollConfig, {merge: false})
+
+      interpretServerPollSetting(client, uid(), pollConfig, firestoreDB)
+    }
+  )
 }
