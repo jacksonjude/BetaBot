@@ -1,8 +1,7 @@
-import { Client, User, GuildMember, Message, GuildEmoji, ReactionEmoji } from "discord.js"
+import { User, GuildMember, Message } from "discord.js"
 import { ActionMessage } from "../actionMessage"
 import { Firestore, Timestamp } from "firebase-admin/firestore"
 import { BotCommand, BotCommandError } from "../botCommand"
-import { getRolesByID } from "../util"
 
 export const pollsCollectionID = "pollConfigurations"
 export const pollResponsesCollectionID = "responses"

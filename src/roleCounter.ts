@@ -83,7 +83,7 @@ async function getRoleCounterText(roleCounterSettingJSON: RoleCounterConfigurati
   for (let roleTuple of roleDisplayData)
   {
     if (roleCounterSettingJSON.hideIfZero && roleTuple.size == 0) { continue }
-    roleCounterText += "\n" + (roleTuple.emote ? ":" + roleTuple.emote + ": " : "") + "**" + roleTuple.name + ": " + roleTuple.size + "**"
+    roleCounterText += "\n" + (roleTuple.emote ? roleTuple.emote + " " : "") + "**" + roleTuple.name + ": " + roleTuple.size + "**"
   }
 
   roleCounterText = "__**" + roleCounterSettingJSON.name + (roleCounterSettingJSON.showTotalMembers === true ? " (" + totalCount + ")" : "") + "**__" + roleCounterText

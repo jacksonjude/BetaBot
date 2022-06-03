@@ -41,10 +41,12 @@ export async function getRolesByID(roleIDs: string[], guild?: Guild, guildID?: s
 
 import * as emojiConverter from 'node-emoji'
 const overrideEmoteNameToEmojiMap = {
-  "white_heart": "🤍"
+  ":white_heart:": "🤍",
+  ":map:": "🗺️"
 }
 const overrideEmojiToEmoteNameMap = {
-  "🤍": "white_heart"
+  "🤍": ":white_heart:",
+  "🗺️": ":map:"
 }
 
 export class Emote
@@ -100,7 +102,7 @@ export class Emote
     }
 
     let emojiString = emoji instanceof ReactionEmoji ? emoji.toString() : emoji as string
-    return overrideEmojiToEmoteNameMap[emoji.toString()] ?? emojiConverter.unemojify(emojiString)
+    return overrideEmojiToEmoteNameMap[emojiString] ?? emojiConverter.unemojify(emojiString)
   }
 
   private static getEmoji(client: Client, emoteName: string, emoteID?: string): EmojiResolvable
@@ -112,7 +114,7 @@ export class Emote
       return emoji
     }
 
-    let emote = emojiConverter.get(":" + emoteName + ":")
+    let emote = emojiConverter.get(emoteName)
     if (emote != null && !emote.includes(":"))
     {
       return emote

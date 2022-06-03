@@ -1,8 +1,7 @@
 import { Client, User, Guild, TextChannel, MessageReaction, Message } from "discord.js"
 import { ActionMessage, MessageReactionEventType } from "./actionMessage"
-import * as emojiConverter from 'node-emoji'
 
-import { setRole } from "./util"
+import { setRole, Emote } from "./util"
 
 // Role Messages
 
@@ -73,7 +72,7 @@ async function getRoleAddMessageContent(roleDataJSON: RoleMessageConfiguration, 
   {
     let roleObject = await guild.roles.fetch(emoteRolePair.role)
     messageContent += "\n"
-    messageContent += (emoteRolePair.emote.containsEmoji() ? emoteRolePair.emote : ":" + emoteRolePair.emote + ":") + " \\: " + (roleObject ? roleObject.name : emoteRolePair.role)
+    messageContent += emoteRolePair.emote + " \\: " + (roleObject ? roleObject.name : emoteRolePair.role)
   }
   return messageContent
 }
@@ -83,9 +82,7 @@ async function handleRoleReaction(client: Client, reaction: MessageReaction, use
   if (user.id == client.user.id) { return false }
 
   var emoteRolePair = roleData.roleMap.find((emoteRolePair) => {
-    return emoteRolePair.emote == reaction.emoji.name
-     || emoteRolePair.emote.charCodeAt(0).toString()+emoteRolePair.emote.charCodeAt(1).toString() == reaction.emoji.name.charCodeAt(0).toString()+reaction.emoji.name.charCodeAt(1).toString()
-     || emojiConverter.unemojify(reaction.emoji.name).replace(/:/g, "") == emoteRolePair.emote
+    return Emote.fromEmoji(reaction.emoji).toString() == emoteRolePair.emote
   })
 
   if (!emoteRolePair || (roleData.blacklistUserIDs && roleData.blacklistUserIDs.includes(user.id)))
