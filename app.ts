@@ -30,7 +30,9 @@ import {
   getHelpCommand,
   getMessageCommands, getDateCommands, getEmoteSpellCommand, getEchoCommand, getClearCommand,
   getRepeatCommand, getSpeakCommand, getCleanReactionsCommand,
-  getCloseChannelsCommand } from "./src/miscCommands"
+  getCloseChannelsCommand,
+  getRerunCommand
+} from "./src/miscCommands"
 
 import { setupVoiceChannelEventHandler } from "./src/linkedTextChannels"
 import { setupMemberStatsEventHandlers, getMessageCountsUpdateCommand, getMessageCountsLeaderboardCommand } from "./src/serverStats"
@@ -230,6 +232,7 @@ export async function handleCommandExecution(messageContent: string, msg: Messag
     getCleanReactionsCommand().withRequirement(ownerUserRequirement),
     getRepeatCommand().withRequirement(developmentRequirement),
     getSpeakCommand().withRequirement(developmentRequirement),
+    getRerunCommand(handleCommandExecution).withRequirement(serverAdminPermissionRequirement),
     getRestartCommand().withRequirement(ownerUserAndDevelopmentRequirement)
   ]
   botCommands.unshift(getHelpCommand(botCommands))

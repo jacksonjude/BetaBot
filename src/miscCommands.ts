@@ -608,3 +608,22 @@ export function getCloseChannelsCommand(): BotCommand
     }
   )
 }
+
+type HandleCommandExecution = (messageContent: string, msg: Message) => Promise<void>
+
+export function getRerunCommand(handleCommandExecutionFunction: HandleCommandExecution) : BotCommand
+{
+  return BotCommand.fromRegex(
+    "rerun", "re-run a command",
+    /^rerun$/, /^rerun(\s+.*)?$/,
+    "rerun",
+    async (_, message: Message, client: Client) => {
+      let messageChannel = message.reference ? await client.channels.fetch(message.reference.channelId) as TextChannel : message.channel
+      let previousCommandMessage = message.reference ? await messageChannel.messages.fetch(message.reference.messageId) : Array.from((await messageChannel.messages.fetch()).values())[1]
+
+      if (!previousCommandMessage) { return new BotCommandError("Message not found", false) }
+
+      handleCommandExecutionFunction(previousCommandMessage.content.replace(/<@!?&?\d+?>/, "").replace(/^\s*/, "").replace(/\s*$/, ""), message)
+    }
+  )
+}
