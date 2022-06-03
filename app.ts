@@ -203,6 +203,11 @@ export async function handleCommandExecution(messageContent: string, msg: Messag
     ]
   )
 
+  var botTesterPermissionRequirement = new BotCommandUnionRequirement([
+    new BotCommandRoleIDRequirement(TECHNICIAN_ROLE_ID),
+    new BotCommandRoleIDRequirement("982191695066177557"), // @bot tester (jacksonjude.com)
+    ownerUserRequirement
+  ])
   var manageChannelsPermissionRequirement = new BotCommandUnionRequirement(
     [
       new BotCommandPermissionRequirement(["MANAGE_CHANNELS"]),
@@ -226,9 +231,9 @@ export async function handleCommandExecution(messageContent: string, msg: Messag
     getCloseChannelsCommand().withRequirement(manageChannelsPermissionRequirement),
     getEchoCommand().withRequirement(serverAdminPermissionRequirement),
     getScheduleCommand(handleCommandExecution).withRequirement(serverAdminPermissionRequirement),
+    getCreateServerPollCommand().withRequirement(botTesterPermissionRequirement),
     getEditPollCommand().withRequirement(serverAdminPermissionRequirement),
     getCreatePollCommand().withRequirement(serverAdminPermissionRequirement),
-    getCreateServerPollCommand().withRequirement(serverAdminPermissionRequirement),
     getMessageCountsLeaderboardCommand(),
     getMessageCountsUpdateCommand().withRequirement(ownerUserRequirement),
     getCleanReactionsCommand().withRequirement(ownerUserRequirement),

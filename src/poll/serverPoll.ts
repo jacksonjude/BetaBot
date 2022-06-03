@@ -190,9 +190,9 @@ export function getCreateServerPollCommand(): BotCommand
   return BotCommand.fromRegex(
     "serverpoll", "create a new server poll",
     /^serverpoll\s+([\w\s]+)(?:\s+(?:<#)?(\d+)(?:>)?)?(?:\s+<@!?&?(\d+)>)?(?:\s+(\d+(?:\.\d*)?))?((?:\s*<?a?:\w+:\d*>?)+)\s*(.+)$/, /^serverpoll(\s+.*)?$/,
-    "serverpoll <name> [channel] [duration] [role] <emotes...> <message...>",
+    "serverpoll <name> [channel] [role] [duration] <emotes...> <message...>",
     async (commandArguments: string[], message: Message, _, firestoreDB: Firestore) => {
-      let pollName = commandArguments[1]
+      let pollName = commandArguments[1].replace(/^\s*/, "").replace(/\s*$/, "")
       let channelID = commandArguments[2] ?? message.channelId
       let roleID = commandArguments[3] ?? message.guild.roles.everyone.id
       let duration = commandArguments[4] ? parseFloat(commandArguments[4]) : 24.0
