@@ -47,38 +47,6 @@ const overrideEmojiToEmoteNameMap = {
   "🤍": "white_heart"
 }
 
-export function getEmoji(client: Client, emoteName: string, emoteID?: string): EmojiResolvable
-{
-  let emojiCache = client.emojis.cache
-  let emoji = emojiCache.find(emoji => emoji.id == emoteID && emoji.name == emoteName)
-  if (emoji != null)
-  {
-    return emoji
-  }
-
-  let emote = emojiConverter.get(":" + emoteName + ":")
-  if (emote != null && !emote.includes(":"))
-  {
-    return emote
-  }
-
-  return overrideEmoteNameToEmojiMap[emoteName]
-}
-
-export function getEmoteName(emoji: EmojiResolvable)
-{
-  let emojiString: string
-  if (emoji instanceof GuildEmoji || emoji instanceof ReactionEmoji)
-  {
-    emojiString = emoji.name
-  }
-  else
-  {
-    emojiString = emoji as string
-  }
-  return overrideEmojiToEmoteNameMap[emoji.toString()] ?? emojiConverter.unemojify(emojiString).replace(/:/g, '')
-}
-
 export class Emote
 {
   name: string
@@ -154,24 +122,6 @@ export class Emote
   }
 }
 
-export type HandleCommandExecution = (messageContent: string, msg: Message) => Promise<void>
+// Types
 
-// class ServerEmote extends Emote
-// {
-//   constructor(emoteString: string)
-//   {
-//     super(emoteString)
-//     this.id = /:<a:\w+:(\d+)>:/.exec(emoteString)[1]
-//     this.isAnimated = /:<a:\w+:\d+>:/.test(emoteString)
-//   }
-//
-//   toString()
-//   {
-//     return `<${this.isAnimated ? "a" : ""}:${this.name}:${this.id}>`
-//   }
-//
-//   toEmoji(client: Client): EmojiResolvable
-//   {
-//     return getEmoji(client, this.name, this.id)
-//   }
-// }
+export type HandleCommandExecution = (messageContent: string, msg: Message) => Promise<void>
