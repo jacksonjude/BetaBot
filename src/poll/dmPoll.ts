@@ -13,7 +13,7 @@ import {
   checkVoteRequirements
 } from "./sharedPoll"
 
-import { setRole, getEmoji, getEmoteName } from "../util"
+import { setRole, Emote } from "../util"
 
 export async function interpretDMPollSetting(client: Client, pollID: string, pollDataJSON: PollConfiguration, firestoreDB: Firestore)
 {
@@ -189,7 +189,7 @@ async function executeDMVoteCommand(client: Client, user: User, guildMember: Gui
   }
   catch (error)
   {
-    console.log("Vote DM Error: " + error)
+    console.log("Vote DM Error: " + error, error.stack)
   }
 }
 
@@ -227,14 +227,14 @@ async function sendVoteDM(client: Client, user: User, guildMember: GuildMember, 
         let questionString = "**" + questionData.prompt + "**"
         for (let optionData of questionData.options ?? [])
         {
-          questionString += "\n" + (selectedOption == optionData.id ? "**" : "") + ":" + optionData.emote + ": \\: " + optionData.name + (selectedOption == optionData.id ? "**" : "")
+          questionString += "\n" + (selectedOption == optionData.id ? "**" : "") + optionData.emote + " \\: " + optionData.name + (selectedOption == optionData.id ? "**" : "")
         }
         return questionString
       }, async (message: Message, questionData: PollQuestion) => {
         pollMessageIDs[questionData.id] = message.id
         for (let optionData of questionData.options ?? [])
         {
-          let emoji = getEmoji(client, optionData.emote)
+          let emoji = new Emote(optionData.emote).toEmoji(client)
           if (emoji == null) { console.log("Emote not found", optionData.emote); continue }
           await message.react(emoji)
         }
@@ -251,7 +251,7 @@ async function sendVoteDM(client: Client, user: User, guildMember: GuildMember, 
       return "**" + ":arrow_down: Submit below :arrow_down:" + "**"
     }, async (message: Message) => {
       pollMessageIDs["submit"] = message.id
-      let submitEmoji = getEmoji(client, submitResponseEmote)
+      let submitEmoji = new Emote(submitResponseEmote).toEmoji(client)
       await message.react(submitEmoji)
     }, (reaction: MessageReaction, user: User) => {
       handlePollSubmitReaction(client, reaction, user, pollID, uploadPollResponse)
@@ -286,7 +286,7 @@ async function handlePollQuestionReaction(client: Client, reaction: MessageReact
   if (user.id == client.user.id) { return }
 
   let currentOptionData = questionData.options.find(optionData => {
-    let emoteName = getEmoteName(reaction.emoji)
+    let emoteName = Emote.fromEmoji(reaction.emoji).toString()
     return optionData.emote == emoteName
   })
   if (!currentOptionData) { return }
@@ -324,7 +324,7 @@ async function handlePollQuestionReaction(client: Client, reaction: MessageReact
 async function handlePollSubmitReaction(client: Client, reaction: MessageReaction, user: User, currentPollID: string, uploadPollResponse: (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => Promise<void>)
 {
   if (user.id == client.user.id) { return }
-  if (getEmoteName(reaction.emoji) != submitResponseEmote) { return }
+  if (Emote.fromEmoji(reaction.emoji).toString() != submitResponseEmote) { return }
   if (pollResponses[currentPollID] == null || pollResponses[currentPollID][user.id] == null) { return }
 
   await uploadPollResponse(currentPollID, user.id, pollResponses[currentPollID][user.id])
@@ -336,7 +336,7 @@ async function handlePollSubmitReaction(client: Client, reaction: MessageReactio
       pollActionMessage.reactionCollector.stop()
 
       let submitMessage = await pollActionMessage.channel.messages.fetch(pollActionMessage.messageID)
-      submitMessage.edit("**" + ":" + submitResponseEmote + ": Submitted " + pollsData[currentPollID].name + "**")
+      submitMessage.edit("**" + submitResponseEmote + " Submitted " + pollsData[currentPollID].name + "**")
       continue
     }
     await pollActionMessage.removeActionMessage()

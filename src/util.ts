@@ -126,13 +126,13 @@ export class Emote
 
   private static getEmoteString(emoji: EmojiResolvable): string
   {
-    if (emoji instanceof GuildEmoji || emoji instanceof ReactionEmoji)
+    if (emoji instanceof GuildEmoji)
     {
       return `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}>`
     }
 
-    let emojiString = emoji as string
-    return overrideEmojiToEmoteNameMap[emoji.toString()] ?? emojiConverter.unemojify(emojiString).replace(/:/g, '')
+    let emojiString = emoji instanceof ReactionEmoji ? emoji.toString() : emoji as string
+    return overrideEmojiToEmoteNameMap[emoji.toString()] ?? emojiConverter.unemojify(emojiString)
   }
 
   private static getEmoji(client: Client, emoteName: string, emoteID?: string): EmojiResolvable

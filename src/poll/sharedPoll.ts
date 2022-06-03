@@ -8,7 +8,7 @@ export const pollsCollectionID = "pollConfigurations"
 export const pollResponsesCollectionID = "responses"
 
 export const voteMessageEmoji = "🗳"
-export const submitResponseEmote = "white_check_mark"
+export const submitResponseEmote = ":white_check_mark:"
 
 const ExportAccessType = {
   user: "user",

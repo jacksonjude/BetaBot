@@ -10,7 +10,7 @@ import {
   pollsData,
   pollsCollectionID
 } from "./sharedPoll"
-import { getEmoji, getEmoteName } from "../util"
+import { Emote } from "../util"
 
 import { BotCommand } from "../botCommand"
 
@@ -183,7 +183,7 @@ async function sendPollEditMessages(pollConfig: PollConfiguration, channel: Text
             + (showingQuestionInfo ? "  *(" + questionData.id + ")*" : "")
           for (let optionData of questionData.options ?? [])
           {
-            questionString += "\n" + ":" + optionData.emote + ": \\: " + (selectedOption == optionData.id ? "*" : "") + optionData.name + (selectedOption == optionData.id ? "*" : "")
+            questionString += "\n" + optionData.emote + " \\: " + (selectedOption == optionData.id ? "*" : "") + optionData.name + (selectedOption == optionData.id ? "*" : "")
               + (showingQuestionInfo ? "  *(" + optionData.id + ")*" : "")
           }
           questionString += (deletingQuestion ? "*" : "")
@@ -197,7 +197,7 @@ async function sendPollEditMessages(pollConfig: PollConfiguration, channel: Text
 
           for (let optionData of questionData.options ?? [])
           {
-            let emoji = getEmoji(client, optionData.emote)
+            let emoji = new Emote(optionData.emote).toEmoji(client)
             if (emoji == null) { continue }
             await message.react(emoji)
           }
@@ -217,7 +217,7 @@ async function handlePollEditReaction(client: Client, reaction: MessageReaction,
   if (user.id == client.user.id) { return }
 
   let currentOptionData = questionData ? questionData.options.find(optionData => {
-    let emoteName = getEmoteName(reaction.emoji)
+    let emoteName = Emote.fromEmoji(reaction.emoji).toString()
     return optionData.emote == emoteName
   }) : null
   let questionEditType = pollQuestionEditEmotes[reaction.emoji.toString()]
@@ -225,7 +225,7 @@ async function handlePollEditReaction(client: Client, reaction: MessageReaction,
 
   if (!currentOptionData && !questionEditType && questionData)
   {
-    currentOptionData = {emote: getEmoteName(reaction.emoji), id: uid(), name: "<<Enter name>>"}
+    currentOptionData = {emote: Emote.fromEmoji(reaction.emoji).toString(), id: uid(), name: "<<Enter name>>"}
     questionData.options.push(currentOptionData)
     reaction.message.react(reaction.emoji)
   }
