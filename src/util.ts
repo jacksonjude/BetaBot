@@ -1,4 +1,4 @@
-import { User, Guild, Role, Client, GuildEmoji, ReactionEmoji, EmojiResolvable } from 'discord.js'
+import { User, Guild, Role, Client, GuildEmoji, ReactionEmoji, EmojiResolvable, Message } from 'discord.js'
 
 // Update Roles
 
@@ -153,6 +153,8 @@ export class Emote
     return overrideEmoteNameToEmojiMap[emoteName]
   }
 }
+
+export type HandleCommandExecution = (messageContent: string, msg: Message) => Promise<void>
 
 // class ServerEmote extends Emote
 // {

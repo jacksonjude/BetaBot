@@ -1,5 +1,6 @@
 import { Client, Message, Collection, DMChannel, TextChannel, GuildChannel, CategoryChannel, PermissionResolvable } from "discord.js"
 import { BotCommand, BotCommandError } from "./botCommand"
+import { HandleCommandExecution } from "./util"
 
 const messageCommands = [
   { command: "hi", description: "say hello", responses: ["hello :wave:"] },
@@ -608,8 +609,6 @@ export function getCloseChannelsCommand(): BotCommand
     }
   )
 }
-
-type HandleCommandExecution = (messageContent: string, msg: Message) => Promise<void>
 
 export function getRerunCommand(handleCommandExecutionFunction: HandleCommandExecution) : BotCommand
 {

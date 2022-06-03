@@ -1,6 +1,7 @@
 import { Client, Message, TextChannel } from "discord.js"
 import { getFirestore } from "firebase-admin/firestore"
 import { BotCommand } from "./botCommand"
+import { HandleCommandExecution } from "./util"
 import { CronJob } from "cron"
 import ShortUniqueID from "short-unique-id"
 const uid = new ShortUniqueID({ length: 10 })
@@ -23,8 +24,6 @@ export class ScheduledCommand
 }
 
 var scheduledCommands: ScheduledCommand[] = []
-
-type HandleCommandExecution = (messageContent: string, msg: Message) => Promise<void>
 
 export async function interpretScheduledCommandSetting(client: Client, scheduledCommand: ScheduledCommand, handleCommandExecution: HandleCommandExecution)
 {
