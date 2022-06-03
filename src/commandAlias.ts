@@ -37,8 +37,6 @@ export async function executeCommandAlias(messageContent: string, message: Messa
 
   let aliasArgs = messageContent.replace(new RegExp("^" + aliasToUse.name + "\\s+"), "").split(new RegExp(aliasToUse.argSeparator))
 
-  console.log(aliasToUse, aliasArgs)
-
   if (aliasToUse.roleIDs && !message.member.roles.cache.some(role => aliasToUse.roleIDs.some(roleID => role.id == roleID))) { return false }
 
   let argOn = 1
