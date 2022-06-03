@@ -29,6 +29,8 @@ import { handleCommandExecution } from "../app"
 
 import { interpretRoleCounterSetting, RoleCounterConfiguration } from "./roleCounter"
 
+import { interpretServerCommandAliasSettings, ServerCommandAliasConfiguration } from "./commandAlias"
+
 const roleMessageCollectionID = "roleMessageConfigurations"
 const voiceToTextCollectionID = "voiceToTextConfigurations"
 const statChannelsCollectionID = "statsConfigurations"
@@ -37,6 +39,7 @@ const pollResponsesCollectionID = "responses"
 const roleAssignmentCollectionID = "roleAssignmentConfigurations"
 const scheduledCommandCollectionID = "scheduledCommands"
 const roleCounterCollectionID = "roleCounterConfigurations"
+const commandAliasCollectionID = "commandAliasConfigurations"
 
 var firestoreCollectionListeners = []
 const firestoreCollectionSyncHandlers = [
@@ -164,7 +167,19 @@ const firestoreCollectionSyncHandlers = [
         firestoreDB.doc(roleCounterCollectionID + "/" + roleCounterSettingID).set(roleCounterSettingDocData)
       }
     }
-  }
+  },
+  {
+    collectionID: commandAliasCollectionID,
+    updateDocFunction: async function(serverCommandAliasSettingDoc: QueryDocumentSnapshot, shouldDelete: boolean) {
+      let serverCommandAliasSettingDocData = serverCommandAliasSettingDoc.data()
+      let serverID = serverCommandAliasSettingDoc.id
+
+      if (!shouldDelete)
+      {
+        interpretServerCommandAliasSettings(serverID, serverCommandAliasSettingDocData as ServerCommandAliasConfiguration)
+      }
+    }
+  },
 ]
 
 export function initFirestoreCollectionListeners(firestoreDB: Firestore, client: Client)

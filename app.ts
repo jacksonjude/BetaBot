@@ -46,6 +46,8 @@ import { getScheduleCommand } from "./src/scheduledCommands"
 
 import { setupRoleCounterEventHandlers } from "./src/roleCounter"
 
+import { executeCommandAlias } from "./src/commandAlias"
+
 const HOME_GUILD_ID = "704218896298934317"
 const TECHNICIAN_ROLE_ID = "804147385923403826"
 
@@ -237,6 +239,8 @@ export async function handleCommandExecution(messageContent: string, msg: Messag
   ]
   botCommands.unshift(getHelpCommand(botCommands))
   if (await runBotCommands(botCommands)) { return }
+
+  if (await executeCommandAlias(messageContent, msg, handleCommandExecution)) { return }
 
   switch (messageContent)
   {
