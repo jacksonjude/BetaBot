@@ -1,27 +1,25 @@
 import { Client, TextChannel, Guild, Message } from "discord.js"
 import { ActionMessage } from "./actionMessage"
+import { RoleObjectTuple, RoleArray, RoleGroup } from "./roleGroup"
 
 export class RoleCounterConfiguration
 {
   name: string
   channelID: string
-  messageID: string | null
+  messageID?: string
 
-  sortBySize: boolean | null
-  showTotalMembers: boolean | null
+  sortBySize?: boolean
+  showTotalMembers?: boolean
   filterRoleID: string
   onlyMostSignificant: boolean
   hideIfZero: boolean
 
-  roleDisplayData: RoleTuple[]
+  roleDisplayData: RoleArray
 }
 
-class RoleTuple
+class DisplayRoleTuple extends RoleObjectTuple
 {
-  name: string
-  roleID: string | null
-  emote: string
-  size: number
+  size?: number
 }
 
 var roleCounterMessages: { [k: string]: ActionMessage<RoleCounterConfiguration> } = {}
@@ -54,10 +52,12 @@ async function getRoleCounterText(roleCounterSettingJSON: RoleCounterConfigurati
 {
   let roleDisplayData = roleCounterSettingJSON.roleDisplayData
   let memberIDs = []
-  for (let roleTuple of roleDisplayData)
+
+  let roleObjectTuples: DisplayRoleTuple[] = await RoleGroup.getRoleObjectTuplesFromArray(roleDisplayData, guild)
+
+  for (let roleTuple of roleObjectTuples)
   {
-    let role = await guild.roles.fetch(roleTuple.roleID)
-    let roleMembers = Object.values(role.members.toJSON())
+    let roleMembers = Object.values(roleTuple.role.members.toJSON())
 
     if (roleCounterSettingJSON.filterRoleID)
     {
@@ -76,11 +76,11 @@ async function getRoleCounterText(roleCounterSettingJSON: RoleCounterConfigurati
 
   if (roleCounterSettingJSON.sortBySize === true)
   {
-    roleDisplayData.sort((roleTuple1, roleTuple2) => roleTuple2.size-roleTuple1.size)
+    roleObjectTuples.sort((roleTuple1, roleTuple2) => roleTuple2.size-roleTuple1.size)
   }
 
   let roleCounterText = ""
-  for (let roleTuple of roleDisplayData)
+  for (let roleTuple of roleObjectTuples)
   {
     if (roleCounterSettingJSON.hideIfZero && roleTuple.size == 0) { continue }
     roleCounterText += "\n" + (roleTuple.emote ? roleTuple.emote + " " : "") + "**" + roleTuple.name + ": " + roleTuple.size + "**"

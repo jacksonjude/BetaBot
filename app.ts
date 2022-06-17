@@ -44,6 +44,8 @@ import { getCreatePollCommand, getEditPollCommand, setupPollEditTextInputEventHa
 
 import { getScheduleCommand } from "./src/scheduledCommands"
 
+import { getCreateRoleGroupCommand } from "./src/roleGroup"
+
 import { setupRoleCounterEventHandlers } from "./src/roleCounter"
 
 import { executeCommandAlias } from "./src/commandAlias"
@@ -63,7 +65,7 @@ loginBot(client)
 // Client Init
 
 client.on('ready', async () => {
-  console.log(`Logged in as ${client.user.tag}!`)
+  console.log(`[App] Logged in as ${client.user.tag}!`)
 
   client.user.setPresence({status: "online"})
 
@@ -78,6 +80,8 @@ client.on('ready', async () => {
   setupMemberStatsEventHandlers(client)
   setupRoleCounterEventHandlers(client)
   setupPollEditTextInputEventHandlers(client, firestoreDB)
+
+  initCommands()
 })
 
 // Nickname Enforcement
@@ -93,7 +97,7 @@ function updateNickname(clientMember: GuildMember)
 {
   if (clientMember.displayName !== DISCORD_NICKNAME)
   {
-    console.log("Updated name in " + clientMember.guild.name + " from " + clientMember.displayName + " to " + DISCORD_NICKNAME)
+    console.log("[App] Updated name in " + clientMember.guild.name + " from " + clientMember.displayName + " to " + DISCORD_NICKNAME)
     clientMember.setNickname(DISCORD_NICKNAME)
   }
 }
@@ -133,52 +137,12 @@ function getFormattedBuildDateString(rawBuildDateString: string): string
   return formattedBuildDateString
 }
 
-// Recieve Message
+// Setup Commands
 
-client.on('messageCreate', async msg => {
-  // console.log(msg.channel.id + " :: " + msg.content)
+var botCommands: BotCommand[]
 
-  if (msg.author.id == client.user.id)
-  {
-    msg.guild && console.log("Sent '" + msg.content + "' in " + msg.guild.name)
-    return
-  }
-
-  var messageContent = msg.content
-  if ((msg.mentions.members && msg.mentions.members.has(client.user.id)) || (msg.mentions.roles && msg.mentions.roles.find(role => role.name == DISCORD_NICKNAME)))
-  {
-    messageContent = messageContent.replace(/<@!?&?\d+?>/, "")
-  }
-  else
-  {
-    if (sendMessageResponses(msg)) { return }
-    return
-  }
-
-  if (client.user.presence.status === "idle")
-  {
-    client.user.setPresence({status: "online"})
-    msg.channel.send("\\*yawn\\*")
-  }
-
-  messageContent = messageContent.replace(/^\s*/, "").replace(/\s*$/, "")
-
-  console.log("Command from " + msg.author.username + " in " + msg.guild.name + " '" + messageContent + "'")
-
-  await handleCommandExecution(messageContent, msg)
-})
-
-export async function handleCommandExecution(messageContent: string, msg: Message)
+function initCommands()
 {
-  const runBotCommands = async function(botCommands: BotCommand[]): Promise<boolean>
-  {
-    for (let botCommand of botCommands)
-    {
-      if (await botCommand.execute(messageContent, msg, client, firestoreDB)) { return true }
-    }
-    return false
-  }
-
   var ownerUserRequirement = new BotCommandUserIDRequirement(CREATOR_USER_ID)
 
   var developmentRequirement = new BotCommandIntersectionRequirement(
@@ -221,7 +185,7 @@ export async function handleCommandExecution(messageContent: string, msg: Messag
     ]
   )
 
-  var botCommands = [
+  botCommands = [
     ...getMessageCommands(),
     ...getDateCommands(),
     getEmoteSpellCommand().withRequirement(botChannelRequirement),
@@ -234,6 +198,7 @@ export async function handleCommandExecution(messageContent: string, msg: Messag
     getCreateServerPollCommand().withRequirement(botTesterPermissionRequirement),
     getEditPollCommand().withRequirement(serverAdminPermissionRequirement),
     getCreatePollCommand().withRequirement(serverAdminPermissionRequirement),
+    getCreateRoleGroupCommand().withRequirement(serverAdminPermissionRequirement),
     getMessageCountsLeaderboardCommand(),
     getMessageCountsUpdateCommand().withRequirement(ownerUserRequirement),
     getCleanReactionsCommand().withRequirement(ownerUserRequirement),
@@ -243,6 +208,54 @@ export async function handleCommandExecution(messageContent: string, msg: Messag
     getRestartCommand().withRequirement(ownerUserAndDevelopmentRequirement)
   ]
   botCommands.unshift(getHelpCommand(botCommands))
+}
+
+// Recieve Message
+
+client.on('messageCreate', async msg => {
+  // console.log(msg.channel.id + " :: " + msg.content)
+
+  if (msg.author.id == client.user.id)
+  {
+    msg.guild && console.log("[App] Sent '" + msg.content + "' in " + msg.guild.name)
+    return
+  }
+
+  var messageContent = msg.content
+  if ((msg.mentions.members && msg.mentions.members.has(client.user.id)) || (msg.mentions.roles && msg.mentions.roles.find(role => role.name == DISCORD_NICKNAME)))
+  {
+    messageContent = messageContent.replace(/<@!?&?\d+?>/, "")
+  }
+  else
+  {
+    if (sendMessageResponses(msg)) { return }
+    return
+  }
+
+  if (client.user.presence.status === "idle")
+  {
+    client.user.setPresence({status: "online"})
+    msg.channel.send("\\*yawn\\*")
+  }
+
+  messageContent = messageContent.replace(/^\s*/, "").replace(/\s*$/, "")
+
+  console.log("[App] Command from " + msg.author.username + " in " + msg.guild.name + " '" + messageContent + "'")
+
+  await handleCommandExecution(messageContent, msg)
+})
+
+export async function handleCommandExecution(messageContent: string, msg: Message)
+{
+  const runBotCommands = async function(botCommands: BotCommand[]): Promise<boolean>
+  {
+    for (let botCommand of botCommands)
+    {
+      if (await botCommand.execute(messageContent, msg, client, firestoreDB)) { return true }
+    }
+    return false
+  }
+
   if (await runBotCommands(botCommands)) { return }
 
   if (await executeCommandAlias(messageContent, msg, handleCommandExecution)) { return }
@@ -260,5 +273,5 @@ export async function handleCommandExecution(messageContent: string, msg: Messag
 }
 
 process.on('unhandledRejection', error => {
-  console.log('Unhandled error: ', error)
+  console.log('[App] Unhandled error: ', error)
 })

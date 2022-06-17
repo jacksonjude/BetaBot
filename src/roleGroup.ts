@@ -1,0 +1,135 @@
+import { Role, Client, Guild, Message, GuildMember, UserResolvable } from "discord.js"
+import { Firestore } from "firebase-admin/firestore"
+
+import { BotCommand } from "./botCommand"
+
+export type RoleGroupID = string
+export type RoleArray = (RoleTuple | RoleGroupID)[]
+
+export class RoleGroup
+{
+  roles: RoleArray
+  serverID: string
+
+  constructor(roles: RoleArray, serverID: string)
+  {
+    this.roles = roles
+    this.serverID = serverID
+  }
+
+  static async getRolesFromArray(roles: RoleArray, guild: Guild): Promise<Role[]>
+  {
+    return new RoleGroup(roles, guild.id).getRoles(null, guild)
+  }
+
+  async getRoles(client?: Client, guild?: Guild): Promise<Role[]>
+  {
+    let roleObjectTuples = await this.getRoleObjectTuples(client, guild)
+
+    return roleObjectTuples.map(roleObjectTuple => roleObjectTuple.role)
+  }
+
+  static async getRoleObjectTuplesFromArray(roles: RoleArray, guild: Guild): Promise<RoleObjectTuple[]>
+  {
+    return new RoleGroup(roles, guild.id).getRoleObjectTuples(null, guild)
+  }
+
+  async getRoleObjectTuples(client?: Client, guild?: Guild): Promise<RoleObjectTuple[]>
+  {
+    let roleObjectTuples: RoleObjectTuple[] = []
+    guild ??= await client.guilds.fetch(this.serverID)
+
+    for (let roleItem of this.roles)
+    {
+      if (typeof roleItem === 'string')
+      {
+        if (!roleGroups[roleItem] || roleGroups[roleItem].serverID != this.serverID) { continue }
+        let groupRoles = await RoleGroup.getRoleObjectTuplesFromArray(roleGroups[roleItem].roles, guild)
+        roleObjectTuples = roleObjectTuples.concat(groupRoles)
+      }
+      else
+      {
+        let newRoleObjectTuple: RoleObjectTuple = {
+          name: roleItem.name,
+          role: await guild.roles.fetch(roleItem.roleID),
+          emote: roleItem.emote
+        }
+        roleObjectTuples.push(newRoleObjectTuple)
+      }
+    }
+
+    return roleObjectTuples
+  }
+
+  async hasRole(user: UserResolvable, client?: Client, guild?: Guild): Promise<boolean>
+  {
+    guild ??= await client.guilds.fetch(this.serverID)
+    let member = user instanceof GuildMember ? user : await guild.members.fetch(user)
+    let roleObjects = await this.getRoles(client, guild)
+    return roleObjects.some(role => role.members.has(member.id))
+  }
+}
+
+export class RoleTuple
+{
+  name: string
+  roleID: string
+  emote?: string
+}
+
+export class RoleObjectTuple
+{
+  name: string
+  role: Role
+  emote?: string
+}
+
+const roleGroupCollectionID = "roleGroupConfigurations"
+
+export var roleGroups: { [k: string]: RoleGroup } = {}
+
+export async function interpretRoleGroupSetting(roleGroupSettingID: string, roleGroupSettingJSON: RoleGroup)
+{
+  roleGroups[roleGroupSettingID] = roleGroupSettingJSON
+}
+
+export function getCreateRoleGroupCommand(): BotCommand
+{
+  // TODO: Find a better way of representing default emotes than [^\s]+
+  return BotCommand.fromRegex(
+    "rolegroup", "add a role to a group",
+    /^rolegroup\s+([\w-]+)\s+(<@&\d+>|[\w-]+)?(?:\s+([^\s]+))?(?:\s+(.+))?$/, /^rolegroup(\s+.*)?$/,
+    "rolegroup <id> <role> [emote] [name]",
+    async (commandArguments: string[], message: Message, _, firestoreDB: Firestore) => {
+      let id = commandArguments[1]
+      let roleItem = commandArguments[2]
+      let rawEmoteString = commandArguments[3]
+      let roleName = commandArguments[4]
+
+      let roleGroupConfig = roleGroups[id] ?? {
+        serverID: message.guildId,
+        roles: []
+      }
+
+      let singleRoleRegex = /<@&(\d+)>/
+      let roleGroupRegex = /\w+/
+
+      if (singleRoleRegex.test(roleItem))
+      {
+        roleGroupConfig.roles.push({
+          roleID: singleRoleRegex.exec(roleItem)[1],
+          emote: rawEmoteString ?? null,
+          name: roleName ?? (await message.guild.roles.fetch(roleItem)).name
+        })
+      }
+      else if (roleGroupRegex.test(roleItem))
+      {
+        roleGroupConfig.roles.push(roleItem)
+      }
+
+      await firestoreDB.doc(roleGroupCollectionID + "/" + id).set(roleGroupConfig)
+
+      message.channel.send(`**Role Group ${id} updated**`)
+    }
+  )
+}

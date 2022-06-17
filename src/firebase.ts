@@ -31,6 +31,8 @@ import { interpretRoleCounterSetting, RoleCounterConfiguration } from "./roleCou
 
 import { interpretServerCommandAliasSettings, ServerCommandAliasConfiguration } from "./commandAlias"
 
+import { interpretRoleGroupSetting, RoleGroup } from "./roleGroup"
+
 const roleMessageCollectionID = "roleMessageConfigurations"
 const voiceToTextCollectionID = "voiceToTextConfigurations"
 const statChannelsCollectionID = "statsConfigurations"
@@ -40,9 +42,29 @@ const roleAssignmentCollectionID = "roleAssignmentConfigurations"
 const scheduledCommandCollectionID = "scheduledCommands"
 const roleCounterCollectionID = "roleCounterConfigurations"
 const commandAliasCollectionID = "commandAliasConfigurations"
+const roleGroupCollectionID = "roleGroupConfigurations"
 
 var firestoreCollectionListeners = []
 const firestoreCollectionSyncHandlers = [
+  {
+    collectionID: roleGroupCollectionID,
+    updateDocFunction: async function(roleGroupSettingDoc: QueryDocumentSnapshot, shouldDelete: boolean) {
+      let roleGroupSettingDocData = roleGroupSettingDoc.data()
+      let roleGroupID = roleGroupSettingDoc.id
+
+      if (!shouldDelete)
+      {
+        interpretRoleGroupSetting(roleGroupID, roleGroupSettingDocData as RoleGroup)
+      }
+    },
+    initFunction: async function(_: Client, firestoreDB: Firestore) {
+      let roleGroupSettingsCollection = await firestoreDB.collection(pollsCollectionID).get()
+      for (let roleGroupSettingDoc of roleGroupSettingsCollection.docs)
+      {
+        interpretRoleGroupSetting(roleGroupSettingDoc.id, roleGroupSettingDoc.data() as RoleGroup)
+      }
+    }
+  },
   {
     collectionID: roleMessageCollectionID,
     updateDocFunction: async function(roleSettingDoc: QueryDocumentSnapshot, shouldDelete: boolean, client: Client, firestoreDB: Firestore) {
@@ -148,7 +170,7 @@ const firestoreCollectionSyncHandlers = [
 
       if (!shouldDelete)
       {
-        interpretScheduledCommandSetting(client, scheduledCommandSettingDocData as ScheduledCommand, handleCommandExecution)
+        await interpretScheduledCommandSetting(client, scheduledCommandSettingDocData as ScheduledCommand, handleCommandExecution)
       }
       else
       {
@@ -179,35 +201,47 @@ const firestoreCollectionSyncHandlers = [
         interpretServerCommandAliasSettings(serverID, serverCommandAliasSettingDocData as ServerCommandAliasConfiguration)
       }
     }
-  },
+  }
 ]
 
-export function initFirestoreCollectionListeners(firestoreDB: Firestore, client: Client)
+export async function initFirestoreCollectionListeners(firestoreDB: Firestore, client: Client)
 {
-  firestoreCollectionSyncHandlers.forEach((collectionData) => {
+  for (let collectionData of firestoreCollectionSyncHandlers)
+  {
     let collectionRef = firestoreDB.collection(collectionData.collectionID)
 
+    collectionData.initFunction && await collectionData.initFunction(client, firestoreDB)
+
     firestoreCollectionListeners.push(
-      collectionRef.onSnapshot((settingSnapshot) => {
-        settingSnapshot.docChanges().forEach((docChange) => {
+      collectionRef.onSnapshot(async (settingSnapshot) => {
+        for (let docChange of settingSnapshot.docChanges())
+        {
           if (docChange.doc.data().active === false) { return }
-          console.log("Firestore: " + docChange.type + " " + collectionData.collectionID + "/" + docChange.doc.id)
+
+          let changeTypePrefix = ""
 
           switch (docChange.type)
           {
             case "added":
+            await collectionData.updateDocFunction(docChange.doc, false, client, firestoreDB)
+            changeTypePrefix = "++"
+            break
+
             case "modified":
-            collectionData.updateDocFunction(docChange.doc, false, client, firestoreDB)
+            await collectionData.updateDocFunction(docChange.doc, false, client, firestoreDB)
+            changeTypePrefix = "**"
             break
 
             case "removed":
-            collectionData.updateDocFunction(docChange.doc, true, client, firestoreDB)
+            await collectionData.updateDocFunction(docChange.doc, true, client, firestoreDB)
+            changeTypePrefix = "--"
             break
           }
-        })
+
+          console.log(`[Firestore] ${changeTypePrefix} ${docChange.type} ${collectionData.collectionID}/${docChange.doc.id}`)
+        }
+        console.log(`[Firestore] completed ${collectionData.collectionID}`)
       })
     )
-
-    collectionData.initFunction && collectionData.initFunction(client, firestoreDB)
-  })
+  }
 }

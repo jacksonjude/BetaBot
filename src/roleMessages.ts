@@ -1,5 +1,6 @@
-import { Client, User, Guild, TextChannel, MessageReaction, Message } from "discord.js"
+import { Client, User, TextChannel, MessageReaction, Message } from "discord.js"
 import { ActionMessage, MessageReactionEventType } from "./actionMessage"
+import { RoleArray, RoleGroup, RoleObjectTuple } from "./roleGroup"
 
 import { setRole, Emote } from "./util"
 
@@ -12,14 +13,8 @@ export class RoleMessageConfiguration
   name: string
   channelID: string
   messageID: string | null
-  roleMap: RoleEmoteMap[]
+  roleMap: RoleArray
   blacklistUserIDs: string[]
-}
-
-class RoleEmoteMap
-{
-  role: string
-  emote: string
 }
 
 export async function interpretRoleSetting(client: Client, roleSettingID: string, roleSettingJSON: RoleMessageConfiguration)
@@ -27,26 +22,27 @@ export async function interpretRoleSetting(client: Client, roleSettingID: string
   if (roleSettingJSON.channelID == null) { return }
 
   let prevMessageID = roleSettingJSON.messageID
-
   let liveChannel = await client.channels.fetch(roleSettingJSON.channelID) as TextChannel
+  let roleObjectTuples = await RoleGroup.getRoleObjectTuplesFromArray(roleSettingJSON.roleMap, liveChannel.guild)
+
   let roleSettingActionMessage = new ActionMessage<RoleMessageConfiguration>(
     liveChannel,
     roleSettingJSON.messageID,
     roleSettingJSON,
-    (roleSettingJSON: RoleMessageConfiguration, channel: TextChannel) => {
-      return getRoleAddMessageContent(roleSettingJSON, channel.guild)
+    (roleSettingJSON: RoleMessageConfiguration) => {
+      return getRoleAddMessageContent(roleSettingJSON, roleObjectTuples)
     }, async (message: Message, roleSettingJSON: RoleMessageConfiguration) => {
       roleSettingJSON.messageID = message.id
-      for (let emoteRolePair of roleSettingJSON.roleMap)
+      for (let roleTuple of roleObjectTuples)
       {
         try
         {
-          message.react(emoteRolePair.emote)
+          message.react(roleTuple.emote)
         }
         catch {}
       }
-    }, (reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, roleSettingJSON: RoleMessageConfiguration) => {
-      handleRoleReaction(client, reaction, user, reactionEventType, roleSettingJSON)
+    }, (reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, roleMessageConfig: RoleMessageConfiguration) => {
+      handleRoleReaction(client, reaction, user, reactionEventType, roleMessageConfig, roleObjectTuples)
     }
   )
 
@@ -65,27 +61,26 @@ export async function removeRoleSetting(roleSettingID: string)
   }
 }
 
-async function getRoleAddMessageContent(roleDataJSON: RoleMessageConfiguration, guild: Guild)
+async function getRoleAddMessageContent(roleDataJSON: RoleMessageConfiguration, roleTuples: RoleObjectTuple[])
 {
   var messageContent = "**" + roleDataJSON.name + "**"
-  for (let emoteRolePair of roleDataJSON.roleMap)
+  for (let roleTuple of roleTuples)
   {
-    let roleObject = await guild.roles.fetch(emoteRolePair.role)
     messageContent += "\n"
-    messageContent += emoteRolePair.emote + " \\: " + (roleObject ? roleObject.name : emoteRolePair.role)
+    messageContent += roleTuple.emote + " \\: " + roleTuple.name
   }
   return messageContent
 }
 
-async function handleRoleReaction(client: Client, reaction: MessageReaction, user: User, action: MessageReactionEventType, roleData: RoleMessageConfiguration)
+async function handleRoleReaction(client: Client, reaction: MessageReaction, user: User, action: MessageReactionEventType, roleMessageConfig: RoleMessageConfiguration, roleTuples: RoleObjectTuple[])
 {
   if (user.id == client.user.id) { return false }
 
-  var emoteRolePair = roleData.roleMap.find((emoteRolePair) => {
+  var emoteRolePair = roleTuples.find((emoteRolePair) => {
     return Emote.fromEmoji(reaction.emoji).toString() == emoteRolePair.emote
   })
 
-  if (!emoteRolePair || (roleData.blacklistUserIDs && roleData.blacklistUserIDs.includes(user.id)))
+  if (!emoteRolePair || (roleMessageConfig.blacklistUserIDs && roleMessageConfig.blacklistUserIDs.includes(user.id)))
   {
     if (action == "added")
     {
