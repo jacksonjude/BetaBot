@@ -164,11 +164,11 @@ async function executeDMVoteCommand(client: Client, user: User, guildMember: Gui
   }
   else if (Date.now()-pollResponseTimeouts[pollID][user.id] < 1000*10)
   {
-    console.log("Cancel vote" + pollID + " for " + user.username)
+    console.log("[DM Poll] Cancel vote" + pollID + " for " + user.username)
     return
   }
 
-  console.log("Init vote " + pollID + " for " + user.username)
+  console.log("[DM Poll] Init vote " + pollID + " for " + user.username)
 
   var uploadPollResponse = async (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => {
     await firestoreDB.doc(pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID + "/" + userID).set({responseMap: questionIDToOptionIDMap, updatedAt: Date.now()})
@@ -189,7 +189,7 @@ async function executeDMVoteCommand(client: Client, user: User, guildMember: Gui
   }
   catch (error)
   {
-    console.log("Vote DM Error: " + error, error.stack)
+    console.log("[DM Poll] Vote DM Error: " + error, error.stack)
   }
 }
 
@@ -235,7 +235,7 @@ async function sendVoteDM(client: Client, user: User, guildMember: GuildMember, 
         for (let optionData of questionData.options ?? [])
         {
           let emoji = new Emote(optionData.emote).toEmoji(client)
-          if (emoji == null) { console.log("Emote not found", optionData.emote); continue }
+          if (emoji == null) { console.log("[DM Poll] Emote not found", optionData.emote); continue }
           await message.react(emoji)
         }
       }, (reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, questionData: PollQuestion) => {

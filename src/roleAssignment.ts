@@ -147,7 +147,7 @@ async function executeRoleAssignment(member: GuildMember, roleAssignmentData: Ro
   }
 
   let roleToAssign = await member.guild.roles.fetch(roleIDToAssign)
-  console.log("Assigned " + roleToAssign.name + " to " + member.user.username + " in " + member.guild.name)
+  console.log("[Role Assign] Assigned " + roleToAssign.name + " to " + member.user.username + " in " + member.guild.name)
 
   await member.roles.add(roleIDToAssign)
 }

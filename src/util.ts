@@ -2,12 +2,20 @@ import { User, Guild, Role, Client, GuildEmoji, ReactionEmoji, EmojiResolvable, 
 
 // Update Roles
 
-export async function setRole(user: User, guild: Guild, roleID: string, shouldAddRole: boolean)
+export async function setRole(user: User, guild: Guild, role: Role | string, shouldAddRole: boolean)
 {
-  var roleObject = (await getRolesByID([roleID], guild))[0]
-  if (roleObject == null) { return false }
+  let roleObject: Role
+  if (typeof role === "string")
+  {
+    roleObject = (await getRolesByID([role], guild))[0]
+    if (roleObject == null) { return false }
+  }
+  else
+  {
+    roleObject = role
+  }
 
-  var guildMember = await guild.members.fetch(user)
+  let guildMember = await guild.members.fetch(user)
 
   if (shouldAddRole)
   {

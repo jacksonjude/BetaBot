@@ -259,7 +259,7 @@ async function updateMessageCounts(guild: Guild, hoursPerSegment: number, tracki
     {
       if (verbose)
       {
-        console.log("Message Counts: " + channel.id + " (count = " + fetchedMessageCount + ", time = " + channelMessages.last().createdAt.getTime() + ")")
+        console.log("[Message Counts] " + channel.id + " (count = " + fetchedMessageCount + ", time = " + channelMessages.last().createdAt.getTime() + ")")
       }
       shouldBreakMessageLoop = await processMessages(Object.values(channelMessages.toJSON()))
 
@@ -280,7 +280,7 @@ async function updateMessageCounts(guild: Guild, hoursPerSegment: number, tracki
 
   for (let messageCountSegmentTime in updatedMessageCountSegments)
   {
-    console.log("Message Counts: Add segment " + messageCountSegmentTime + " (" + new Date(parseInt(messageCountSegmentTime)) + ") in " + guild.name)
+    console.log("[Message Counts] Add segment " + messageCountSegmentTime + " (" + new Date(parseInt(messageCountSegmentTime)) + ") in " + guild.name)
     await firestoreDB.doc(messageCountsCollectionPath + "/" + messageCountSegmentTime).set(updatedMessageCountSegments[messageCountSegmentTime])
   }
 }

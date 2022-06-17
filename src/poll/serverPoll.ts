@@ -187,6 +187,7 @@ async function handlePollMessageReaction(client: Client, reaction: MessageReacti
 
 export function getCreateServerPollCommand(): BotCommand
 {
+  // TODO: Find a way of representing default emotes
   return BotCommand.fromRegex(
     "serverpoll", "create a new server poll",
     /^serverpoll\s+([\w\s]+)(?:\s+(?:<#)?(\d+)(?:>)?)?(?:\s+<@!?&?(\d+)>)?(?:\s+(\d+(?:\.\d*)?))?((?:\s*<?a?:\w+:\d*>?)+)\s*(.+)$/, /^serverpoll(\s+.*)?$/,
