@@ -622,7 +622,9 @@ export function getRerunCommand(handleCommandExecutionFunction: HandleCommandExe
 
       if (!previousCommandMessage) { return new BotCommandError("Message not found", false) }
 
-      handleCommandExecutionFunction(previousCommandMessage.content.replace(/<@!?&?\d+?>/, "").replace(/^\s*/, "").replace(/\s*$/, ""), message)
+      await handleCommandExecutionFunction(previousCommandMessage.content.replace(/<@!?&?\d+?>/, "").replace(/^\s*/, "").replace(/\s*$/, ""), message)
+
+      await message.delete()
     }
   )
 }
