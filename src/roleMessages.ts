@@ -33,7 +33,7 @@ export async function interpretRoleSetting(client: Client, roleSettingID: string
       return getRoleAddMessageContent(roleSettingJSON, roleObjectTuples)
     }, async (message: Message, roleSettingJSON: RoleMessageConfiguration) => {
       roleSettingJSON.messageID = message.id
-      for (let roleTuple of roleObjectTuples)
+      for (let roleTuple of RoleGroup.getRoleTuplesFromArray(roleSettingJSON.roleMap, message.guildId))
       {
         try
         {
@@ -42,7 +42,7 @@ export async function interpretRoleSetting(client: Client, roleSettingID: string
         catch {}
       }
     }, (reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, roleMessageConfig: RoleMessageConfiguration) => {
-      handleRoleReaction(client, reaction, user, reactionEventType, roleMessageConfig, roleObjectTuples)
+      handleRoleReaction(client, reaction, user, reactionEventType, roleMessageConfig)
     }
   )
 
@@ -72,9 +72,11 @@ async function getRoleAddMessageContent(roleDataJSON: RoleMessageConfiguration, 
   return messageContent
 }
 
-async function handleRoleReaction(client: Client, reaction: MessageReaction, user: User, action: MessageReactionEventType, roleMessageConfig: RoleMessageConfiguration, roleTuples: RoleObjectTuple[])
+async function handleRoleReaction(client: Client, reaction: MessageReaction, user: User, action: MessageReactionEventType, roleMessageConfig: RoleMessageConfiguration)
 {
   if (user.id == client.user.id) { return false }
+
+  let roleTuples = RoleGroup.getRoleTuplesFromArray(roleMessageConfig.roleMap, reaction.message.guildId)
 
   var emoteRolePair = roleTuples.find((emoteRolePair) => {
     return Emote.fromEmoji(reaction.emoji).toString() == emoteRolePair.emote
@@ -89,7 +91,7 @@ async function handleRoleReaction(client: Client, reaction: MessageReaction, use
     return false
   }
 
-  await setRole(user, reaction.message.guild, emoteRolePair.role, action == "added" ? true : false)
+  await setRole(user, reaction.message.guild, emoteRolePair.roleID, action == "added" ? true : false)
 
   return true
 }
