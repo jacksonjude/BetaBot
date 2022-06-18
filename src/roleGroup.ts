@@ -36,29 +36,44 @@ export class RoleGroup
 
   async getRoleObjectTuples(client?: Client, guild?: Guild): Promise<RoleObjectTuple[]>
   {
-    let roleObjectTuples: RoleObjectTuple[] = []
     guild ??= await client.guilds.fetch(this.serverID)
+
+    let roleTuples = this.getRoleTuples()
+    let roleObjectTuples: RoleObjectTuple[] = await Promise.all(roleTuples.map(async roleTuple => {
+      return {
+        name: roleTuple.name,
+        role: await guild.roles.fetch(roleTuple.roleID),
+        emote: roleTuple.emote
+      }
+    }))
+
+    return roleObjectTuples
+  }
+
+  static getRoleTuplesFromArray(roles: RoleArray, guildID: string)
+  {
+    return new RoleGroup(roles, guildID).getRoleTuples()
+  }
+
+  getRoleTuples(): RoleTuple[]
+  {
+    let roleTuples: RoleTuple[] = []
 
     for (let roleItem of this.roles)
     {
       if (typeof roleItem === 'string')
       {
         if (!roleGroups[roleItem] || roleGroups[roleItem].serverID != this.serverID) { continue }
-        let groupRoles = await RoleGroup.getRoleObjectTuplesFromArray(roleGroups[roleItem].roles, guild)
-        roleObjectTuples = roleObjectTuples.concat(groupRoles)
+        let groupRoles = new RoleGroup(roleGroups[roleItem].roles, this.serverID).getRoleTuples()
+        roleTuples = roleTuples.concat(groupRoles)
       }
       else
       {
-        let newRoleObjectTuple: RoleObjectTuple = {
-          name: roleItem.name,
-          role: await guild.roles.fetch(roleItem.roleID),
-          emote: roleItem.emote
-        }
-        roleObjectTuples.push(newRoleObjectTuple)
+        roleTuples.push(roleItem)
       }
     }
 
-    return roleObjectTuples
+    return roleTuples
   }
 
   async hasRole(user: UserResolvable, client?: Client, guild?: Guild): Promise<boolean>
@@ -86,6 +101,8 @@ export class RoleObjectTuple
 
 const roleGroupCollectionID = "roleGroupConfigurations"
 
+export const roleGroupRegex = /[\w-]+/
+
 export var roleGroups: { [k: string]: RoleGroup } = {}
 
 export async function interpretRoleGroupSetting(roleGroupSettingID: string, roleGroupSettingJSON: RoleGroup)
@@ -111,8 +128,7 @@ export function getCreateRoleGroupCommand(): BotCommand
         roles: []
       }
 
-      let singleRoleRegex = /<@&(\d+)>/
-      let roleGroupRegex = /\w+/
+      const singleRoleRegex = /<@&(\d+)>/
 
       if (singleRoleRegex.test(roleItem))
       {
