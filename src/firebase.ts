@@ -216,7 +216,7 @@ export async function initFirestoreCollectionListeners(firestoreDB: Firestore, c
       collectionRef.onSnapshot(async (settingSnapshot) => {
         for (let docChange of settingSnapshot.docChanges())
         {
-          if (docChange.doc.data().active === false) { return }
+          if (docChange.doc.data().active === false) { continue }
 
           let changeTypePrefix = ""
 
