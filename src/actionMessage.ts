@@ -10,14 +10,14 @@ export class ActionMessage<T>
   messageID: string
   messageSettings: T
 
-  getMessageContent: (messageSettings: T, channel: TextChannel | DMChannel) => Promise<string>
+  getMessageContent: (messageSettings: T, channel: TextChannel | DMChannel, creatingMessage: boolean) => Promise<string>
   handleMessageCreation: (message: Message, messageSettings: T) => Promise<void>
   handleMessageReaction: (reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, messageSettings: T) => void
 
   reactionCollector: ReactionCollector
 
   constructor(channel: TextChannel | DMChannel, messageID: string, messageSettings: T,
-    getMessageContent: (messageSettings: T, channel: TextChannel | DMChannel) => Promise<string>,
+    getMessageContent: (messageSettings: T, channel: TextChannel | DMChannel, creatingMessage: boolean) => Promise<string>,
     handleMessageCreation: (message: Message, messageSettings: T) => Promise<void>,
     handleMessageReaction: (reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, messageSettings: T) => void
   )
@@ -58,7 +58,7 @@ export class ActionMessage<T>
   async sendMessage(): Promise<Message>
   {
     let shouldCreateMessage = this.messageID == null
-    let messageContent = await this.getMessageContent(this.messageSettings, this.channel)
+    let messageContent = await this.getMessageContent(this.messageSettings, this.channel, shouldCreateMessage)
 
     let message: Message
 

@@ -13,7 +13,13 @@ import {
   checkVoteRequirements
 } from "./sharedPoll"
 
+import { roleGroups } from "../roleGroup"
+
 import { setRole, Emote } from "../util"
+
+const nayEmote = "<a:nay:929537309358059520>"
+const presentEmote = "<:present:928924944593719316>"
+const yeaEmote = "<a:yea:929537247106191370>"
 
 export async function interpretDMPollSetting(client: Client, pollID: string, pollDataJSON: PollConfiguration, firestoreDB: Firestore)
 {
@@ -214,17 +220,17 @@ async function sendVoteDM(client: Client, user: User, guildMember: GuildMember, 
 
   for (let questionData of pollData.questions)
   {
-    if (questionData.roleIDs && !questionData.roleIDs.some(roleID => guildMember.roles.cache.has(roleID))) { continue }
+    if (questionData.roleIDs && !questionData.roleIDs.some(roleID => guildMember.roles.cache.has(roleID) || (roleGroups[roleID] && roleGroups[roleID].hasRole(guildMember)))) { continue }
 
     let questionActionMessage = new ActionMessage<PollQuestion>(dmChannel, null, questionData,
-      async (questionData: PollQuestion) => {
+      async (questionData: PollQuestion, _, creatingMessage: boolean) => {
         let selectedOption: string
         if (pollResponses[pollID] && pollResponses[pollID][user.id])
         {
           selectedOption = pollResponses[pollID][user.id][questionData.id]
         }
 
-        let questionString = "**" + questionData.prompt + "**"
+        let questionString = "**" + questionData.prompt + "**" + " " + (creatingMessage ? nayEmote : yeaEmote)
         for (let optionData of questionData.options ?? [])
         {
           questionString += "\n" + (selectedOption == optionData.id ? "**" : "") + optionData.emote + " \\: " + optionData.name + (selectedOption == optionData.id ? "**" : "")
@@ -238,6 +244,7 @@ async function sendVoteDM(client: Client, user: User, guildMember: GuildMember, 
           if (emoji == null) { console.log("[DM Poll] Emote not found", optionData.emote); continue }
           await message.react(emoji)
         }
+        message.edit(message.content.replace(nayEmote, presentEmote))
       }, (reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, questionData: PollQuestion) => {
         handlePollQuestionReaction(client, reaction, user, reactionEventType, questionData, pollID)
       }
@@ -304,6 +311,7 @@ async function handlePollQuestionReaction(client: Client, reaction: MessageReact
   {
     case "added":
     pollResponses[currentPollID][user.id][questionData.id] = currentOptionData.id
+    reaction.message.edit(reaction.message.content.replace(presentEmote, yeaEmote))
     break
 
     case "removed":
