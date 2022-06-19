@@ -39,11 +39,13 @@ export async function getRolesByID(roleIDs: string[], guild?: Guild, guildID?: s
 import * as emojiConverter from 'node-emoji'
 const overrideEmoteNameToEmojiMap = {
   ":white_heart:": "🤍",
-  ":map:": "🗺️"
+  ":map:": "🗺️",
+  ":regional_indicator_i:": "🇮"
 }
 const overrideEmojiToEmoteNameMap = {
   "🤍": ":white_heart:",
-  "🗺️": ":map:"
+  "🗺️": ":map:",
+  "🇮": ":regional_indicator_i:"
 }
 
 export class Emote
@@ -117,7 +119,7 @@ export class Emote
       return emote
     }
 
-    return overrideEmoteNameToEmojiMap[emoteName]
+    return overrideEmoteNameToEmojiMap[":" + emoteName + ":"]
   }
 }
 
