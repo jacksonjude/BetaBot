@@ -4,6 +4,7 @@ import { User, Guild, Role, RoleResolvable, Client, GuildEmoji, ReactionEmoji, E
 
 export async function setRole(user: User, guild: Guild, role: RoleResolvable, shouldAddRole: boolean)
 {
+  guild = await guild.fetch()
   let guildMember = await guild.members.fetch(user)
 
   if (shouldAddRole)
