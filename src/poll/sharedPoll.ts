@@ -1,4 +1,4 @@
-import { User, GuildMember, Message } from "discord.js"
+import { User, GuildMember, Message, Client } from "discord.js"
 import { ActionMessage } from "../actionMessage"
 import { Firestore, Timestamp } from "firebase-admin/firestore"
 import { BotCommand, BotCommandError } from "../botCommand"
@@ -68,16 +68,17 @@ export class PollVoteMessageConfiguration
 export class PollExportAccessConfiguration
 {
   type: "user" | "role"
-  userID: string | null
-  roleID: string | null
-  afterPollClose: boolean | null
-  accessTime: Timestamp | null
+  userID?: string
+  roleID?: string
+  afterPollClose?: boolean
+  canViewUserTags?: boolean
+  accessTime?: Timestamp
 }
 
 export class PollResponse
 {
-  responseMap: PollResponseMap | null
-  messageIDs: string[] | null
+  responseMap?: PollResponseMap
+  messageIDs?: string[]
   updatedAt: number
 }
 
@@ -123,10 +124,11 @@ export function getExportPollResultsCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "pollresults", "get poll results",
-    /^pollresults\s+(\w+)$/, /^pollresults(\s+.*)?$/,
-    "pollresults <poll id>",
-    async (commandArguments: string[], message: Message, __, firestoreDB: Firestore) => {
+    /^pollresults\s+(\w+)(?:\s+(true|false))?$/, /^pollresults(\s+.*)?$/,
+    "pollresults <poll id> [show user tags]",
+    async (commandArguments: string[], message: Message, client: Client, firestoreDB: Firestore) => {
       let pollID = commandArguments[1]
+      let showUserTags = commandArguments[2] === "true"
 
       if (!(pollID in pollsData))
       {
@@ -136,17 +138,17 @@ export function getExportPollResultsCommand(): BotCommand
       let pollData = pollsData[pollID]
       let member = await message.member.fetch()
 
-      if (!checkExportPollResultsRequirements(pollData, member, message))
+      if (!checkExportPollResultsRequirements(pollData, member, message, showUserTags))
       {
         return new BotCommandError("Exporting requirements not met for " + pollID, false)
       }
 
-      await executeExportPollResultsCommand(message.author, pollID, firestoreDB)
+      await executeExportPollResultsCommand(message.author, pollID, showUserTags, client, firestoreDB)
     }
   )
 }
 
-function checkExportPollResultsRequirements(pollData: PollConfiguration, member: GuildMember, msg: Message)
+function checkExportPollResultsRequirements(pollData: PollConfiguration, member: GuildMember, msg: Message, showUserTags: boolean)
 {
   if (!pollData.exportAccess)
   {
@@ -173,6 +175,11 @@ function checkExportPollResultsRequirements(pollData: PollConfiguration, member:
     msg && msg.channel.send("You do not have access to the results of " + pollData.name + " until " + (new Date((userAccessData || roleAccessData).accessTime.toMillis())).toString())
     return false
   }
+  if (!(userAccessData || roleAccessData).canViewUserTags && showUserTags)
+  {
+    msg && msg.channel.send("You do not have access to the user tags in " + pollData.name)
+    return false
+  }
 
   return true
 }
@@ -180,14 +187,15 @@ function checkExportPollResultsRequirements(pollData: PollConfiguration, member:
 import { Parser } from "json2csv"
 import { MessageAttachment } from "discord.js"
 
-export async function executeExportPollResultsCommand(user: User, pollID: string, firestoreDB: Firestore)
+export async function executeExportPollResultsCommand(user: User, pollID: string, showUserTags: boolean, client: Client, firestoreDB: Firestore)
 {
-  var dmChannel = user.dmChannel || await user.createDM()
+  let dmChannel = user.dmChannel || await user.createDM()
   if (!dmChannel) { return }
 
-  var pollResultsCollection = await firestoreDB.collection(pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID).get()
+  let pollResultsCollection = await firestoreDB.collection(pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID).get()
 
-  var formattedPollResults = []
+  let formattedPollResults = []
+  let userIDs = []
 
   pollResultsCollection.forEach((pollResultDoc) => {
     let pollResultJSON = pollResultDoc.data()
@@ -195,9 +203,22 @@ export async function executeExportPollResultsCommand(user: User, pollID: string
     if (!pollResultJSON.responseMap) { return }
 
     formattedPollResults.push({timestamp: pollResultJSON.updatedAt, responseMap: pollResultJSON.responseMap})
+    userIDs.push(pollResultDoc.id)
   })
 
-  var responseMapKeys = new Set(["timestamp"])
+  if (showUserTags)
+  {
+    for (let resultOn in formattedPollResults)
+    {
+      let userID = userIDs[resultOn]
+      let resultRow = formattedPollResults[resultOn]
+
+      let user = await client.users.fetch(userID)
+      resultRow.user = user.tag
+    }
+  }
+
+  let responseMapKeys = new Set(["timestamp", "user"])
   formattedPollResults = formattedPollResults.map((pollResponseData) => {
     Object.keys(pollResponseData.responseMap).forEach((responseMapKey) => {
       let responseValueID = pollResponseData.responseMap[responseMapKey]
@@ -214,7 +235,7 @@ export async function executeExportPollResultsCommand(user: User, pollID: string
 
     return pollResponseData
   })
-  var responseMapKeyArray = Array.from(responseMapKeys)
+  let responseMapKeyArray = Array.from(responseMapKeys)
 
   formattedPollResults.sort((pollResult1, pollResult2) => pollResult1.timestamp-pollResult2.timestamp)
   responseMapKeyArray.sort((questionID1, questionID2) => {
@@ -224,11 +245,11 @@ export async function executeExportPollResultsCommand(user: User, pollID: string
     return questionIndex1-questionIndex2
   })
 
-  var pollResultsCSVParser = new Parser({fields: responseMapKeyArray})
-  var pollResultsCSV = pollResultsCSVParser.parse(formattedPollResults)
+  let pollResultsCSVParser = new Parser({fields: responseMapKeyArray})
+  let pollResultsCSV = pollResultsCSVParser.parse(formattedPollResults)
 
-  var pollResultsCSVFilename = "poll-results-" + pollID + ".csv"
-  var csvMessageAttachment = new MessageAttachment(Buffer.from(pollResultsCSV, 'utf-8'), pollResultsCSVFilename)
+  let pollResultsCSVFilename = "poll-results-" + pollID + ".csv"
+  let csvMessageAttachment = new MessageAttachment(Buffer.from(pollResultsCSV, 'utf-8'), pollResultsCSVFilename)
   dmChannel.send({
     files: [csvMessageAttachment]
   })
