@@ -633,16 +633,29 @@ export function getReactCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "react", "react to a message",
-    /^react\s+([^\s]+)$/, /^speak(\s+.*)?$/,
-    "speak <message>",
+    /^react(?:\s+([^\s]+))?$/, /^react(\s+.*)?$/,
+    "react [emote]",
     async (commandArguments: string[], message: Message, client: Client) => {
       if (!message.reference) { return }
       let referencedMessage = await message.channel.messages.fetch(message.reference.messageId)
 
       let rawEmoteString = commandArguments[1]
-      let emote = Emote.fromEmoji(rawEmoteString)
+      if (rawEmoteString)
+      {
+        let emote = Emote.fromEmoji(rawEmoteString)
+        await referencedMessage.react(emote.toEmoji(client))
+        return
+      }
 
-      referencedMessage.react(emote.toEmoji(client))
+      referencedMessage = await referencedMessage.fetch(true)
+
+      let messageReactions = Array.from(referencedMessage.reactions.cache.values())
+      for (let reaction of messageReactions)
+      {
+        let users = await reaction.users.fetch()
+        if (users.has(client.user.id)) { continue }
+        await referencedMessage.react(reaction.emoji)
+      }
     }
   )
 }
