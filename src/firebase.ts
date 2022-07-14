@@ -58,7 +58,7 @@ const firestoreCollectionSyncHandlers = [
       }
     },
     initFunction: async function(_: Client, firestoreDB: Firestore) {
-      let roleGroupSettingsCollection = await firestoreDB.collection(pollsCollectionID).get()
+      let roleGroupSettingsCollection = await firestoreDB.collection(roleGroupCollectionID).get()
       for (let roleGroupSettingDoc of roleGroupSettingsCollection.docs)
       {
         interpretRoleGroupSetting(roleGroupSettingDoc.id, roleGroupSettingDoc.data() as RoleGroup)
