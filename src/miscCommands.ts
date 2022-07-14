@@ -1,6 +1,6 @@
 import { Client, Message, Collection, DMChannel, TextChannel, GuildChannel, CategoryChannel, PermissionResolvable } from "discord.js"
 import { BotCommand, BotCommandError } from "./botCommand"
-import { HandleCommandExecution } from "./util"
+import { HandleCommandExecution, Emote } from "./util"
 
 const messageCommands = [
   { command: "hi", description: "say hello", responses: ["hello :wave:"] },
@@ -625,6 +625,24 @@ export function getRerunCommand(handleCommandExecutionFunction: HandleCommandExe
       await handleCommandExecutionFunction(previousCommandMessage.content.replace(/<@!?&?\d+?>/, "").replace(/^\s*/, "").replace(/\s*$/, ""), message)
 
       await message.delete()
+    }
+  )
+}
+
+export function getReactCommand(): BotCommand
+{
+  return BotCommand.fromRegex(
+    "react", "react to a message",
+    /^react\s+([^\s]+)$/, /^speak(\s+.*)?$/,
+    "speak <message>",
+    async (commandArguments: string[], message: Message, client: Client) => {
+      if (!message.reference) { return }
+      let referencedMessage = await message.channel.messages.fetch(message.reference.messageId)
+
+      let rawEmoteString = commandArguments[1]
+      let emote = Emote.fromEmoji(rawEmoteString)
+
+      referencedMessage.react(emote.toEmoji(client))
     }
   )
 }
