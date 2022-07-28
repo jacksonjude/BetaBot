@@ -185,6 +185,11 @@ function initCommands()
       ownerUserRequirement
     ]
   )
+  var botAdminPermissionRequirement = new BotCommandUnionRequirement([
+    new BotCommandRoleIDRequirement(TECHNICIAN_ROLE_ID),
+    new BotCommandRoleIDRequirement("1002116413051379813"), // @bot admin (jacksonjude.com)
+    serverAdminPermissionRequirement
+  ])
 
   botCommands = [
     ...getMessageCommands(),
@@ -194,19 +199,19 @@ function initCommands()
     getDMVoteCommand(),
     getExportPollResultsCommand(),
     getCloseChannelsCommand().withRequirement(manageChannelsPermissionRequirement),
-    getEchoCommand().withRequirement(serverAdminPermissionRequirement),
-    getScheduleCommand(handleCommandExecution).withRequirement(serverAdminPermissionRequirement),
+    getEchoCommand().withRequirement(botAdminPermissionRequirement),
+    getScheduleCommand(handleCommandExecution).withRequirement(botAdminPermissionRequirement),
     getCreateServerPollCommand().withRequirement(botTesterPermissionRequirement),
     getEditPollCommand().withRequirement(serverAdminPermissionRequirement),
-    getCreatePollCommand().withRequirement(serverAdminPermissionRequirement),
-    getCreateRoleGroupCommand().withRequirement(serverAdminPermissionRequirement),
+    getCreatePollCommand().withRequirement(botAdminPermissionRequirement),
+    getCreateRoleGroupCommand().withRequirement(botAdminPermissionRequirement),
     getMessageCountsLeaderboardCommand(),
     getMessageCountsUpdateCommand().withRequirement(ownerUserRequirement),
     getCleanReactionsCommand().withRequirement(ownerUserRequirement),
     getReactCommand().withRequirement(ownerUserRequirement),
     getRepeatCommand().withRequirement(developmentRequirement),
     getSpeakCommand().withRequirement(developmentRequirement),
-    getRerunCommand(handleCommandExecution).withRequirement(serverAdminPermissionRequirement),
+    getRerunCommand(handleCommandExecution).withRequirement(botAdminPermissionRequirement),
     getRestartCommand().withRequirement(ownerUserAndDevelopmentRequirement)
   ]
   botCommands.unshift(getHelpCommand(botCommands))
