@@ -202,7 +202,7 @@ function initCommands()
     getEchoCommand().withRequirement(botAdminPermissionRequirement),
     getScheduleCommand(handleCommandExecution).withRequirement(botAdminPermissionRequirement),
     getCreateServerPollCommand().withRequirement(botTesterPermissionRequirement),
-    getEditPollCommand().withRequirement(serverAdminPermissionRequirement),
+    getEditPollCommand().withRequirement(botAdminPermissionRequirement),
     getCreatePollCommand().withRequirement(botAdminPermissionRequirement),
     getCreateRoleGroupCommand().withRequirement(botAdminPermissionRequirement),
     getMessageCountsLeaderboardCommand(),
