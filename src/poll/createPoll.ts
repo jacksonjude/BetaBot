@@ -46,13 +46,15 @@ enum SelectedPollFieldType
 
 enum PollQuestionEditType
 {
-  prompt = 1,
-  roles = 2,
-  delete = 3,
-  info = 4
+  showActions = 1,
+  prompt = 2,
+  roles = 3,
+  delete = 4,
+  info = 5
 }
 
 const pollQuestionEditEmotes = {
+  "↔️": PollQuestionEditType.showActions,
   "🖊": PollQuestionEditType.prompt,
   "👤": PollQuestionEditType.roles,
   "🗑": PollQuestionEditType.delete,
@@ -89,21 +91,21 @@ export function getCreatePollCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "createpoll", "create a new poll",
-    /^createpoll\s+(\w+)(?:\s+(.+))?$/, /^createpoll(\s+.*)?$/,
-    "createpoll <id> [name]",
+    /^createpoll\s+(\w+)(?:\s+(true|false))?$/, /^createpoll(\s+.*)?$/,
+    "createpoll <id> [expand actions]",
     async (commandArguments: string[], message: Message, client: Client) => {
       let pollID = commandArguments[1]
-      let pollName = commandArguments[2]
+      let shouldExpandActions = commandArguments[2] === "true"
 
-      let pollData = pollsData[pollID] ?? {active: false, id: pollID, name: pollName ?? pollID, questions: [], pollType: "dm", openTime: Timestamp.fromDate(new Date()), closeTime: Timestamp.fromDate(new Date())} as PollConfiguration
+      let pollData = pollsData[pollID] ?? {active: false, id: pollID, name: pollID, questions: [], pollType: "dm", openTime: Timestamp.fromDate(new Date()), closeTime: Timestamp.fromDate(new Date())} as PollConfiguration
       pollsData[pollID] = pollData
 
-      sendPollEditMessages(pollData, message.channel as TextChannel, client)
+      sendPollEditMessages(pollData, message.channel as TextChannel, client, shouldExpandActions)
     }
   )
 }
 
-async function sendPollEditMessages(pollConfig: PollConfiguration, channel: TextChannel, client: Client)
+async function sendPollEditMessages(pollConfig: PollConfiguration, channel: TextChannel, client: Client, shouldExpandActions: boolean = false)
 {
   if (!pollEditActionMessages[pollConfig.id])
   {
@@ -192,16 +194,13 @@ async function sendPollEditMessages(pollConfig: PollConfiguration, channel: Text
 
           return questionString
         }, async (message: Message, questionData: PollQuestion) => {
-          await message.react("🖊")
-          await message.react("👤")
-          await message.react("🗑")
-          await message.react("ℹ️")
-
-          for (let optionData of questionData.options ?? [])
+          if (!shouldExpandActions)
           {
-            let emoji = await new Emote(optionData.emote).toEmoji(client)
-            if (emoji == null) { continue }
-            await message.react(emoji)
+            await message.react("↔️")
+          }
+          else
+          {
+            await addPollEditQuestionReactions(questionData, message, client)
           }
         }, (reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, questionData: PollQuestion) => {
           handlePollEditReaction(client, reaction, user, reactionEventType, questionData, pollConfig.id)
@@ -211,6 +210,21 @@ async function sendPollEditMessages(pollConfig: PollConfiguration, channel: Text
       questionActionMessage.initActionMessage()
       pollEditActionMessages[pollConfig.id][pollQuestion.id] = questionActionMessage
     }
+  }
+}
+
+async function addPollEditQuestionReactions(questionData: PollQuestion, message: Message, client: Client)
+{
+  await message.react("🖊")
+  await message.react("👤")
+  await message.react("🗑")
+  await message.react("ℹ️")
+
+  for (let optionData of questionData.options ?? [])
+  {
+    let emoji = await new Emote(optionData.emote).toEmoji(client)
+    if (emoji == null) { continue }
+    await message.react(emoji)
   }
 }
 
@@ -227,6 +241,12 @@ async function handlePollEditReaction(client: Client, reaction: MessageReaction,
 
   if (!currentOptionData && !questionEditType && questionData)
   {
+    if (!await Emote.isValidEmote(reaction.emoji, client))
+    {
+      await reaction.remove()
+      return
+    }
+
     currentOptionData = {emote: Emote.fromEmoji(reaction.emoji).toString(), id: uid(), name: "<<Enter name>>"}
     questionData.options.push(currentOptionData)
     reaction.message.react(reaction.emoji)
@@ -259,7 +279,7 @@ async function handlePollEditReaction(client: Client, reaction: MessageReaction,
         delete pollEditSelectedFields[currentPollID]
         // pollEditSelectedFields[currentPollID] = {type: SelectedPollFieldType.questionPrompt, poll: currentPollID, question: questionData.id, user: user.id, channel: reaction.message.channelId}
 
-        sendPollEditMessages(pollsData[currentPollID], reaction.message.channel as TextChannel, client)
+        sendPollEditMessages(pollsData[currentPollID], reaction.message.channel as TextChannel, client, true)
         break
 
         case PollEditType.openTime:
@@ -289,6 +309,12 @@ async function handlePollEditReaction(client: Client, reaction: MessageReaction,
 
       switch (questionEditType)
       {
+        case PollQuestionEditType.showActions:
+        await reaction.remove()
+        let message = await reaction.message.fetch()
+        await addPollEditQuestionReactions(questionData, message, client)
+        return
+
         case PollQuestionEditType.prompt:
         pollEditSelectedFields[currentPollID].type = SelectedPollFieldType.questionPrompt
         break

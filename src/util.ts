@@ -84,6 +84,11 @@ export class Emote
     return emotes
   }
 
+  static async isValidEmote(emoji: EmojiResolvable, client: Client)
+  {
+    return await Emote.fromEmoji(emoji).toEmoji(client) != null
+  }
+
   toString()
   {
     return this.id ? `<${this.isAnimated ? "a" : ""}:${this.name}:${this.id}>` : `:${this.name}:`
