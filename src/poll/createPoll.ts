@@ -12,6 +12,8 @@ import {
 } from "./sharedPoll"
 import { Emote } from "../util"
 
+import { roleGroups, roleGroupRegex } from "../roleGroup"
+
 import { BotCommand } from "../botCommand"
 
 class SelectedPollField
@@ -363,19 +365,29 @@ async function handlePollEditFieldTextInput(message: Message, pollField: Selecte
     break
 
     case SelectedPollFieldType.questionRoles:
-    let questionRolesRegex = /^\s*((?:<@!?&?\d+>\s*)*)\s*$/
+    const questionRolesRegex = /^\s*((?:(?:<@!?&?\d+>|[\w-]+)\s*)*)\s*$/
 
     if (questionRolesRegex.test(message.content))
     {
       let questionRolesString = questionRolesRegex.exec(message.content)[1]
 
+      const roleIDRegex = /<@!?&?(\d+)>/
+
       let roleIDs = []
       for (let roleIDString of questionRolesString.split(/\s+/))
       {
-        let roleIDGroups = /<@!?&?(\d+)>/.exec(roleIDString)
-        if (!roleIDGroups || roleIDGroups.length <= 1) { continue }
+        if (roleIDRegex.test(roleIDString))
+        {
+          let roleID = roleIDRegex.exec(roleIDString)[1]
+          roleIDs.push(roleID)
+        }
+        else if (roleGroupRegex.test(roleIDString))
+        {
+          if (!roleGroups[roleIDString]) { continue }
 
-        roleIDs.push(roleIDGroups[1])
+          let groupRoleIDs = roleGroups[roleIDString].getRoleTuples().map(roleTuple => roleTuple.roleID)
+          roleIDs = roleIDs.concat(groupRoleIDs)
+        }
       }
 
       pollsData[pollField.poll].questions.find(question => question.id == pollField.question).roleIDs = roleIDs

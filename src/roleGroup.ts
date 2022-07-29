@@ -107,7 +107,7 @@ export var roleGroups: { [k: string]: RoleGroup } = {}
 
 export async function interpretRoleGroupSetting(roleGroupSettingID: string, roleGroupSettingJSON: RoleGroup)
 {
-  roleGroups[roleGroupSettingID] = roleGroupSettingJSON
+  roleGroups[roleGroupSettingID] = new RoleGroup(roleGroupSettingJSON.roles, roleGroupSettingJSON.serverID)
 }
 
 export function getCreateRoleGroupCommand(): BotCommand
