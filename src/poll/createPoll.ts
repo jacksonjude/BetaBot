@@ -24,6 +24,7 @@ class SelectedPollField
 
   user: string
   channel: string
+  reaction: MessageReaction
 
   type: SelectedPollFieldType
 }
@@ -263,7 +264,7 @@ async function handlePollEditReaction(client: Client, reaction: MessageReaction,
     case "added":
     if (!questionData && pollEditType)
     {
-      pollEditSelectedFields[currentPollID] = {type: SelectedPollFieldType.none, poll: currentPollID, user: user.id, channel: reaction.message.channelId}
+      pollEditSelectedFields[currentPollID] = {type: SelectedPollFieldType.none, poll: currentPollID, user: user.id, channel: reaction.message.channelId, reaction: reaction}
 
       switch (pollEditType)
       {
@@ -305,7 +306,7 @@ async function handlePollEditReaction(client: Client, reaction: MessageReaction,
     }
     else if (questionData && questionEditType)
     {
-      pollEditSelectedFields[currentPollID] = {type: SelectedPollFieldType.none, poll: currentPollID, question: questionData.id, user: user.id, channel: reaction.message.channelId}
+      pollEditSelectedFields[currentPollID] = {type: SelectedPollFieldType.none, poll: currentPollID, question: questionData.id, user: user.id, channel: reaction.message.channelId, reaction: reaction}
 
       switch (questionEditType)
       {
@@ -334,7 +335,7 @@ async function handlePollEditReaction(client: Client, reaction: MessageReaction,
     }
     else
     {
-      pollEditSelectedFields[currentPollID] = {type: SelectedPollFieldType.option, poll: currentPollID, question: questionData.id, option: currentOptionData.id, user: user.id, channel: reaction.message.channelId}
+      pollEditSelectedFields[currentPollID] = {type: SelectedPollFieldType.option, poll: currentPollID, question: questionData.id, option: currentOptionData.id, user: user.id, channel: reaction.message.channelId, reaction: reaction}
     }
 
     break
@@ -387,7 +388,18 @@ async function handlePollEditFieldTextInput(message: Message, pollField: Selecte
   switch (pollField.type)
   {
     case SelectedPollFieldType.option:
-    pollsData[pollField.poll].questions.find(question => question.id == pollField.question).options.find(option => option.id == pollField.option).name = message.content
+    let questionData = pollsData[pollField.poll].questions.find(question => question.id == pollField.question)
+    let optionIndex = questionData.options.findIndex(option => option.id == pollField.option)
+
+    if (message.content == "-")
+    {
+      await pollField.reaction.remove()
+      questionData.options.splice(optionIndex, 1)
+    }
+    else
+    {
+      questionData.options[optionIndex].name = message.content
+    }
     break
 
     case SelectedPollFieldType.questionRoles:
