@@ -144,3 +144,54 @@ export class Emote
 // Types
 
 export type HandleCommandExecution = (messageContent: string, msg: Message) => Promise<void>
+
+// Prototypes
+
+declare global
+{
+  interface Date
+  {
+    stdTimezoneOffset(): void
+    dstTimezoneOffset(): void
+    isDSTObserved(): boolean
+    getOffsetDueToDST(): number
+    toDMYString(): string
+    changeTimezone(ianatz: string, multiplier: number): void
+  }
+}
+
+Date.prototype.stdTimezoneOffset = function() {
+  var jan = new Date(this.getFullYear(), 0, 1)
+  var jul = new Date(this.getFullYear(), 6, 1)
+  return Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset())
+}
+
+Date.prototype.dstTimezoneOffset = function() {
+  var jan = new Date(this.getFullYear(), 0, 1)
+  var jul = new Date(this.getFullYear(), 6, 1)
+  return Math.min(jan.getTimezoneOffset(), jul.getTimezoneOffset())
+}
+
+Date.prototype.isDSTObserved = function() {
+  return this.getTimezoneOffset() < this.stdTimezoneOffset()
+}
+
+Date.prototype.getOffsetDueToDST = function() {
+  return 1000*60*(this.isDSTObserved() ? this.stdTimezoneOffset()-this.getTimezoneOffset() : this.dstTimezoneOffset()-this.getTimezoneOffset())
+}
+
+Date.prototype.toDMYString = function() {
+  return (this.getMonth()+1) + "/" + this.getDate() + "/" + this.getFullYear()
+}
+
+Date.prototype.changeTimezone = function(ianatz: string, multiplier: number) {
+  // suppose the date is 12:00 UTC
+  var invdate = new Date(this.toLocaleString('en-US', {
+    timeZone: ianatz
+  }))
+
+  var diff = this.getTime() - invdate.getTime()
+  diff *= multiplier
+
+  this.setTime(this.getTime() - diff) // needs to substract
+}

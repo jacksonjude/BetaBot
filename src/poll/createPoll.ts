@@ -406,13 +406,13 @@ async function handlePollEditFieldTextInput(message: Message, pollField: Selecte
     case SelectedPollFieldType.pollOpenTime:
     case SelectedPollFieldType.pollCloseTime:
     let epochRegex = /^\s*(\d+)\s*$/
-    let yyyyMMDDHHMMSSRegex = /^\s*(?:(\d{4})-)?(\d{2})-(\d{2})\s+(\d{2}):(\d{2})(?::(\d{2}))?\s*$/
+    let yyyyMMDDHHMMSSRegex = /^\s*(?:(\d{4})-)?(\d{2})-(\d{2})\s+(\d{2}):(\d{2})(?::(\d{2}))?(?:\s+(\w+))?\s*$/
 
     let selectedDate: Date
 
     if (epochRegex.test(message.content))
     {
-      selectedDate = new Date(epochRegex.exec(message.content)[1])
+      selectedDate = new Date(parseInt(epochRegex.exec(message.content)[1]))
     }
     else if (yyyyMMDDHHMMSSRegex.test(message.content))
     {
@@ -425,6 +425,7 @@ async function handlePollEditFieldTextInput(message: Message, pollField: Selecte
       selectedDate.setHours(parseInt(dateParts[4]))
       selectedDate.setMinutes(parseInt(dateParts[5]))
       selectedDate.setSeconds(dateParts[6] ? parseInt(dateParts[6]) : 0)
+      dateParts[7] && selectedDate.changeTimezone(dateParts[7], -1)
     }
 
     if (selectedDate)
