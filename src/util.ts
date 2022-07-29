@@ -89,9 +89,9 @@ export class Emote
     return this.id ? `<${this.isAnimated ? "a" : ""}:${this.name}:${this.id}>` : `:${this.name}:`
   }
 
-  toEmoji(client: Client): EmojiResolvable
+  async toEmoji(client: Client): Promise<EmojiResolvable>
   {
-    return Emote.getEmoji(client, this.name, this.id)
+    return await Emote.getEmoji(client, this.name, this.id)
   }
 
   private static getEmoteString(emoji: EmojiResolvable): string
@@ -105,13 +105,30 @@ export class Emote
     return overrideEmojiToEmoteNameMap[emojiString] ?? emojiConverter.unemojify(emojiString)
   }
 
-  private static getEmoji(client: Client, emoteName: string, emoteID?: string): EmojiResolvable
+  private static async getEmoji(client: Client, emoteName: string, emoteID?: string): Promise<EmojiResolvable>
   {
     let emojiCache = client.emojis.cache
     let emoji = emojiCache.find(emoji => emoji.id == emoteID && emoji.name == emoteName)
     if (emoji != null)
     {
       return emoji
+    }
+    else if (emoteID)
+    {
+      let guilds = Array.from(client.guilds.cache.values())
+      for (let guild of guilds)
+      {
+        let emoji: GuildEmoji
+        try
+        {
+          emoji = await guild.emojis.fetch(emoteID)
+        }
+        catch {}
+        if (emoji != null)
+        {
+          return emoji
+        }
+      }
     }
 
     let emote = emojiConverter.get(emoteName)

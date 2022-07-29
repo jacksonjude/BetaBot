@@ -240,7 +240,7 @@ async function sendVoteDM(client: Client, user: User, guildMember: GuildMember, 
         pollMessageIDs[questionData.id] = message.id
         for (let optionData of questionData.options ?? [])
         {
-          let emoji = new Emote(optionData.emote).toEmoji(client)
+          let emoji = await new Emote(optionData.emote).toEmoji(client)
           if (emoji == null) { console.log("[DM Poll] Emote not found", optionData.emote); continue }
           await message.react(emoji)
         }
@@ -258,7 +258,7 @@ async function sendVoteDM(client: Client, user: User, guildMember: GuildMember, 
       return "**" + ":arrow_down: Submit below :arrow_down:" + "**"
     }, async (message: Message) => {
       pollMessageIDs["submit"] = message.id
-      let submitEmoji = new Emote(submitResponseEmote).toEmoji(client)
+      let submitEmoji = await new Emote(submitResponseEmote).toEmoji(client)
       await message.react(submitEmoji)
     }, (reaction: MessageReaction, user: User) => {
       handlePollSubmitReaction(client, reaction, user, pollID, uploadPollResponse)

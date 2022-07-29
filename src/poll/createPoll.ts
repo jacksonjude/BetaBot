@@ -197,7 +197,7 @@ async function sendPollEditMessages(pollConfig: PollConfiguration, channel: Text
 
           for (let optionData of questionData.options ?? [])
           {
-            let emoji = new Emote(optionData.emote).toEmoji(client)
+            let emoji = await new Emote(optionData.emote).toEmoji(client)
             if (emoji == null) { continue }
             await message.react(emoji)
           }

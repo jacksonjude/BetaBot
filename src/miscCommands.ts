@@ -643,7 +643,7 @@ export function getReactCommand(): BotCommand
       if (rawEmoteString)
       {
         let emote = Emote.fromEmoji(rawEmoteString)
-        await referencedMessage.react(emote.toEmoji(client))
+        await referencedMessage.react(await emote.toEmoji(client))
         return
       }
 

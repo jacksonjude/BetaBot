@@ -93,7 +93,7 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
         pollData.messageIDs[questionData.id] = message.id
         for (let optionData of questionData.options)
         {
-          let emoji = new Emote(optionData.emote).toEmoji(client)
+          let emoji = await new Emote(optionData.emote).toEmoji(client)
           if (emoji == null) { continue }
           await message.react(emoji)
         }
