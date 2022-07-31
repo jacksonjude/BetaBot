@@ -50,14 +50,16 @@ enum PollQuestionEditType
   showActions = 1,
   prompt = 2,
   roles = 3,
-  delete = 4,
-  info = 5
+  copy = 4,
+  delete = 5,
+  info = 6
 }
 
 const pollQuestionEditEmotes = {
   "↔️": PollQuestionEditType.showActions,
   "🖊": PollQuestionEditType.prompt,
   "👤": PollQuestionEditType.roles,
+  "📝": PollQuestionEditType.copy,
   "🗑": PollQuestionEditType.delete,
   "ℹ️": PollQuestionEditType.info
 }
@@ -218,6 +220,7 @@ async function addPollEditQuestionReactions(questionData: PollQuestion, message:
 {
   await message.react("🖊")
   await message.react("👤")
+  await message.react("📝")
   await message.react("🗑")
   await message.react("ℹ️")
 
@@ -275,12 +278,12 @@ async function handlePollEditReaction(client: Client, reaction: MessageReaction,
         case PollEditType.newQuestion:
         let newQuestionData = {id: uid(), prompt: "<<Enter prompt>>", options: []}
         pollsData[currentPollID].questions.push(newQuestionData)
-        reaction.users.remove(user)
+        await reaction.users.remove(user)
 
         delete pollEditSelectedFields[currentPollID]
         // pollEditSelectedFields[currentPollID] = {type: SelectedPollFieldType.questionPrompt, poll: currentPollID, question: questionData.id, user: user.id, channel: reaction.message.channelId}
 
-        sendPollEditMessages(pollsData[currentPollID], reaction.message.channel as TextChannel, client, true)
+        await sendPollEditMessages(pollsData[currentPollID], reaction.message.channel as TextChannel, client, true)
         break
 
         case PollEditType.openTime:
@@ -322,6 +325,17 @@ async function handlePollEditReaction(client: Client, reaction: MessageReaction,
 
         case PollQuestionEditType.roles:
         pollEditSelectedFields[currentPollID].type = SelectedPollFieldType.questionRoles
+        break
+
+        case PollQuestionEditType.copy:
+        let newQuestionData = JSON.parse(JSON.stringify(questionData)) as PollQuestion
+        newQuestionData.id = uid()
+        pollsData[currentPollID].questions.push(newQuestionData)
+        await reaction.users.remove(user)
+
+        delete pollEditSelectedFields[currentPollID]
+        
+        await sendPollEditMessages(pollsData[currentPollID], reaction.message.channel as TextChannel, client, true)
         break
 
         case PollQuestionEditType.delete:
