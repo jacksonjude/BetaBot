@@ -185,7 +185,7 @@ function checkExportPollResultsRequirements(pollData: PollConfiguration, member:
 }
 
 import { Parser } from "json2csv"
-import { MessageAttachment } from "discord.js"
+import { AttachmentBuilder } from "discord.js"
 
 export async function executeExportPollResultsCommand(user: User, pollID: string, showUserTags: boolean, client: Client, firestoreDB: Firestore)
 {
@@ -249,7 +249,7 @@ export async function executeExportPollResultsCommand(user: User, pollID: string
   let pollResultsCSV = pollResultsCSVParser.parse(formattedPollResults)
 
   let pollResultsCSVFilename = "poll-results-" + pollID + ".csv"
-  let csvMessageAttachment = new MessageAttachment(Buffer.from(pollResultsCSV, 'utf-8'), pollResultsCSVFilename)
+  let csvMessageAttachment = new AttachmentBuilder(Buffer.from(pollResultsCSV, 'utf-8'), { name: pollResultsCSVFilename })
   dmChannel.send({
     files: [csvMessageAttachment]
   })

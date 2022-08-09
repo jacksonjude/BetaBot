@@ -5,17 +5,18 @@ const APP_BUILD_DATE = process.env.HEROKU_RELEASE_CREATED_AT
 const CREATOR_USER_ID = process.env.CREATOR_USER_ID
 const DISCORD_NICKNAME = process.env.DISCORD_NICKNAME
 
-import { Client, Intents, GuildMember, Message } from 'discord.js'
+import { Client, GatewayIntentBits, Partials, PermissionFlagsBits, GuildMember, Message } from 'discord.js'
 const client = new Client({ intents: [
-  Intents.FLAGS.GUILDS,
-  Intents.FLAGS.GUILD_MEMBERS,
-  Intents.FLAGS.GUILD_VOICE_STATES,
-  Intents.FLAGS.GUILD_PRESENCES,
-  Intents.FLAGS.GUILD_MESSAGES,
-  Intents.FLAGS.GUILD_MESSAGE_REACTIONS,
-  Intents.FLAGS.DIRECT_MESSAGES,
-  Intents.FLAGS.DIRECT_MESSAGE_REACTIONS
-], partials: ['USER'] }) // PARTIALS: https://github.com/discordjs/discord.js/issues/4980#issuecomment-723519865
+  GatewayIntentBits.Guilds,
+  GatewayIntentBits.GuildMembers,
+  GatewayIntentBits.GuildVoiceStates,
+  GatewayIntentBits.GuildPresences,
+  GatewayIntentBits.GuildMessages,
+  GatewayIntentBits.GuildMessageReactions,
+  GatewayIntentBits.DirectMessages,
+  GatewayIntentBits.DirectMessageReactions,
+  GatewayIntentBits.MessageContent
+], partials: [Partials.User] }) // PARTIALS: https://github.com/discordjs/discord.js/issues/4980#issuecomment-723519865
 
 import {
   BotCommand,
@@ -175,13 +176,13 @@ function initCommands()
   ])
   var manageChannelsPermissionRequirement = new BotCommandUnionRequirement(
     [
-      new BotCommandPermissionRequirement(["MANAGE_CHANNELS"]),
+      new BotCommandPermissionRequirement([PermissionFlagsBits.ManageChannels]),
       ownerUserRequirement
     ]
   )
   var serverAdminPermissionRequirement = new BotCommandUnionRequirement(
     [
-      new BotCommandPermissionRequirement(["ADMINISTRATOR"]),
+      new BotCommandPermissionRequirement([PermissionFlagsBits.Administrator]),
       ownerUserRequirement
     ]
   )

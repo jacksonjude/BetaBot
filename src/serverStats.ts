@@ -1,4 +1,4 @@
-import { Client, Guild, TextChannel, Collection, Message } from "discord.js"
+import { Client, Guild, TextChannel, Collection, Message, MessageType, ChannelType } from "discord.js"
 import { Firestore, Timestamp } from "firebase-admin/firestore"
 import { BotCommand, BotCommandError } from "./botCommand"
 
@@ -80,7 +80,7 @@ export function setupMemberStatsEventHandlers(client: Client)
 
   client.on('messageCreate', (message) => {
     // Update boost stat
-    if (message.type != "USER_PREMIUM_GUILD_SUBSCRIPTION") { return }
+    if (message.type != MessageType.GuildBoost) { return }
     updateBoostMembersStat(message.guild)
   })
 }
@@ -158,7 +158,7 @@ async function updateMessageCounts(guild: Guild, hoursPerSegment: number, tracki
   var guildChannels = await guild.channels.fetch()
   for (let channel of guildChannels.toJSON())
   {
-    if (channel.type != "GUILD_TEXT") { continue }
+    if (channel.type != ChannelType.GuildText) { continue }
     let textChannel = channel as TextChannel
 
     let channelMessages: Collection<string,Message>
@@ -226,7 +226,7 @@ async function updateMessageCounts(guild: Guild, hoursPerSegment: number, tracki
     {
       if (verbose)
       {
-        console.log("[Message Counts] " + channel.id + " (count = " + fetchedMessageCount + ", time = " + channelMessages.last().createdAt.getTime() + ")")
+        console.log("[Message Counts] " + textChannel.id + " (count = " + fetchedMessageCount + ", time = " + channelMessages.last().createdAt.getTime() + ")")
       }
       shouldBreakMessageLoop = await processMessages(Object.values(channelMessages.toJSON()))
 
@@ -234,7 +234,7 @@ async function updateMessageCounts(guild: Guild, hoursPerSegment: number, tracki
       {
         try
         {
-          channelMessages = await channel.messages.fetch({before: channelMessages.last().id, limit: 100})
+          channelMessages = await textChannel.messages.fetch({before: channelMessages.last().id, limit: 100})
           fetchedMessageCount += channelMessages.size
         }
         catch

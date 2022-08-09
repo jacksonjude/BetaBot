@@ -1,4 +1,4 @@
-import { Client, TextChannel, VoiceChannel } from "discord.js"
+import { Client, TextChannel, VoiceChannel, ChannelType, PermissionFlagsBits } from "discord.js"
 
 // Update Roles
 
@@ -29,16 +29,17 @@ export async function interpretVoiceToTextChannelSetting(client: Client, guildID
 
     if (voiceTextChannelPair.textChannelID == null)
     {
-      textChannel = await guild.channels.create(voiceChannel.name + "-text", {
-        type: "GUILD_TEXT",
+      textChannel = await guild.channels.create({
+        name: voiceChannel.name + "-text",
+        type: ChannelType.GuildText,
         permissionOverwrites: [
           {
             id: client.user.id,
-            allow: "VIEW_CHANNEL"
+            allow: PermissionFlagsBits.ViewChannel
           },
           {
             id: guild.roles.everyone,
-            deny: "VIEW_CHANNEL"
+            deny: PermissionFlagsBits.ViewChannel
           }
         ],
 
@@ -62,7 +63,7 @@ export async function interpretVoiceToTextChannelSetting(client: Client, guildID
       })
 
       await textChannel.permissionOverwrites.create(textChannelRole, {
-        VIEW_CHANNEL: true
+        ViewChannel: true
       })
 
       voiceTextChannelPair.roleID = textChannelRole.id

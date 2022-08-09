@@ -1,4 +1,4 @@
-import { Client, Message, Collection, DMChannel, TextChannel, GuildChannel, CategoryChannel, PermissionResolvable } from "discord.js"
+import { Client, Message, Collection, DMChannel, TextChannel, GuildChannel, CategoryChannel, PermissionResolvable, PermissionFlagsBits, ChannelType } from "discord.js"
 import { BotCommand, BotCommandError } from "./botCommand"
 import { HandleCommandExecution, Emote } from "./util"
 
@@ -376,7 +376,7 @@ export function getClearCommand(): BotCommand
         })
         if (!memberToClearThrough) { return }
 
-        allowedToClearAllMessages = (channelToClear as TextChannel).permissionsFor(memberToClearThrough).has("MANAGE_MESSAGES")
+        allowedToClearAllMessages = (channelToClear as TextChannel).permissionsFor(memberToClearThrough).has(PermissionFlagsBits.ManageMessages)
       }
       let userIsOwner = process.env.CREATOR_USER_ID == commandMessage.author.id
 
@@ -419,7 +419,7 @@ export function getEchoCommand(): BotCommand
     "echo [channel] <message>",
     async (commandArguments: string[], message: Message, client: Client) => {
       let channel = commandArguments[1] ? await client.channels.fetch(commandArguments[1]) as TextChannel : message.channel as TextChannel
-      if (!channel.permissionsFor(message.member).has("SEND_MESSAGES")) { return }
+      if (!channel.permissionsFor(message.member).has(PermissionFlagsBits.SendMessages)) { return }
 
       let messageToRepeat = commandArguments[2]
 
@@ -557,7 +557,7 @@ export function getCloseChannelsCommand(): BotCommand
         let category = await commandMessage.guild.channels.fetch(channelIDs[0]) as CategoryChannel
         if (category)
         {
-          channelsToClose = [category, ...Array.from(category.children.values()).filter(channel => !channel.permissionsLocked)]
+          channelsToClose = [category, ...Array.from(category.children.cache.values()).filter(channel => !channel.permissionsLocked)]
         }
         break
       }
@@ -567,17 +567,17 @@ export function getCloseChannelsCommand(): BotCommand
         let permissionsToToggle: PermissionResolvable[]
         switch (channel.type)
         {
-          case "GUILD_TEXT":
-          permissionsToToggle = ["SEND_MESSAGES"]
+          case ChannelType.GuildText:
+          permissionsToToggle = [PermissionFlagsBits.SendMessages]
           break
 
-          case "GUILD_VOICE":
-          case "GUILD_STAGE_VOICE":
-          permissionsToToggle = ["CONNECT"]
+          case ChannelType.GuildVoice:
+          case ChannelType.GuildStageVoice:
+          permissionsToToggle = [PermissionFlagsBits.Connect]
           break
 
-          case "GUILD_CATEGORY":
-          permissionsToToggle = ["SEND_MESSAGES", "CONNECT"]
+          case ChannelType.GuildCategory:
+          permissionsToToggle = [PermissionFlagsBits.SendMessages, PermissionFlagsBits.Connect]
           break
 
           default:
@@ -603,7 +603,7 @@ export function getCloseChannelsCommand(): BotCommand
             continue
           }
 
-          shouldPrintLogs && await commandMessage.channel.send((modeToSet ? ":white_check_mark: Opened" : ":x: Closed") + " " + (channel.type === "GUILD_CATEGORY" ? channel.name : "<#" + channel.id + ">") + " for <@&" + role.id + ">")
+          shouldPrintLogs && await commandMessage.channel.send((modeToSet ? ":white_check_mark: Opened" : ":x: Closed") + " " + (channel.type === ChannelType.GuildCategory ? channel.name : "<#" + channel.id + ">") + " for <@&" + role.id + ">")
         }
       }
     }
