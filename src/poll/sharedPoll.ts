@@ -1,7 +1,7 @@
-import { User, GuildMember, Message, Client } from "discord.js"
+import { User, GuildMember, Message, Client, TextChannel } from "discord.js"
 import { ActionMessage } from "../actionMessage"
 import { Firestore, Timestamp } from "firebase-admin/firestore"
-import { BotCommand, BotCommandError } from "../botCommand"
+import { BotCommand, BotCommandError, BotCommandRequirement } from "../botCommand"
 
 export const pollsCollectionID = "pollConfigurations"
 export const pollResponsesCollectionID = "responses"
@@ -120,7 +120,7 @@ export function checkVoteRequirements(pollData: PollConfiguration, serverID: str
   return true
 }
 
-export function getExportPollResultsCommand(): BotCommand
+export function getExportPollResultsCommand(overrideCommandRequirement: BotCommandRequirement): BotCommand
 {
   return BotCommand.fromRegex(
     "pollresults", "get poll results",
@@ -138,7 +138,9 @@ export function getExportPollResultsCommand(): BotCommand
       let pollData = pollsData[pollID]
       let member = await message.member.fetch()
 
-      if (!checkExportPollResultsRequirements(pollData, member, message, showUserTags))
+      let isBotAdmin = overrideCommandRequirement.requirementTest(message.author, message.member, message, message.channel as TextChannel, message.guild)
+
+      if (!isBotAdmin && !checkExportPollResultsRequirements(pollData, member, message, showUserTags))
       {
         return new BotCommandError("Exporting requirements not met for " + pollID, false)
       }

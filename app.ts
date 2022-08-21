@@ -198,7 +198,7 @@ function initCommands()
     getEmoteSpellCommand().withRequirement(botChannelRequirement),
     getClearCommand(),
     getDMVoteCommand(),
-    getExportPollResultsCommand(),
+    getExportPollResultsCommand(botAdminPermissionRequirement),
     getCloseChannelsCommand().withRequirement(manageChannelsPermissionRequirement),
     getEchoCommand().withRequirement(botAdminPermissionRequirement),
     getScheduleCommand(handleCommandExecution).withRequirement(botAdminPermissionRequirement),
