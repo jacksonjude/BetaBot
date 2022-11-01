@@ -33,6 +33,8 @@ import { interpretServerCommandAliasSettings, ServerCommandAliasConfiguration } 
 
 import { interpretRoleGroupSetting, RoleGroup } from "./roleGroup"
 
+import { interpretFormChannelSetting, FormChannel } from "./formChannel"
+
 const roleMessageCollectionID = "roleMessageConfigurations"
 const voiceToTextCollectionID = "voiceToTextConfigurations"
 const statChannelsCollectionID = "statsConfigurations"
@@ -43,6 +45,7 @@ const scheduledCommandCollectionID = "scheduledCommands"
 const roleCounterCollectionID = "roleCounterConfigurations"
 const commandAliasCollectionID = "commandAliasConfigurations"
 const roleGroupCollectionID = "roleGroupConfigurations"
+const formChannelCollectionID = "formChannelConfigurations"
 
 var firestoreCollectionListeners = []
 const firestoreCollectionSyncHandlers = [
@@ -199,6 +202,18 @@ const firestoreCollectionSyncHandlers = [
       if (!shouldDelete)
       {
         interpretServerCommandAliasSettings(serverID, serverCommandAliasSettingDocData as ServerCommandAliasConfiguration)
+      }
+    }
+  },
+  {
+    collectionID: formChannelCollectionID,
+    updateDocFunction: async function(formChannelSettingDoc: QueryDocumentSnapshot, shouldDelete: boolean, client: Client) {
+      let formChannelSettingDocData = formChannelSettingDoc.data()
+      let formID = formChannelSettingDoc.id
+
+      if (!shouldDelete)
+      {
+        interpretFormChannelSetting(client, formID, formChannelSettingDocData as FormChannel)
       }
     }
   }

@@ -52,6 +52,8 @@ import { setupRoleCounterEventHandlers } from "./src/roleCounter"
 
 import { executeCommandAlias } from "./src/commandAlias"
 
+import { setupFormMessageEventHandlers } from "./src/formChannel"
+
 const HOME_GUILD_ID = "704218896298934317"
 const TECHNICIAN_ROLE_ID = "804147385923403826"
 
@@ -82,6 +84,7 @@ client.on('ready', async () => {
   setupMemberStatsEventHandlers(client)
   setupRoleCounterEventHandlers(client)
   setupPollEditTextInputEventHandlers(client, firestoreDB)
+  setupFormMessageEventHandlers(client)
 
   initCommands()
 })
