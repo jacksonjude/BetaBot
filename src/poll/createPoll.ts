@@ -12,7 +12,7 @@ import {
 } from "./sharedPoll"
 import { Emote } from "../util"
 
-import { roleGroups, roleGroupRegex } from "../roleGroup"
+import { getRolesFromString } from "../roleGroup"
 
 import { BotCommand } from "../botCommand"
 
@@ -40,6 +40,7 @@ enum SelectedPollFieldType
   pollName,
   pollOpenTime,
   pollCloseTime,
+  pollRoles,
   pollVoteMessage,
   pollSaveChanges,
   pollCloseEditing
@@ -70,9 +71,10 @@ enum PollEditType
   newQuestion = 2,
   openTime = 3,
   closeTime = 4,
-  voteMessage = 5,
-  saveChanges = 6,
-  closeEditing = 7
+  roles = 5,
+  voteMessage = 6,
+  saveChanges = 7,
+  closeEditing = 8
 }
 
 const pollEditEmotes = {
@@ -80,6 +82,7 @@ const pollEditEmotes = {
   "🆕": PollEditType.newQuestion,
   "📖": PollEditType.openTime,
   "📕": PollEditType.closeTime,
+  "👤": PollEditType.roles,
   "📣": PollEditType.voteMessage,
   "☑️": PollEditType.saveChanges,
   "❌": PollEditType.closeEditing
@@ -122,12 +125,14 @@ async function sendPollEditMessages(pollConfig: PollConfiguration, channel: Text
         let editingPollTitle: boolean
         let editingOpenTime: boolean
         let editingCloseTime: boolean
+        let editingRoles: boolean
         let editingVoteMessage: boolean
         if (pollEditSelectedFields[pollConfig.id])
         {
           editingPollTitle = pollEditSelectedFields[pollConfig.id].type == SelectedPollFieldType.pollName
           editingOpenTime = pollEditSelectedFields[pollConfig.id].type == SelectedPollFieldType.pollOpenTime
           editingCloseTime = pollEditSelectedFields[pollConfig.id].type == SelectedPollFieldType.pollCloseTime
+          editingRoles = pollEditSelectedFields[pollConfig.id].type == SelectedPollFieldType.pollRoles
           editingVoteMessage = pollEditSelectedFields[pollConfig.id].type == SelectedPollFieldType.pollVoteMessage
         }
 
@@ -140,6 +145,11 @@ async function sendPollEditMessages(pollConfig: PollConfiguration, channel: Text
         {
           titleString += "  (<t:" + pollsData[pollConfig.id].closeTime.seconds.toString() + ":f>)"
         }
+        if (editingRoles)
+        {
+          let whitelistedRoleIDs = (pollsData[pollConfig.id].roleIDs ?? []).reduce((rolesString, roleID) => rolesString += "<@&" + roleID + "> ", "")
+          titleString += "  (" + (whitelistedRoleIDs == "" ? "@everyone" : whitelistedRoleIDs.slice(0, -1)) + ")"
+        }
         if (editingVoteMessage)
         {
           titleString += pollsData[pollConfig.id].voteMessageSettings ? "  (<#" + pollsData[pollConfig.id].voteMessageSettings.channelID + "> " + pollsData[pollConfig.id].voteMessageSettings.messageText + ")" : "  (None)"
@@ -151,6 +161,7 @@ async function sendPollEditMessages(pollConfig: PollConfiguration, channel: Text
         await message.react("🆕")
         await message.react("📖")
         await message.react("📕")
+        await message.react("👤")
         await message.react("📣")
         await message.react("☑️")
         await message.react("❌")
@@ -294,6 +305,10 @@ async function handlePollEditReaction(client: Client, reaction: MessageReaction,
         pollEditSelectedFields[currentPollID].type = SelectedPollFieldType.pollCloseTime
         break
 
+        case PollEditType.roles:
+        pollEditSelectedFields[currentPollID].type = SelectedPollFieldType.pollRoles
+        break
+
         case PollEditType.voteMessage:
         pollEditSelectedFields[currentPollID].type = SelectedPollFieldType.pollVoteMessage
         break
@@ -334,7 +349,7 @@ async function handlePollEditReaction(client: Client, reaction: MessageReaction,
         await reaction.users.remove(user)
 
         delete pollEditSelectedFields[currentPollID]
-        
+
         await sendPollEditMessages(pollsData[currentPollID], reaction.message.channel as TextChannel, client, true)
         break
 
@@ -359,6 +374,7 @@ async function handlePollEditReaction(client: Client, reaction: MessageReaction,
       pollEditType == PollEditType.title && pollEditSelectedFields[currentPollID].type == SelectedPollFieldType.pollName
       || pollEditType == PollEditType.openTime && pollEditSelectedFields[currentPollID].type == SelectedPollFieldType.pollOpenTime
       || pollEditType == PollEditType.closeTime && pollEditSelectedFields[currentPollID].type == SelectedPollFieldType.pollCloseTime
+      || pollEditType == PollEditType.roles && pollEditSelectedFields[currentPollID].type == SelectedPollFieldType.pollRoles
       || pollEditType == PollEditType.voteMessage && pollEditSelectedFields[currentPollID].type == SelectedPollFieldType.pollVoteMessage
       || pollEditType == PollEditType.saveChanges && pollEditSelectedFields[currentPollID].type == SelectedPollFieldType.pollSaveChanges
       || questionData && pollEditSelectedFields[currentPollID].question == questionData.id && (
@@ -417,32 +433,11 @@ async function handlePollEditFieldTextInput(message: Message, pollField: Selecte
     break
 
     case SelectedPollFieldType.questionRoles:
-    const questionRolesRegex = /^\s*((?:(?:<@!?&?\d+>|[\w-]+)\s*)*)\s*$/
+    let questionRoleIDs = getRolesFromString(message.content)
 
-    if (questionRolesRegex.test(message.content))
+    if (questionRoleIDs)
     {
-      let questionRolesString = questionRolesRegex.exec(message.content)[1]
-
-      const roleIDRegex = /<@!?&?(\d+)>/
-
-      let roleIDs = []
-      for (let roleIDString of questionRolesString.split(/\s+/))
-      {
-        if (roleIDRegex.test(roleIDString))
-        {
-          let roleID = roleIDRegex.exec(roleIDString)[1]
-          roleIDs.push(roleID)
-        }
-        else if (roleGroupRegex.test(roleIDString))
-        {
-          if (!roleGroups[roleIDString]) { continue }
-
-          let groupRoleIDs = roleGroups[roleIDString].getRoleTuples().map(roleTuple => roleTuple.roleID)
-          roleIDs = roleIDs.concat(groupRoleIDs)
-        }
-      }
-
-      pollsData[pollField.poll].questions.find(question => question.id == pollField.question).roleIDs = roleIDs
+      pollsData[pollField.poll].questions.find(question => question.id == pollField.question).roleIDs = questionRoleIDs
     }
     break
 
@@ -508,6 +503,15 @@ async function handlePollEditFieldTextInput(message: Message, pollField: Selecte
       }
       break
     }
+
+    case SelectedPollFieldType.pollRoles:
+    let pollRoleIDs = getRolesFromString(message.content)
+
+    if (pollRoleIDs)
+    {
+      pollsData[pollField.poll].roleIDs = pollRoleIDs
+    }
+    break
 
     case SelectedPollFieldType.pollVoteMessage:
     let channelMessageRegex = /^\s*(?:(?:<#)?(\d+)(?:>)?)?\s+(.+)\s*$/

@@ -149,3 +149,35 @@ export function getCreateRoleGroupCommand(): BotCommand
     }
   )
 }
+
+export function getRolesFromString(rolesString: string)
+{
+  const rolesRegex = /^\s*((?:(?:<@!?&?\d+>|[\w-]+)\s*)*)\s*$/
+
+  let roleIDs: string[] = []
+
+  if (rolesRegex.test(rolesString))
+  {
+    let questionRolesString = rolesRegex.exec(rolesString)[1]
+
+    const roleIDRegex = /<@!?&?(\d+)>/
+
+    for (let roleIDString of questionRolesString.split(/\s+/))
+    {
+      if (roleIDRegex.test(roleIDString))
+      {
+        let roleID = roleIDRegex.exec(roleIDString)[1]
+        roleIDs.push(roleID)
+      }
+      else if (roleGroupRegex.test(roleIDString))
+      {
+        if (!roleGroups[roleIDString]) { continue }
+
+        let groupRoleIDs = roleGroups[roleIDString].getRoleTuples().map(roleTuple => roleTuple.roleID)
+        roleIDs = roleIDs.concat(groupRoleIDs)
+      }
+    }
+  }
+
+  return roleIDs
+}

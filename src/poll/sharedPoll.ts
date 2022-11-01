@@ -29,7 +29,7 @@ export class PollConfiguration
   openTime: Timestamp
   closeTime: Timestamp
 
-  roleID?: string
+  roleIDs?: string[]
   serverID?: string
   iVotedRoleID?: string
   latestMembershipJoinTime?: number
@@ -94,7 +94,7 @@ export function checkVoteRequirements(pollData: PollConfiguration, serverID: str
   var isWithinPollTimeRange = Date.now() >= pollData.openTime.toMillis() && Date.now() <= pollData.closeTime.toMillis()
   var inRequiredServer = pollData.serverID ? serverID == pollData.serverID : true
   var meetsMembershipAge = pollData.serverID && pollData.latestMembershipJoinTime ? member.joinedTimestamp <= pollData.latestMembershipJoinTime : true
-  var hasRequiredRoles = pollData.roleID ? member.roles.cache.find(role => role.id == pollData.roleID) : true
+  var hasRequiredRoles = pollData.roleIDs ? member.roles.cache.some(role => pollData.roleIDs.includes(role.id)) : true
 
   if (!isWithinPollTimeRange)
   {
@@ -113,7 +113,7 @@ export function checkVoteRequirements(pollData: PollConfiguration, serverID: str
   }
   if (!hasRequiredRoles)
   {
-    msg && msg.channel.send("Cannot vote on " + pollData.name + " without the " + pollData.roleID + " role")
+    msg && msg.channel.send("Cannot vote on " + pollData.name + " without one of these roles: " + pollData.roleIDs)
     return false
   }
 

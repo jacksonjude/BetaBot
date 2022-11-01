@@ -2,6 +2,7 @@ import { Client, User, TextChannel, Message, GuildMember, MessageReaction } from
 import { ActionMessage, MessageReactionEventType } from "../actionMessage"
 import { Firestore } from "firebase-admin/firestore"
 import { BotCommand, BotCommandError } from "../botCommand"
+import { getRolesByID } from "../util"
 
 import {
   PollConfiguration, PollQuestion, PollResponseMap, PollResponse,
@@ -32,8 +33,16 @@ export async function interpretDMPollSetting(client: Client, pollID: string, pol
       liveChannel,
       pollDataJSON.voteMessageSettings.messageID,
       pollDataJSON,
-      async (pollData: PollConfiguration) => {
-        return pollData.voteMessageSettings.messageText
+      async (pollData: PollConfiguration, channel: TextChannel) => {
+        let closeTime = Math.round(pollData.closeTime.toMillis()/1000)
+
+        let roleObjects = pollData.roleIDs ? await getRolesByID(pollData.roleIDs, channel.guild) : [channel.guild.roles.everyone]
+        let maximumVoters = roleObjects.reduce((total, role) => total + role.members.size, 0)
+        let pollResultsCollection = await firestoreDB.collection(pollsCollectionID + "/" + pollData.id + "/" + pollResponsesCollectionID).get()
+        let currentVoters = pollResultsCollection.docChanges().filter(response => response.doc.data().responseMap).length
+        let turnoutPercentage = Math.round(currentVoters/maximumVoters*100*100)/100
+
+        return pollData.voteMessageSettings.messageText + "\n" + `:alarm_clock: Closes <t:${closeTime}:R>` + "\n" + `:ballot_box: Turnout at ${turnoutPercentage}% (${currentVoters}/${maximumVoters})`
       }, async (message: Message, pollData: PollConfiguration) => {
         pollData.voteMessageSettings.messageID = message.id
         message.react(voteMessageEmoji)
@@ -354,6 +363,8 @@ async function handlePollSubmitReaction(client: Client, reaction: MessageReactio
   {
     await addIVotedRole(client, user, pollsData[currentPollID].serverID, pollsData[currentPollID].iVotedRoleID)
   }
+
+  await pollVoteActionMessages[currentPollID].sendMessage()
 }
 
 async function addIVotedRole(client: Client, user: User, serverID: string, roleID: string)
