@@ -548,7 +548,7 @@ export function getCloseChannelsCommand(): BotCommand
           let channel = await commandMessage.guild.channels.fetch(channelID)
           if (channel)
           {
-            channelsToClose.push(channel)
+            channelsToClose.push(channel as GuildChannel)
           }
         }
         break
@@ -618,7 +618,7 @@ export function getRerunCommand(handleCommandExecutionFunction: HandleCommandExe
     "rerun",
     async (_, message: Message, client: Client) => {
       let messageChannel = message.reference ? await client.channels.fetch(message.reference.channelId) as TextChannel : message.channel
-      let previousCommandMessage = message.reference ? await messageChannel.messages.fetch(message.reference.messageId) : Array.from((await messageChannel.messages.fetch()).values())[1]
+      let previousCommandMessage = message.reference ? await messageChannel.messages.fetch(message.reference.messageId) : (await messageChannel.messages.fetch()).at(1)
 
       if (!previousCommandMessage) { return new BotCommandError("Message not found", false) }
 
