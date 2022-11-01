@@ -15,7 +15,7 @@ export class FormChannel
 
 class FormChannelCloseConfiguration
 {
-  closeTime?: Timestamp
+  closeTime: Timestamp
   closeMessage?: string
   closeRoleIDs?: string[]
 }
@@ -53,11 +53,11 @@ function setupFormCloseCronJob(client: Client, formID: string, formChannel: Form
 {
   let formCloseCronJob = new CronJob(formChannel.closeConfig.closeTime.toDate(), () => {
     client.channels.fetch(formChannel.channelID).then(async (channel: TextChannel) => {
-      for (let roleID of formChannel.closeConfig.closeRoleIDs)
+      for (let roleID of formChannel.closeConfig.closeRoleIDs ?? [])
       {
         await channel.permissionOverwrites.edit(roleID, {[PermissionFlagsBits.SendMessages.toString()]: false})
-        await channel.send(formChannel.closeConfig.closeMessage)
       }
+      formChannel.closeConfig.closeMessage && await channel.send(formChannel.closeConfig.closeMessage)
     })
   }, null, true)
   formCloseCronJob.start()
