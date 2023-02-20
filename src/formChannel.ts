@@ -87,10 +87,12 @@ async function filterFormChannelMessages(textChannel: TextChannel, whitelistUser
     {
       break
     }
-
-    channelMessages = await channelMessages.filterAsync(async (message) => {
-      if (whitelistUserIDs.includes(message.author.id)) return true
-
+    
+    let filteredChannelMessages = []
+    for (let message of channelMessages)
+    {
+      if (whitelistUserIDs.includes(message.author.id)) filteredChannelMessages.push(message)
+      
       if (usersWithMessages.includes(message.author.id))
       {
         try
@@ -98,14 +100,15 @@ async function filterFormChannelMessages(textChannel: TextChannel, whitelistUser
           await message.delete()
         }
         catch {}
-        return false
       }
       else
       {
         usersWithMessages.push(message.author.id)
-        return true
+        filteredChannelMessages.push(message)
       }
-    })
+    }
+    channelMessages = filteredChannelMessages
+
     if (channelMessages.length == 0 && previousChannelMessage)
     {
       channelMessages = [previousChannelMessage]

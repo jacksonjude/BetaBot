@@ -163,11 +163,6 @@ declare global
     toDMYString(): string
     changeTimezone(ianatz: string, multiplier: number): void
   }
-
-  interface Array<T>
-  {
-    filterAsync(predicate: (item: T) => Promise<boolean>): Promise<T[]>
-  }
 }
 
 Date.prototype.stdTimezoneOffset = function() {
@@ -203,10 +198,5 @@ Date.prototype.changeTimezone = function(ianatz: string, multiplier: number) {
   var diff = this.getTime() - invdate.getTime()
   diff *= multiplier
 
-  this.setTime(this.getTime() - diff) // needs to substract
-}
-
-Array.prototype.filterAsync = async function<T>(predicate: (item: T) => Promise<boolean>) {
-  const fail = Symbol()
-  return (await Promise.all(this.map(async (item: T) => (await predicate(item)) ? item : fail))).filter(i=>i!==fail)
+  this.setTime(this.getTime() - diff) // needs to subtract
 }
