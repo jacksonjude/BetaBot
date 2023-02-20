@@ -51,6 +51,8 @@ export function setupFormMessageEventHandlers(client: Client)
 
 function setupFormCloseCronJob(client: Client, formID: string, formChannel: FormChannel)
 {
+  if (formChannel.closeConfig.closeTime.toMillis() < Date.now()) { return }
+  
   let formCloseCronJob = new CronJob(formChannel.closeConfig.closeTime.toDate(), () => {
     client.channels.fetch(formChannel.channelID).then(async (channel: TextChannel) => {
       for (let roleID of formChannel.closeConfig.closeRoleIDs ?? [])
