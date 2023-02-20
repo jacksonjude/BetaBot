@@ -5,7 +5,7 @@ const APP_BUILD_DATE = process.env.HEROKU_RELEASE_CREATED_AT
 const CREATOR_USER_ID = process.env.CREATOR_USER_ID
 const DISCORD_NICKNAME = process.env.DISCORD_NICKNAME
 
-import { Client, GatewayIntentBits, Partials, PermissionFlagsBits, GuildMember, Message } from 'discord.js'
+import { Client, GatewayIntentBits, Partials, PermissionFlagsBits, GuildMember, Message, TextChannel } from 'discord.js'
 const client = new Client({ intents: [
   GatewayIntentBits.Guilds,
   GatewayIntentBits.GuildMembers,
@@ -221,7 +221,7 @@ function initCommands()
   botCommands.unshift(getHelpCommand(botCommands))
 }
 
-// Recieve Message
+// Receive Message
 
 client.on('messageCreate', async msg => {
   // console.log(msg.channel.id + " :: " + msg.content)
@@ -245,8 +245,8 @@ client.on('messageCreate', async msg => {
 
   if (client.user.presence.status === "idle")
   {
-    client.user.setPresence({status: "online"})
-    msg.channel.send("\\*yawn\\*")
+    client.user.setPresence({status: 'online'});
+    (msg.channel as TextChannel).send("\\*yawn\\*")
   }
 
   messageContent = messageContent.replace(/^\s*/, "").replace(/\s*$/, "")
@@ -274,11 +274,11 @@ export async function handleCommandExecution(messageContent: string, msg: Messag
   switch (messageContent)
   {
     case "info":
-    msg.channel.send(`βəταBot **${APP_VERSION}** *(${APP_BUILD_NUMBER}, ${getFormattedBuildDateString(APP_BUILD_DATE)})*\nCreated by <@${CREATOR_USER_ID}> (2020-${new Date(APP_BUILD_DATE ?? "2022-01-02").getFullYear()})\nwith inspiration from We4therman\n*\\*Possibly Powered By DELL OS\\**`)
+    (msg.channel as TextChannel).send(`βəταBot **${APP_VERSION}** *(${APP_BUILD_NUMBER}, ${getFormattedBuildDateString(APP_BUILD_DATE)})*\nCreated by <@${CREATOR_USER_ID}> (2020-${new Date(APP_BUILD_DATE ?? "2022-01-02").getFullYear()})\nwith inspiration from We4therman\n*\\*Possibly Powered By DELL OS\\**`)
     return
 
     case "ping":
-    msg.channel.send("pong")
+    (msg.channel as TextChannel).send("pong")
     return
   }
 }

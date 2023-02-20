@@ -349,7 +349,7 @@ export function getMessageCountsLeaderboardCommand(): BotCommand
         shouldUseMentions = false
       }
 
-      await message.channel.sendTyping()
+      await (message.channel as TextChannel).sendTyping()
 
       let sortedMessageCountsDocs = messageCountsCollection.docs.sort((doc1, doc2) => parseInt(doc2.id)-parseInt(doc1.id))
 
@@ -415,7 +415,7 @@ export function getMessageCountsLeaderboardCommand(): BotCommand
 
         leaderboardMessage += "**#" + (placementIndex+1) + "**  *(" + messageCount + ")*  " + (shouldUseMentions && guildName ? "<@" + userID + ">" : (!shouldUseMentions && guildName ? guildName : userTag))
       }
-      message.channel.send({
+      (message.channel as TextChannel).send({
         "content": leaderboardMessage,
         "allowedMentions": { "users" : []}
       })

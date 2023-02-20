@@ -98,22 +98,22 @@ export function checkVoteRequirements(pollData: PollConfiguration, serverID: str
 
   if (!isWithinPollTimeRange)
   {
-    msg && msg.channel.send(pollData.name + " has " + (Date.now() < pollData.openTime.toMillis() ? "not opened" : "closed"))
+    msg && (msg.channel as TextChannel).send(pollData.name + " has " + (Date.now() < pollData.openTime.toMillis() ? "not opened" : "closed"))
     return false
   }
   if (!inRequiredServer)
   {
-    msg && msg.channel.send("Cannot vote on " + pollData.name + " in this server")
+    msg && (msg.channel as TextChannel).send("Cannot vote on " + pollData.name + " in this server")
     return false
   }
   if (!meetsMembershipAge)
   {
-    msg && msg.channel.send("Cannot vote on " + pollData.name + " since you have not been a member of " + msg.guild.name + " for long enough")
+    msg && (msg.channel as TextChannel).send("Cannot vote on " + pollData.name + " since you have not been a member of " + msg.guild.name + " for long enough")
     return false
   }
   if (!hasRequiredRoles)
   {
-    msg && msg.channel.send("Cannot vote on " + pollData.name + " without one of these roles: " + pollData.roleIDs)
+    msg && (msg.channel as TextChannel).send("Cannot vote on " + pollData.name + " without one of these roles: " + pollData.roleIDs)
     return false
   }
 
@@ -154,7 +154,7 @@ function checkExportPollResultsRequirements(pollData: PollConfiguration, member:
 {
   if (!pollData.exportAccess)
   {
-    msg && msg.channel.send("Export access has not been enabled for " + pollData.name)
+    msg && (msg.channel as TextChannel).send("Export access has not been enabled for " + pollData.name)
     return false
   }
 
@@ -164,22 +164,22 @@ function checkExportPollResultsRequirements(pollData: PollConfiguration, member:
 
   if (!userAccessData && !roleAccessData)
   {
-    msg && msg.channel.send("You have no access to the results of " + pollData.name)
+    msg && (msg.channel as TextChannel).send("You have no access to the results of " + pollData.name)
     return false
   }
   if ((userAccessData || roleAccessData).afterPollClose && !pollHasClosed)
   {
-    msg && msg.channel.send("You do not have access to the results of " + pollData.name + " until after the poll has closed")
+    msg && (msg.channel as TextChannel).send("You do not have access to the results of " + pollData.name + " until after the poll has closed")
     return false
   }
   if ((userAccessData || roleAccessData).accessTime && Date.now() < (userAccessData || roleAccessData).accessTime.toMillis())
   {
-    msg && msg.channel.send("You do not have access to the results of " + pollData.name + " until " + (new Date((userAccessData || roleAccessData).accessTime.toMillis())).toString())
+    msg && (msg.channel as TextChannel).send("You do not have access to the results of " + pollData.name + " until " + (new Date((userAccessData || roleAccessData).accessTime.toMillis())).toString())
     return false
   }
   if (!(userAccessData || roleAccessData).canViewUserTags && showUserTags)
   {
-    msg && msg.channel.send("You do not have access to the user tags in " + pollData.name)
+    msg && (msg.channel as TextChannel).send("You do not have access to the user tags in " + pollData.name)
     return false
   }
 

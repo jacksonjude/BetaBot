@@ -1,4 +1,4 @@
-import { Role, Client, Guild, Message, GuildMember, UserResolvable } from "discord.js"
+import { Role, Client, Guild, Message, GuildMember, UserResolvable, TextChannel } from "discord.js"
 import { Firestore } from "firebase-admin/firestore"
 
 import { BotCommand } from "./botCommand"
@@ -143,9 +143,9 @@ export function getCreateRoleGroupCommand(): BotCommand
         roleGroupConfig.roles.push(roleItem)
       }
 
-      await firestoreDB.doc(roleGroupCollectionID + "/" + id).set(roleGroupConfig)
+      await firestoreDB.doc(roleGroupCollectionID + "/" + id).set(roleGroupConfig);
 
-      message.channel.send(`**Role Group ${id} updated**`)
+      (message.channel as TextChannel).send(`**Role Group ${id} updated**`)
     }
   )
 }

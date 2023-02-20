@@ -105,17 +105,17 @@ function checkRoleAssignmentRequirements(roleAssignmentData: RoleAssignmentConfi
 
   if (!inRequiredServer)
   {
-    msg && msg.channel.send("Cannot get role for " + roleAssignmentData.name + " in this server")
+    msg && (msg.channel as TextChannel).send("Cannot get role for " + roleAssignmentData.name + " in this server")
     return false
   }
   if (hasRequiredRoles == null)
   {
-    msg && msg.channel.send("Cannot get role for " + roleAssignmentData.name + " because you don't have the required role")
+    msg && (msg.channel as TextChannel).send("Cannot get role for " + roleAssignmentData.name + " because you don't have the required role")
     return false
   }
   if (hasBlacklistedRoles != null)
   {
-    msg && msg.channel.send("Cannot get role for " + roleAssignmentData.name + " if you have the " + (hasBlacklistedRoles as Role).name + " role")
+    msg && (msg.channel as TextChannel).send("Cannot get role for " + roleAssignmentData.name + " if you have the " + (hasBlacklistedRoles as Role).name + " role")
     return false
   }
 

@@ -631,7 +631,7 @@ export function getEditPollCommand(): BotCommand
         }
       }
 
-      await message.channel.send("PollEdit: " + "Fetching poll '" + pollID + "'")
+      await (message.channel as TextChannel).send("PollEdit: " + "Fetching poll '" + pollID + "'")
       let pollDocRef = firestoreDB.doc(pollsCollectionID + "/" + pollID)
       let pollDoc = await pollDocRef.get()
 
@@ -642,13 +642,13 @@ export function getEditPollCommand(): BotCommand
       }
       else
       {
-        await message.channel.send("PollEdit: " + "Creating poll '" + pollID + "'")
+        await (message.channel as TextChannel).send("PollEdit: " + "Creating poll '" + pollID + "'")
       }
 
       if (pollData.active !== false)
       {
         pollData.active = false
-        await message.channel.send("PollEdit: " + "Deactivating poll '" + pollID + "'")
+        await (message.channel as TextChannel).send("PollEdit: " + "Deactivating poll '" + pollID + "'")
       }
 
       function getNestedObjectFromKeyPath(rootObject: any, keyPath: string, getParent: boolean = false)
@@ -685,9 +685,9 @@ export function getEditPollCommand(): BotCommand
         case "poll":
         if (propertyListString == "delete")
         {
-          await message.channel.send("PollEdit: " + "Deleting poll '" + pollID + "'")
+          await (message.channel as TextChannel).send("PollEdit: " + "Deleting poll '" + pollID + "'")
           await pollDocRef.delete()
-          await message.channel.send("PollEdit: " + "Execution complete")
+          await (message.channel as TextChannel).send("PollEdit: " + "Execution complete")
           return
         }
 
@@ -701,7 +701,7 @@ export function getEditPollCommand(): BotCommand
         var nestedObjectCallback = getNestedObjectFromKeyPath(pollData, subfieldKeyPath, true)
         if (nestedObjectCallback == null)
         {
-          await message.channel.send("PollEdit: " + "Error: Invalid keypath '" + subfieldKeyPath + "' for poll '" + pollID + "'")
+          await (message.channel as TextChannel).send("PollEdit: " + "Error: Invalid keypath '" + subfieldKeyPath + "' for poll '" + pollID + "'")
           return
         }
         var { parentObject, childKey } = nestedObjectCallback
@@ -712,17 +712,17 @@ export function getEditPollCommand(): BotCommand
           {
             if (parseInt(childKey) < parentObject.length)
             {
-              await message.channel.send("PollEdit: " + "Deleting array index " + subfieldKeyPath + " from '" + pollID + "'")
+              await (message.channel as TextChannel).send("PollEdit: " + "Deleting array index " + subfieldKeyPath + " from '" + pollID + "'")
               parentObject = parentObject.splice(parseInt(childKey), 1)
             }
             else
             {
-              await message.channel.send("PollEdit: " + "Error: Invalid index path '" + subfieldKeyPath + "' for poll '" + pollID + "'")
+              await (message.channel as TextChannel).send("PollEdit: " + "Error: Invalid index path '" + subfieldKeyPath + "' for poll '" + pollID + "'")
             }
           }
           else if (!(parentObject instanceof Array))
           {
-            await message.channel.send("PollEdit: " + "Deleting keypath " + subfieldKeyPath + " from '" + pollID + "'")
+            await (message.channel as TextChannel).send("PollEdit: " + "Deleting keypath " + subfieldKeyPath + " from '" + pollID + "'")
             delete parentObject[childKey]
           }
           break
@@ -730,14 +730,14 @@ export function getEditPollCommand(): BotCommand
 
         if (parentObject instanceof Array && !parentObject[childKey])
         {
-          await message.channel.send("PollEdit: " + "Error: Array item '" + subfieldKeyPath + "' does not exist for '" + pollID + "'")
+          await (message.channel as TextChannel).send("PollEdit: " + "Error: Array item '" + subfieldKeyPath + "' does not exist for '" + pollID + "'")
           return
         }
 
         if (!parentObject[childKey])
         {
           parentObject[childKey] = {}
-          await message.channel.send("PollEdit: " + "Creating object '" + subfieldKeyPath + "' for poll '" + pollID + "'")
+          await (message.channel as TextChannel).send("PollEdit: " + "Creating object '" + subfieldKeyPath + "' for poll '" + pollID + "'")
         }
         for (let propertyKey in propertyList)
         {
@@ -754,31 +754,31 @@ export function getEditPollCommand(): BotCommand
         var nestedObjectCallback = getNestedObjectFromKeyPath(pollData, subfieldKeyPath, true)
         if (nestedObjectCallback == null)
         {
-          await message.channel.send("PollEdit: " + "Error: Keypath '" + subfieldKeyPath + "' not found for poll '" + pollID + "'")
+          await (message.channel as TextChannel).send("PollEdit: " + "Error: Keypath '" + subfieldKeyPath + "' not found for poll '" + pollID + "'")
           return
         }
         var { parentObject, childKey } = nestedObjectCallback
 
         if (parentObject instanceof Array)
         {
-          await message.channel.send("PollEdit: " + "Error: Multi-dimensional arrays are not allowed by firebase")
+          await (message.channel as TextChannel).send("PollEdit: " + "Error: Multi-dimensional arrays are not allowed by firebase")
         }
         if (!(parentObject[childKey] == null || parentObject[childKey] instanceof Array))
         {
-          await message.channel.send("PollEdit: " + "Error: Given path '" + subfieldKeyPath + "' is not an array for poll '" + pollID + "'")
+          await (message.channel as TextChannel).send("PollEdit: " + "Error: Given path '" + subfieldKeyPath + "' is not an array for poll '" + pollID + "'")
         }
 
         var justCreatedArray = false
         if (!parentObject[childKey])
         {
-          await message.channel.send("PollEdit: " + "Creating array '" + subfieldKeyPath + "' for poll '" + pollID + "'")
+          await (message.channel as TextChannel).send("PollEdit: " + "Creating array '" + subfieldKeyPath + "' for poll '" + pollID + "'")
           parentObject[childKey] = []
           justCreatedArray = true
         }
 
         if (Object.keys(propertyList).length > 0 || !justCreatedArray)
         {
-          await message.channel.send("PollEdit: " + "Creating array item '" + subfieldKeyPath + "/" + parentObject[childKey].length + "' for poll '" + pollID + "'")
+          await (message.channel as TextChannel).send("PollEdit: " + "Creating array item '" + subfieldKeyPath + "/" + parentObject[childKey].length + "' for poll '" + pollID + "'")
           if (Object.keys(propertyList)[0] == "*")
           {
             parentObject[childKey].push(propertyList[Object.keys(propertyList)[0]])
@@ -805,7 +805,7 @@ export function getEditPollCommand(): BotCommand
         {
           questionData = {id: questionID}
           pollData.questions.push(questionData)
-          await message.channel.send("PollEdit: " + "Creating question '" + questionID + "' at index " + (pollData.questions.length-1).toString() + " for poll '" + pollID + "'")
+          await (message.channel as TextChannel).send("PollEdit: " + "Creating question '" + questionID + "' at index " + (pollData.questions.length-1).toString() + " for poll '" + pollID + "'")
         }
         for (let propertyKey in propertyList)
         {
@@ -822,7 +822,7 @@ export function getEditPollCommand(): BotCommand
         var questionData = pollData.questions.find((questionData: any) => questionData.id == questionID)
         if (!questionData)
         {
-          await message.channel.send("PollEdit: " + "Error: question '" + questionID + "' not found for poll '" + pollID + "'")
+          await (message.channel as TextChannel).send("PollEdit: " + "Error: question '" + questionID + "' not found for poll '" + pollID + "'")
           break
         }
         if (!questionData.options)
@@ -841,7 +841,7 @@ export function getEditPollCommand(): BotCommand
         {
           optionData = {id: optionID}
           questionData.options.push(optionData)
-          await message.channel.send("PollEdit: " + "Creating option '" + optionID + "' at index " + (questionData.options.length-1).toString() + " for question '" + questionID + "' in poll '" + pollID + "'")
+          await (message.channel as TextChannel).send("PollEdit: " + "Creating option '" + optionID + "' at index " + (questionData.options.length-1).toString() + " for question '" + questionID + "' in poll '" + pollID + "'")
         }
         for (let propertyKey in propertyList)
         {
@@ -850,10 +850,10 @@ export function getEditPollCommand(): BotCommand
         break
       }
 
-      await message.channel.send("PollEdit: " + "Uploading poll '" + pollID + "'")
+      await (message.channel as TextChannel).send("PollEdit: " + "Uploading poll '" + pollID + "'")
       await pollDocRef.set(pollData, {merge: false})
 
-      await message.channel.send("PollEdit: " + "Execution complete")
+      await (message.channel as TextChannel).send("PollEdit: " + "Execution complete")
     }
   )
 }

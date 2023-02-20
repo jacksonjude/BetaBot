@@ -1,4 +1,4 @@
-import { Message } from "discord.js"
+import { Message, TextChannel } from "discord.js"
 
 const messageResponses = [
   { pattern: "(\\W|\\s+|^)[bruh]{4,}(\\W|\\s+|$)", serverIDBlacklist: ["777244230154059846"], responses: ["bruh"] },
@@ -17,8 +17,8 @@ export function sendMessageResponses(msg: Message)
     let regex = new RegExp(pattern)
     if (regex.test(messageContent))
     {
-      let index = Math.floor((Math.random() * response.responses.length))
-      msg.channel.send(response.responses[index])
+      let index = Math.floor((Math.random() * response.responses.length));
+      (msg.channel as TextChannel).send(response.responses[index])
       return true
     }
   }

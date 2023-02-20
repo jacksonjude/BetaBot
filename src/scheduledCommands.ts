@@ -135,7 +135,7 @@ export function getScheduleCommand(handleCommandExecutionFunction: HandleCommand
           schedulesListString = schedulesListTitle
         }
 
-        await commandMessage.channel.send({
+        await (commandMessage.channel as TextChannel).send({
           "content": schedulesListString,
           "allowedMentions": { "roles" : [] }
         })

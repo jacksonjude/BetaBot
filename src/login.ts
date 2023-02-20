@@ -25,7 +25,7 @@ export async function printLoginMessage(client: Client, message: string, channel
 
 export async function prepareBotLogout(client: Client, logoutMessage: string, msg: Message)
 {
-  await msg.channel.send(logoutMessage)
+  await (msg.channel as TextChannel).send(logoutMessage)
   client.user.setPresence({status: "dnd"})
 }
 

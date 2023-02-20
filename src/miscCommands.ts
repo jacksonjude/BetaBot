@@ -200,19 +200,19 @@ export function getHelpCommand(botCommands: BotCommand[]): BotCommand
           if (command.executionRequirement && !command.executionRequirement.testMessage(message)) { continue }
           helpMessageString += "\n" + "**" + command.name + "**: *" + command.description + "*"
         }
-        message.channel.send(helpMessageString)
+        (message.channel as TextChannel).send(helpMessageString)
       }
       else
       {
         let foundCommand = botCommands.find(command => command.parseCommandString(commandToDisplay) !== false)
         if (foundCommand)
         {
-          await message.channel.send("**" + foundCommand.name + "**: *" + foundCommand.description + "*")
-          foundCommand.usageMessage && await message.channel.send(foundCommand.usageMessage)
+          await (message.channel as TextChannel).send("**" + foundCommand.name + "**: *" + foundCommand.description + "*")
+          foundCommand.usageMessage && await (message.channel as TextChannel).send(foundCommand.usageMessage)
         }
         else
         {
-          message.channel.send("**Error: " + "'" + commandToDisplay + "' command not found" + "**")
+          (message.channel as TextChannel).send("**Error: " + "'" + commandToDisplay + "' command not found" + "**")
         }
       }
     }
@@ -228,7 +228,7 @@ export function getMessageCommands(): BotCommand[]
       messageCommandData.command,
       async (_, message: Message) => {
         let index = Math.floor((Math.random() * messageCommandData.responses.length))
-        await message.channel.send(messageCommandData.responses[index])
+        await (message.channel as TextChannel).send(messageCommandData.responses[index])
       }
     )
   })
@@ -246,7 +246,7 @@ export function getDateCommands(): BotCommand[]
         let days = Math.floor(millisDifference/(1000*60*60*24))
         let hours = Math.floor((millisDifference-days*1000*60*60*24)/(1000*60*60))
         let minutes = Math.floor((millisDifference-days*1000*60*60*24-hours*1000*60*60)/(1000*60))
-        await message.channel.send(dateCommandData.name + ": " + (Math.sign(Date.now()-dateCommandData.timestamp) == -1 ? "-" : "") + days + " days, " + hours + " hours, and " + minutes + " minutes")
+        await (message.channel as TextChannel).send(dateCommandData.name + ": " + (Math.sign(Date.now()-dateCommandData.timestamp) == -1 ? "-" : "") + days + " days, " + hours + " hours, and " + minutes + " minutes")
       }
     )
   })
@@ -285,10 +285,10 @@ export function getEmoteSpellCommand(): BotCommand
             letterLineMessage += " "
           }
 
-          await message.channel.send(letterLineMessage)
+          await (message.channel as TextChannel).send(letterLineMessage)
         }
 
-        await message.channel.send(spaceLineMessage)
+        await (message.channel as TextChannel).send(spaceLineMessage)
       }
     }
   )
@@ -436,12 +436,12 @@ export function getRepeatCommand(): BotCommand
     "repeat <count>",
     async (commandArguments: string[], message: Message) => {
       let multiplier = parseInt(commandArguments[1])
-      let messageArray = message.channel.messages.cache.toJSON()
+      let messageArray = (message.channel as TextChannel).messages.cache.toJSON()
       if (messageArray.length >= 2)
       {
         for (let i=0; i < multiplier; i++)
         {
-          message.channel.send(messageArray[messageArray.length-2].toString())
+          (message.channel as TextChannel).send(messageArray[messageArray.length-2].toString())
         }
       }
     }
@@ -455,8 +455,8 @@ export function getSpeakCommand(): BotCommand
     /^speak\s+(.+)$/, /^speak(\s+.*)?$/,
     "speak <message>",
     async (commandArguments: string[], message: Message) => {
-      let phraseToSay = commandArguments[1]
-      message.channel.send({content: phraseToSay, tts: true})
+      let phraseToSay = commandArguments[1];
+      (message.channel as TextChannel).send({content: phraseToSay, tts: true})
     }
   )
 }
@@ -603,7 +603,7 @@ export function getCloseChannelsCommand(): BotCommand
             continue
           }
 
-          shouldPrintLogs && await commandMessage.channel.send((modeToSet ? ":white_check_mark: Opened" : ":x: Closed") + " " + (channel.type === ChannelType.GuildCategory ? channel.name : "<#" + channel.id + ">") + " for <@&" + role.id + ">")
+          shouldPrintLogs && await (commandMessage.channel as TextChannel).send((modeToSet ? ":white_check_mark: Opened" : ":x: Closed") + " " + (channel.type === ChannelType.GuildCategory ? channel.name : "<#" + channel.id + ">") + " for <@&" + role.id + ">")
         }
       }
     }
@@ -617,7 +617,7 @@ export function getRerunCommand(handleCommandExecutionFunction: HandleCommandExe
     /^rerun$/, /^rerun(\s+.*)?$/,
     "rerun",
     async (_, message: Message, client: Client) => {
-      let messageChannel = message.reference ? await client.channels.fetch(message.reference.channelId) as TextChannel : message.channel
+      let messageChannel = message.reference ? await client.channels.fetch(message.reference.channelId) as TextChannel : message.channel as TextChannel
       let previousCommandMessage = message.reference ? await messageChannel.messages.fetch(message.reference.messageId) : (await messageChannel.messages.fetch()).at(1)
 
       if (!previousCommandMessage) { return new BotCommandError("Message not found", false) }
@@ -637,7 +637,7 @@ export function getReactCommand(): BotCommand
     "react [emote]",
     async (commandArguments: string[], message: Message, client: Client) => {
       if (!message.reference) { return }
-      let referencedMessage = await message.channel.messages.fetch(message.reference.messageId)
+      let referencedMessage = await (message.channel as TextChannel).messages.fetch(message.reference.messageId)
 
       let rawEmoteString = commandArguments[1]
       if (rawEmoteString)
