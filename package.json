@@ -18,7 +18,7 @@
     "discord.js": "^14.7.1",
     "firebase-admin": "^10.0.0",
     "json2csv": "^5.0.6",
-    "luxon": "^2.2.0",
+    "luxon": "^2.5.2",
     "node-emoji": "^1.10.0",
     "short-unique-id": "^4.4.4",
     "ts-node": "10.4.0",
