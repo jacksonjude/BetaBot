@@ -86,7 +86,21 @@ export class Emote
 
   static async isValidEmote(emoji: EmojiResolvable, client: Client)
   {
-    return await Emote.fromEmoji(emoji).toEmoji(client) != null
+    try
+    {
+      return new Emote(emoji as string).name != null
+    }
+    catch (e)
+    {
+      try
+      {
+        return await Emote.fromEmoji(emoji).toEmoji(client) != null
+      }
+      catch (e)
+      {
+        return false
+      }
+    }
   }
 
   toString()

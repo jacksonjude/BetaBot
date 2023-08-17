@@ -256,9 +256,9 @@ export function getEmoteSpellCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "spell", "spell a word using emotes",
-    /^spell\s+([a-zA-Z]+)(\s+((<)?:[^\s:]+?:(\d+>)?))?(\s+((<)?:[^\s:]+?:(\d+>)?))?$/, /^spell(\s+.*)?$/,
-    "spell <word> [interior emote] [exterior emote]",
-    async (commandArguments: string[], message: Message) => {
+    /^spell\s+([a-zA-Z]+)(?:\s+([^\s]+))?(?:\s+([^\s]+))?$/, /^spell(\s+.*)?$/,
+    "spell <word (a-z)> [interior emote] [exterior emote]",
+    async (commandArguments: string[], message: Message, client: Client) => {
       let wordToSpell = commandArguments[1]
 
       if (wordToSpell.length > 10)
@@ -266,9 +266,14 @@ export function getEmoteSpellCommand(): BotCommand
         return new BotCommandError("that's too long m'dude", false)
       }
 
-      let fillEmote = commandArguments[3] ?? ":white_large_square:"
-      let backgroundEmote = commandArguments[7] ?? ":black_large_square:"
-
+      let fillEmote = commandArguments[2] ?? ":white_large_square:"
+      let backgroundEmote = commandArguments[3] ?? ":black_large_square:"
+      
+      if (!(await Emote.isValidEmote(fillEmote, client)) || !(await Emote.isValidEmote(backgroundEmote, client)))
+      {
+        return new BotCommandError("not emotes m'dude", false)
+      }
+  
       let spaceLineMessage = backgroundEmote + " " + backgroundEmote + " " + backgroundEmote + " "
 
       for (let currentCharacter of wordToSpell.toUpperCase().split(""))
