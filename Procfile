@@ -1,1 +1,1 @@
-worker: ts-node app.ts
+worker: tsx app.ts

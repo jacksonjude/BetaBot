@@ -62,6 +62,8 @@ import { initFirestore, initFirestoreCollectionListeners } from "./src/firebase"
 
 var firestoreDB: Firestore
 
+import { initDataFetch } from './src/mapData/mapData'
+
 // Login Bot
 
 loginBot(client)
@@ -282,6 +284,8 @@ export async function handleCommandExecution(messageContent: string, msg: Messag
     return
   }
 }
+
+initDataFetch();
 
 process.on('unhandledRejection', error => {
   console.log('[App] Unhandled error: ', error)

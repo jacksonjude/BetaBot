@@ -4,24 +4,25 @@
   "description": "A Discord bot. Still in Beta.",
   "main": "app.ts",
   "scripts": {
-    "start": "ts-node app.ts"
+    "start": "tsx app.ts"
   },
   "author": "JJCooley",
   "license": "ISC",
   "dependencies": {
+    "@octokit/core": "^6.1.2",
     "@types/cron": "^1.7.3",
     "@types/json2csv": "^5.0.3",
     "@types/luxon": "^2.0.8",
     "@types/node-emoji": "^1.8.1",
     "child_process": "^1.0.2",
     "cron": "^1.8.2",
-    "discord.js": "^14.7.1",
+    "discord.js": "14.7.1",
     "firebase-admin": "^10.0.0",
     "json2csv": "^5.0.6",
     "luxon": "^2.2.0",
     "node-emoji": "^1.10.0",
     "short-unique-id": "^4.4.4",
-    "ts-node": "10.4.0",
+    "tsx": "^4.16.2",
     "typescript": "4.5.4"
   },
   "engines": {
