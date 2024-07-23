@@ -1,11 +1,15 @@
 import { CronJob } from 'cron';
 import { Octokit } from '@octokit/core';
 import { getAllPriceHistory } from './sources/polymarket';
+import fetch from "node-fetch";
 
 const cronJobInstances = [];
 
 const octokit = new Octokit({
-  auth: process.env.GITHUB_TOKEN
+	auth: process.env.GITHUB_TOKEN,
+	request: {
+		fetch: fetch,
+	}
 });
 
 const sources = {
