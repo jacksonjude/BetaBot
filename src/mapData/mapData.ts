@@ -58,7 +58,7 @@ async function polymarketFetch(dataFile: string, tokenFile: string, source: Data
 	
 	let returnData;
 	
-	const {data} = await octokit.request(`GET /repos/jacksonjude/USA-Election-Map-Data/contents/data/${dataFile}`, {
+	const githubResponse = await octokit.request(`GET /repos/jacksonjude/USA-Election-Map-Data/contents/data/${dataFile}`, {
 		owner: 'OWNER',
 		repo: 'REPO',
 		path: 'PATH',
@@ -66,9 +66,15 @@ async function polymarketFetch(dataFile: string, tokenFile: string, source: Data
 			'X-GitHub-Api-Version': '2022-11-28'
 		}
 	});
+	const previousData = githubResponse.data
+	
+	if (!previousData.content) {
+		console.log("[Data-Cron] Error fetching uploaded data", githubResponse);
+		return;
+	}
 	
 	if (fallback) {
-		returnData = JSON.parse(Buffer.from(data.content, 'base64').toString('ascii'));
+		returnData = JSON.parse(Buffer.from(previousData.content, 'base64').toString('ascii'));
 		console.log("[Data-Cron] Complete fetching cached", source.id);
 	} else {
 		const currentPrices: { [k: string]: any } = source.data ?? {}
@@ -90,7 +96,7 @@ async function polymarketFetch(dataFile: string, tokenFile: string, source: Data
 				email: 'betabot@jacksonjude.com'
 			},
 			content: Buffer.from(JSON.stringify(returnData)).toString('base64'),
-			sha: data.sha,
+			sha: previousData.sha,
 			headers: {
 				'X-GitHub-Api-Version': '2022-11-28'
 			}
