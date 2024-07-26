@@ -18,8 +18,8 @@ async function getPriceHistory(region: string, token: string) {
 	return (await priceHistory.json()).history;
 }
 
-export async function getAllPriceHistory() {
-	const tokens = JSON.parse(fs.readFileSync("src/mapData/static/polymarket-tokens.json").toString());
+export async function getAllPriceHistory(tokenFile: string) {
+	const tokens = JSON.parse(fs.readFileSync(`src/mapData/static/${tokenFile}`).toString());
 	const prices: { [k: string]: any } = {};
 	
 	for (const region in tokens) {
