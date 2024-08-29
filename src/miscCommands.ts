@@ -420,15 +420,27 @@ export function getEchoCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "echo", "print a message to a channel",
-    /^echo(?:\s+(?:<#)?(\d+)(?:>)?)?\s+(.+)$/, /^echo(\s+.*)?$/,
-    "echo [channel] <message>",
+    /^echo(?:\s+(?:<#)?(\d+)(?:>)?)?(?:\s+(true|false))?\s+(.+)$/, /^echo(\s+.*)?$/,
+    "echo [channel] [doAttachments] <message>",
     async (commandArguments: string[], message: Message, client: Client) => {
-      let channel = commandArguments[1] ? await client.channels.fetch(commandArguments[1]) as TextChannel : message.channel as TextChannel
-      if (!channel.permissionsFor(message.member).has(PermissionFlagsBits.SendMessages)) { return }
+      const channel = commandArguments[1] ? await client.channels.fetch(commandArguments[1]) as TextChannel : message.channel as TextChannel
+      if (message.member != null && !channel.permissionsFor(message.member).has(PermissionFlagsBits.SendMessages)) { return }
+      
+      const shouldSendAttachments = commandArguments[2] === "true" ? true : false
 
-      let messageToRepeat = commandArguments[2]
+      const messageToRepeat = commandArguments[3]
 
-      await channel.send(messageToRepeat)
+      if (shouldSendAttachments)
+      {
+        await channel.send({
+          content: messageToRepeat,
+          files: Array.from(message.attachments.values())
+        })
+      }
+      else
+      {
+        await channel.send(messageToRepeat)
+      }
     }
   )
 }

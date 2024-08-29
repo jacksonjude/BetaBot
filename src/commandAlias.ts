@@ -35,12 +35,18 @@ export async function executeCommandAlias(messageContent: string, message: Messa
 
   if (!aliasToUse) { return false }
 
-  let aliasArgs = messageContent.replace(new RegExp("^" + aliasToUse.name + "\\s+"), "").split(new RegExp(aliasToUse.argSeparator))
+  let aliasArgs = messageContent.replace(new RegExp("^" + aliasToUse.name + "\\s*"), "").split(new RegExp(aliasToUse.argSeparator))
+  console.log(aliasArgs, messageContent)
 
   if (aliasToUse.roleIDs && !message.member.roles.cache.some(role => aliasToUse.roleIDs.some(roleID => role.id == roleID))) { return false }
+  
+  let formattedCommand = aliasToUse.command
+  if (formattedCommand.includes("{0}"))
+  {
+    formattedCommand = formattedCommand.replace(new RegExp("\\{0\\}", 'g'), message.author.id)
+  }
 
   let argOn = 1
-  let formattedCommand = aliasToUse.command
   while (formattedCommand.includes("{" + argOn + "}"))
   {
     if (!aliasArgs[argOn-1] && !aliasToUse.defaultArgs[argOn-1]) { return false }
