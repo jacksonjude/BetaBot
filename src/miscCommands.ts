@@ -1,6 +1,7 @@
 import { Client, Message, Collection, DMChannel, TextChannel, GuildChannel, CategoryChannel, PermissionResolvable, PermissionFlagsBits, ChannelType } from "discord.js"
-import { BotCommand, BotCommandError } from "./botCommand"
+import { BotCommand, BotCommandError, BotCommandRequirement } from "./botCommand"
 import { HandleCommandExecution, Emote } from "./util"
+import { getEchoChannelWhitelist } from "./commandAlias"
 
 const messageCommands = [
   { command: "hi", description: "say hello", responses: ["hello :wave:"] },
@@ -416,7 +417,7 @@ export function getClearCommand(): BotCommand
   )
 }
 
-export function getEchoCommand(): BotCommand
+export function getEchoCommand(permissionRequirement: BotCommandRequirement): BotCommand
 {
   return BotCommand.fromRegex(
     "echo", "print a message to a channel",
@@ -424,7 +425,10 @@ export function getEchoCommand(): BotCommand
     "echo [channel] [doAttachments] <message>",
     async (commandArguments: string[], message: Message, client: Client) => {
       const channel = commandArguments[1] ? await client.channels.fetch(commandArguments[1]) as TextChannel : message.channel as TextChannel
-      if (message.member != null && !channel.permissionsFor(message.member).has(PermissionFlagsBits.SendMessages)) { return }
+      
+      const channelHasWhitelist = getEchoChannelWhitelist(channel.guildId).includes(channel.id)
+      if (!(permissionRequirement.testMessage(message) || channelHasWhitelist)) { return }
+      if (!channelHasWhitelist && message.member != null && !channel.permissionsFor(message.member).has(PermissionFlagsBits.SendMessages)) { return }
       
       const shouldSendAttachments = commandArguments[2] === "true" ? true : false
 

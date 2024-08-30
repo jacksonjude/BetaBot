@@ -205,7 +205,7 @@ function initCommands()
     getDMVoteCommand(),
     getExportPollResultsCommand(botAdminPermissionRequirement),
     getCloseChannelsCommand().withRequirement(manageChannelsPermissionRequirement),
-    getEchoCommand().withRequirement(botAdminPermissionRequirement),
+    getEchoCommand(botAdminPermissionRequirement),
     getScheduleCommand(handleCommandExecution).withRequirement(botAdminPermissionRequirement),
     getCreateServerPollCommand().withRequirement(botTesterPermissionRequirement),
     getEditPollCommand().withRequirement(botAdminPermissionRequirement),

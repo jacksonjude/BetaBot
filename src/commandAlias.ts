@@ -4,6 +4,7 @@ import { HandleCommandExecution } from "./util"
 export class ServerCommandAliasConfiguration
 {
   commandAliases: CommandAlias[]
+  echoChannelWhitelist: string[]
 }
 
 class CommandAlias
@@ -16,6 +17,7 @@ class CommandAlias
 }
 
 var commandAliases: { [k: string]: CommandAlias[] } = {}
+var echoChannelWhitelists: { [k: string]: string[] } = {}
 
 export function interpretServerCommandAliasSettings(serverID: string, serverCommandAliasConfig: ServerCommandAliasConfiguration)
 {
@@ -24,6 +26,7 @@ export function interpretServerCommandAliasSettings(serverID: string, serverComm
     commandAlias.defaultArgs ??= []
   })
   commandAliases[serverID] = serverCommandAliasConfig.commandAliases
+  echoChannelWhitelists[serverID] = serverCommandAliasConfig.echoChannelWhitelist
 }
 
 export async function executeCommandAlias(messageContent: string, message: Message, handleCommandExecution: HandleCommandExecution)
@@ -36,7 +39,6 @@ export async function executeCommandAlias(messageContent: string, message: Messa
   if (!aliasToUse) { return false }
 
   let aliasArgs = messageContent.replace(new RegExp("^" + aliasToUse.name + "\\s*"), "").split(new RegExp(aliasToUse.argSeparator))
-  console.log(aliasArgs, messageContent)
 
   if (aliasToUse.roleIDs && !message.member.roles.cache.some(role => aliasToUse.roleIDs.some(roleID => role.id == roleID))) { return false }
   
@@ -59,4 +61,9 @@ export async function executeCommandAlias(messageContent: string, message: Messa
   await handleCommandExecution(formattedCommand, message)
 
   return true
+}
+
+export function getEchoChannelWhitelist(serverID: string)
+{
+  return echoChannelWhitelists[serverID]
 }
