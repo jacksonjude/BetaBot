@@ -37,7 +37,7 @@ export async function getRolesByID(roleIDs: string[], guild?: Guild, guildID?: s
 
 // Emoji Converter
 
-import * as emojiConverter from 'node-emoji'
+import emojiConverter from 'discord-emoji-converter'
 const overrideEmoteNameToEmojiMap = {
   ":white_heart:": "🤍",
   ":map:": "🗺️",
@@ -121,7 +121,17 @@ export class Emote
     }
 
     let emojiString = emoji instanceof ReactionEmoji ? emoji.toString() : emoji as string
-    return overrideEmojiToEmoteNameMap[emojiString] ?? emojiConverter.unemojify(emojiString)
+    
+    if (overrideEmojiToEmoteNameMap[emojiString])
+    {
+      return overrideEmojiToEmoteNameMap[emojiString]
+    }
+    
+    try
+    {
+      return emojiConverter.getShortcode(emojiString)
+    }
+    catch {}
   }
 
   private static async getEmoji(client: Client, emoteName: string, emoteID?: string): Promise<EmojiResolvable>
@@ -132,7 +142,8 @@ export class Emote
     {
       return emoji
     }
-    else if (emoteID)
+    
+    if (emoteID)
     {
       let guilds = Array.from(client.guilds.cache.values())
       for (let guild of guilds)
@@ -149,14 +160,15 @@ export class Emote
         }
       }
     }
-
-    let emote = emojiConverter.get(emoteName)
-    if (emote != null && !emote.includes(":"))
+    
+    try
     {
-      return emote
+      return emojiConverter.getEmoji(emoteName)
     }
-
-    return overrideEmoteNameToEmojiMap[":" + emoteName + ":"]
+    catch
+    {
+      return overrideEmoteNameToEmojiMap[":" + emoteName + ":"]
+    }
   }
 }
 
