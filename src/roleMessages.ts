@@ -38,7 +38,6 @@ export async function interpretRoleSetting(client: Client, roleSettingID: string
         try
         {
           let emoji = await new Emote(roleTuple.emote).toEmoji(client)
-          console.log("react with", emoji)
           message.react(emoji)
         }
         catch {}
