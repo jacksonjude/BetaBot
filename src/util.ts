@@ -41,12 +41,14 @@ import emojiConverter from 'discord-emoji-converter'
 const overrideEmoteNameToEmojiMap = {
   ":white_heart:": "🤍",
   ":map:": "🗺️",
-  ":regional_indicator_i:": "🇮"
+  ":regional_indicator_i:": "🇮",
+  ":pen_ballpoint:": "🖊"
 }
 const overrideEmojiToEmoteNameMap = {
   "🤍": ":white_heart:",
   "🗺️": ":map:",
-  "🇮": ":regional_indicator_i:"
+  "🇮": ":regional_indicator_i:",
+  "🖊": ":pen_ballpoint:"
 }
 
 export class Emote
