@@ -56,11 +56,15 @@ async function filterFormChannelMessages(textChannel: TextChannel)
     const filteredChannelMessages = []
     for (const message of channelMessages)
     {
-      if (!/^<@!?&?\d+>.+/.test(message.content)) { return }
+      if (!/^<@\d+>.+/.test(message.content)) {
+        // console.log("Skipping", message.createdTimestamp, message.content)
+        filteredChannelMessages.push(message)
+        continue
+      }
       
-      // console.log("Checking", message.content)
+      // console.log("Checking", message.createdTimestamp, message.content)
       
-      const userID = message.content.replace(/>.+/, '').replace(/<@!?&?/, '')
+      const userID = message.content.replace(/>.+/, '').replace(/<@/, '')
       if (usersWithMessages.includes(userID))
       {
         try
