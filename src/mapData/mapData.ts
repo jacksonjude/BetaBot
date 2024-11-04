@@ -50,6 +50,12 @@ const sources = [
 		(source: DataSource, fallback: boolean) => 
 			polymarketFetch("2024-senate-polymarket-prices.json", "2024-senate-polymarket-tokens.json", source, fallback),
 		"1 1 2,14 * * *"
+	),
+	new DataSource(
+		"2024-senate-polymarket",
+		(source: DataSource, fallback: boolean) => 
+			polymarketFetch("2024-governor-polymarket-prices.json", "2024-governor-polymarket-tokens.json", source, fallback),
+		"1 1 3,15 * * *"
 	)
 ];
 
