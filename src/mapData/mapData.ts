@@ -83,12 +83,12 @@ const sources = [
 			cnnFetch("2024-governor-cnn.csv", "https://politics.api.cnn.io/results/national-races/2024-GG.json", source, fallback),
 		"1 15,45 * * * *"
 	),
-	new DataSource(
-		"2024-cnn-house",
-		(source: DataSource, fallback: boolean) => 
-			cnnFetch("2024-house-cnn.csv", "https://politics.api.cnn.io/results/national-races/2024-HG.json", source, fallback),
-		"1 15,45 * * * *"
-	)
+	// new DataSource(
+	// 	"2024-cnn-house",
+	// 	(source: DataSource, fallback: boolean) => 
+	// 		cnnFetch("2024-house-cnn.csv", "https://politics.api.cnn.io/results/national-races/2024-HG.json", source, fallback),
+	// 	"1 15,45 * * * *"
+	// )
 ];
 
 async function polymarketFetch(dataFile: string, tokenFile: string, source: DataSource, fallback: boolean) {
