@@ -68,7 +68,7 @@ const sources = [
 	new DataSource(
 		"2024-cnn-president",
 		(source: DataSource, fallback: boolean) => 
-			cnnFetch("2024-president-cnn.csv", "https://politics.api.cnn.io/results/national-races/2024-PG.json", source, fallback),
+			cnnFetch("2024-president-cnn-2.csv", "https://politics.api.cnn.io/results/national-races/2024-PG.json", source, fallback),
 		"1 15,45 * * * *"
 	),
 	new DataSource(
