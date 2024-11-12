@@ -47,30 +47,30 @@ class DataSource {
 }
 
 const sources = [
-	new DataSource(
-		"2024-president-polymarket",
-		(source: DataSource, fallback: boolean) => 
-			polymarketFetch("2024-president-polymarket-prices.json", "2024-president-polymarket-tokens.json", source, fallback),
-		"1 1 0,12 * * *"
-	),
-	new DataSource(
-		"2024-senate-polymarket",
-		(source: DataSource, fallback: boolean) => 
-			polymarketFetch("2024-senate-polymarket-prices.json", "2024-senate-polymarket-tokens.json", source, fallback),
-		"1 1 2,14 * * *"
-	),
-	new DataSource(
-		"2024-governor-polymarket",
-		(source: DataSource, fallback: boolean) => 
-			polymarketFetch("2024-governor-polymarket-prices.json", "2024-governor-polymarket-tokens.json", source, fallback),
-		"1 1 3,15 * * *"
-	),
-	new DataSource(
-		"2024-cnn-president",
-		(source: DataSource, fallback: boolean) => 
-			cnnFetch("2024-president-cnn-2.csv", "https://politics.api.cnn.io/results/national-races/2024-PG.json", source, fallback),
-		"1 15,45 * * * *"
-	),
+	// new DataSource(
+	// 	"2024-president-polymarket",
+	// 	(source: DataSource, fallback: boolean) => 
+	// 		polymarketFetch("2024-president-polymarket-prices.json", "2024-president-polymarket-tokens.json", source, fallback),
+	// 	"1 1 0,12 * * *"
+	// ),
+	// new DataSource(
+	// 	"2024-senate-polymarket",
+	// 	(source: DataSource, fallback: boolean) => 
+	// 		polymarketFetch("2024-senate-polymarket-prices.json", "2024-senate-polymarket-tokens.json", source, fallback),
+	// 	"1 1 2,14 * * *"
+	// ),
+	// new DataSource(
+	// 	"2024-governor-polymarket",
+	// 	(source: DataSource, fallback: boolean) => 
+	// 		polymarketFetch("2024-governor-polymarket-prices.json", "2024-governor-polymarket-tokens.json", source, fallback),
+	// 	"1 1 3,15 * * *"
+	// ),
+	// new DataSource(
+	// 	"2024-cnn-president",
+	// 	(source: DataSource, fallback: boolean) => 
+	// 		cnnFetch("2024-president-cnn-3.csv", "https://politics.api.cnn.io/results/national-races/2024-PG.json", source, fallback),
+	// 	"1 15,45 * * * *"
+	// ),
 	new DataSource(
 		"2024-cnn-senate",
 		(source: DataSource, fallback: boolean) => 
