@@ -35,6 +35,8 @@ import { interpretRoleGroupSetting, RoleGroup } from "./roleGroup"
 
 import { interpretFormChannelSetting, FormChannel } from "./formChannel"
 
+import { interpretBadWordServerSetting, BadWordServerConfiguration } from "./badWords"
+
 const roleMessageCollectionID = "roleMessageConfigurations"
 const voiceToTextCollectionID = "voiceToTextConfigurations"
 const statChannelsCollectionID = "statsConfigurations"
@@ -46,6 +48,7 @@ const roleCounterCollectionID = "roleCounterConfigurations"
 const commandAliasCollectionID = "commandAliasConfigurations"
 const roleGroupCollectionID = "roleGroupConfigurations"
 const formChannelCollectionID = "formChannelConfigurations"
+const badWordCollectionID = "badWordConfigurations"
 
 var firestoreCollectionListeners = []
 const firestoreCollectionSyncHandlers = [
@@ -214,6 +217,18 @@ const firestoreCollectionSyncHandlers = [
       if (!shouldDelete)
       {
         interpretFormChannelSetting(client, formID, formChannelSettingDocData as FormChannel)
+      }
+    }
+  },
+  {
+    collectionID: badWordCollectionID,
+    updateDocFunction: async function(badWordServerSettingDoc: QueryDocumentSnapshot, shouldDelete: boolean) {
+      let badWordServerSettingDocData = badWordServerSettingDoc.data()
+      let serverID = badWordServerSettingDoc.id
+  
+      if (!shouldDelete)
+      {
+        interpretBadWordServerSetting(serverID, badWordServerSettingDocData as BadWordServerConfiguration)
       }
     }
   }

@@ -54,6 +54,8 @@ import { executeCommandAlias } from "./src/commandAlias"
 
 import { setupFormMessageEventHandlers } from "./src/formChannel"
 
+import { checkWords } from './src/badWords'
+
 const HOME_GUILD_ID = "704218896298934317"
 const TECHNICIAN_ROLE_ID = "804147385923403826"
 
@@ -233,6 +235,8 @@ client.on('messageCreate', async msg => {
     msg.guild && console.log("[App] Sent '" + msg.content + "' in " + msg.guild.name)
     return
   }
+  
+  if (await checkWords(msg)) return
 
   var messageContent = msg.content
   if ((msg.mentions.members && msg.mentions.members.has(client.user.id)) || (msg.mentions.roles && msg.mentions.roles.find(role => role.name == DISCORD_NICKNAME)))
