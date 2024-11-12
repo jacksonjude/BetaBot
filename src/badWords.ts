@@ -30,7 +30,7 @@ export async function checkWords(message: Message): Promise<boolean>
 			message.member.timeout(timeoutLength*1000*60, "Naughty words!")
 			
 			const channel = (await message.guild.channels.fetch(auditChannel)) as TextChannel
-			channel.send(`<@${message.author.id}> timed out for ${timeoutLength}s: ${message.content}`)
+			channel.send(`<@${message.author.id}> timed out for ${timeoutLength}m: ${message.content}`)
 			
 			await message.delete()
 			return true
