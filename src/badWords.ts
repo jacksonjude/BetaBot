@@ -1,4 +1,5 @@
 import { Message, TextChannel } from "discord.js"
+import { Firestore, DocumentReference } from "firebase-admin/firestore"
 
 export class BadWordServerConfiguration
 {
@@ -6,16 +7,22 @@ export class BadWordServerConfiguration
 	timeoutLength: number
 	auditChannel?: string
 	
-	words?: string[]
+	timeoutCount?: {[k: string]: number}
 }
 
-let badWords: {[k: string]: BadWordServerConfiguration} = {}
+const badWordsCollectionID = "badWordConfigurations"
 
-export function interpretBadWordServerSetting(serverID: string, badWordServerConfig: BadWordServerConfiguration)
+let badWords: {[k: string]: {
+	config: BadWordServerConfiguration,
+	words: string[],
+	ref: DocumentReference
+}} = {}
+
+export function interpretBadWordServerSetting(serverID: string, badWordServerConfig: BadWordServerConfiguration, firestoreDB: Firestore)
 {
 	const badWordList = JSON.parse(Buffer.from(badWordServerConfig.b64, 'base64').toString()) as string[]
-	badWordServerConfig.words = badWordList
-	badWords[serverID] = badWordServerConfig
+	const ref = firestoreDB.doc(`${badWordsCollectionID}/${serverID}`)
+	badWords[serverID] = {config: badWordServerConfig, words: badWordList, ref: ref}
 }
 
 export async function checkWords(message: Message): Promise<boolean>
@@ -26,13 +33,23 @@ export async function checkWords(message: Message): Promise<boolean>
 	{
 		if (badWordList.includes(word))
 		{
-			const { timeoutLength, auditChannel } = badWords[message.guildId]
-			message.member.timeout(timeoutLength*1000*60, "Naughty words!")
+			const { timeoutLength, auditChannel, timeoutCount } = badWords[message.guildId].config
+			
+			const newCount = (timeoutCount?.[message.author.id] ?? 0)+1
+			
+			message.member.timeout(timeoutLength*1000*60*newCount, "Naughty words!")
 			
 			const channel = (await message.guild.channels.fetch(auditChannel)) as TextChannel
-			channel.send(`<@${message.author.id}> timed out for ${timeoutLength}m: ${message.content}`)
+			channel.send(`<@${message.author.id}> timed out for ${timeoutLength*newCount}m: ${message.content}`)
 			
 			await message.delete()
+			
+			badWords[message.guildId].config.timeoutCount = {
+				...timeoutCount ?? {},
+				[message.author.id]: newCount
+			}
+			await badWords[message.guildId].ref.set(badWords[message.guildId].config)
+			
 			return true
 		}
 	}

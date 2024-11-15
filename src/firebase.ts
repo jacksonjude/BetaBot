@@ -222,13 +222,13 @@ const firestoreCollectionSyncHandlers = [
   },
   {
     collectionID: badWordCollectionID,
-    updateDocFunction: async function(badWordServerSettingDoc: QueryDocumentSnapshot, shouldDelete: boolean) {
+    updateDocFunction: async function(badWordServerSettingDoc: QueryDocumentSnapshot, shouldDelete: boolean, _client: Client, firestoreDB: Firestore) {
       let badWordServerSettingDocData = badWordServerSettingDoc.data()
       let serverID = badWordServerSettingDoc.id
   
       if (!shouldDelete)
       {
-        interpretBadWordServerSetting(serverID, badWordServerSettingDocData as BadWordServerConfiguration)
+        interpretBadWordServerSetting(serverID, badWordServerSettingDocData as BadWordServerConfiguration, firestoreDB)
       }
     }
   }
