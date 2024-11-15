@@ -71,18 +71,18 @@ const sources = [
 	// 		cnnFetch("2024-president-cnn-3.csv", "https://politics.api.cnn.io/results/national-races/2024-PG.json", source, fallback),
 	// 	"1 15,45 * * * *"
 	// ),
-	new DataSource(
-		"2024-cnn-senate",
-		(source: DataSource, fallback: boolean) => 
-			cnnFetch("2024-senate-cnn.csv", "https://politics.api.cnn.io/results/national-races/2024-SG.json", source, fallback),
-		"1 15,45 * * * *"
-	),
-	new DataSource(
-		"2024-cnn-governor",
-		(source: DataSource, fallback: boolean) => 
-			cnnFetch("2024-governor-cnn.csv", "https://politics.api.cnn.io/results/national-races/2024-GG.json", source, fallback),
-		"1 15,45 * * * *"
-	),
+	// new DataSource(
+	// 	"2024-cnn-senate",
+	// 	(source: DataSource, fallback: boolean) => 
+	// 		cnnFetch("2024-senate-cnn.csv", "https://politics.api.cnn.io/results/national-races/2024-SG.json", source, fallback),
+	// 	"1 15,45 * * * *"
+	// ),
+	// new DataSource(
+	// 	"2024-cnn-governor",
+	// 	(source: DataSource, fallback: boolean) => 
+	// 		cnnFetch("2024-governor-cnn.csv", "https://politics.api.cnn.io/results/national-races/2024-GG.json", source, fallback),
+	// 	"1 15,45 * * * *"
+	// ),
 	// new DataSource(
 	// 	"2024-cnn-house",
 	// 	(source: DataSource, fallback: boolean) => 
