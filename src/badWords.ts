@@ -27,6 +27,8 @@ export function interpretBadWordServerSetting(serverID: string, badWordServerCon
 
 export async function checkWords(message: Message): Promise<boolean>
 {
+	if (!badWords[message.guildId]) return
+	
 	const badWordList = badWords[message.guildId].words
 	const wordsToScan = message.content.replace(/[^a-zA-Z]/g, ' ').toLowerCase().split(/\s/)
 	for (let word of wordsToScan)
