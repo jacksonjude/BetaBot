@@ -32,7 +32,7 @@ export class PollConfiguration
   roleIDs?: string[]
   serverID?: string
   iVotedRoleID?: string
-  latestMembershipJoinTime?: number
+  latestMembershipJoinTime?: Timestamp
 
   channelID?: string
   messageIDs?: { [k: string]: string }
@@ -93,7 +93,7 @@ export function checkVoteRequirements(pollData: PollConfiguration, serverID: str
 {
   var isWithinPollTimeRange = Date.now() >= pollData.openTime.toMillis() && Date.now() <= pollData.closeTime.toMillis()
   var inRequiredServer = pollData.serverID ? serverID == pollData.serverID : true
-  var meetsMembershipAge = pollData.serverID && pollData.latestMembershipJoinTime ? member.joinedTimestamp <= pollData.latestMembershipJoinTime : true
+  var meetsMembershipAge = pollData.serverID && pollData.latestMembershipJoinTime ? member.joinedTimestamp <= pollData.latestMembershipJoinTime.toMillis() : true
   var hasRequiredRoles = pollData.roleIDs ? member.roles.cache.some(role => pollData.roleIDs.includes(role.id)) : true
 
   if (!isWithinPollTimeRange)

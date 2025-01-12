@@ -41,6 +41,7 @@ enum SelectedPollFieldType
   pollOpenTime,
   pollCloseTime,
   pollRoles,
+  pollMaxJoinTime,
   pollVoteMessage,
   pollSaveChanges,
   pollCloseEditing
@@ -72,9 +73,10 @@ enum PollEditType
   openTime = 3,
   closeTime = 4,
   roles = 5,
-  voteMessage = 6,
-  saveChanges = 7,
-  closeEditing = 8
+  maxJoinTime = 6,
+  voteMessage = 7,
+  saveChanges = 8,
+  closeEditing = 9
 }
 
 const pollEditEmotes = {
@@ -83,6 +85,7 @@ const pollEditEmotes = {
   "📖": PollEditType.openTime,
   "📕": PollEditType.closeTime,
   "👤": PollEditType.roles,
+  "🧓": PollEditType.maxJoinTime,
   "📣": PollEditType.voteMessage,
   "☑️": PollEditType.saveChanges,
   "❌": PollEditType.closeEditing
@@ -126,6 +129,7 @@ async function sendPollEditMessages(pollConfig: PollConfiguration, channel: Text
         let editingOpenTime: boolean
         let editingCloseTime: boolean
         let editingRoles: boolean
+        let editingMaxJoinTime: boolean
         let editingVoteMessage: boolean
         if (pollEditSelectedFields[pollConfig.id])
         {
@@ -133,6 +137,7 @@ async function sendPollEditMessages(pollConfig: PollConfiguration, channel: Text
           editingOpenTime = pollEditSelectedFields[pollConfig.id].type == SelectedPollFieldType.pollOpenTime
           editingCloseTime = pollEditSelectedFields[pollConfig.id].type == SelectedPollFieldType.pollCloseTime
           editingRoles = pollEditSelectedFields[pollConfig.id].type == SelectedPollFieldType.pollRoles
+          editingMaxJoinTime = pollEditSelectedFields[pollConfig.id].type == SelectedPollFieldType.pollMaxJoinTime
           editingVoteMessage = pollEditSelectedFields[pollConfig.id].type == SelectedPollFieldType.pollVoteMessage
         }
 
@@ -150,6 +155,10 @@ async function sendPollEditMessages(pollConfig: PollConfiguration, channel: Text
           let whitelistedRoleIDs = (pollsData[pollConfig.id].roleIDs ?? []).reduce((rolesString, roleID) => rolesString += "<@&" + roleID + "> ", "")
           titleString += "  (" + (whitelistedRoleIDs == "" ? "@everyone" : whitelistedRoleIDs.slice(0, -1)) + ")"
         }
+        if (editingMaxJoinTime)
+        {
+          titleString += "  (<t:" + pollsData[pollConfig.id].latestMembershipJoinTime.seconds.toString() + ":f>)"
+        }
         if (editingVoteMessage)
         {
           titleString += pollsData[pollConfig.id].voteMessageSettings ? "  (<#" + pollsData[pollConfig.id].voteMessageSettings.channelID + "> " + pollsData[pollConfig.id].voteMessageSettings.messageText + ")" : "  (None)"
@@ -162,6 +171,7 @@ async function sendPollEditMessages(pollConfig: PollConfiguration, channel: Text
         await message.react("📖")
         await message.react("📕")
         await message.react("👤")
+        await message.react("🧓")
         await message.react("📣")
         await message.react("☑️")
         await message.react("❌")
@@ -308,6 +318,10 @@ async function handlePollEditReaction(client: Client, reaction: MessageReaction,
         case PollEditType.roles:
         pollEditSelectedFields[currentPollID].type = SelectedPollFieldType.pollRoles
         break
+        
+        case PollEditType.maxJoinTime:
+        pollEditSelectedFields[currentPollID].type = SelectedPollFieldType.pollMaxJoinTime
+        break
 
         case PollEditType.voteMessage:
         pollEditSelectedFields[currentPollID].type = SelectedPollFieldType.pollVoteMessage
@@ -375,6 +389,7 @@ async function handlePollEditReaction(client: Client, reaction: MessageReaction,
       || pollEditType == PollEditType.openTime && pollEditSelectedFields[currentPollID].type == SelectedPollFieldType.pollOpenTime
       || pollEditType == PollEditType.closeTime && pollEditSelectedFields[currentPollID].type == SelectedPollFieldType.pollCloseTime
       || pollEditType == PollEditType.roles && pollEditSelectedFields[currentPollID].type == SelectedPollFieldType.pollRoles
+      || pollEditType == PollEditType.maxJoinTime && pollEditSelectedFields[currentPollID].type == SelectedPollFieldType.pollMaxJoinTime
       || pollEditType == PollEditType.voteMessage && pollEditSelectedFields[currentPollID].type == SelectedPollFieldType.pollVoteMessage
       || pollEditType == PollEditType.saveChanges && pollEditSelectedFields[currentPollID].type == SelectedPollFieldType.pollSaveChanges
       || questionData && pollEditSelectedFields[currentPollID].question == questionData.id && (
@@ -464,6 +479,7 @@ async function handlePollEditFieldTextInput(message: Message, pollField: Selecte
 
     case SelectedPollFieldType.pollOpenTime:
     case SelectedPollFieldType.pollCloseTime:
+    case SelectedPollFieldType.pollMaxJoinTime:
     let epochRegex = /^\s*(\d+)\s*$/
     let yyyyMMDDHHMMSSRegex = /^\s*(?:(\d{4})-)?(\d{2})-(\d{2})\s+(\d{2}):(\d{2})(?::(\d{2}))?(?:\s+(\w+))?\s*$/
 
@@ -499,6 +515,10 @@ async function handlePollEditFieldTextInput(message: Message, pollField: Selecte
 
         case SelectedPollFieldType.pollCloseTime:
         pollsData[pollField.poll].closeTime = selectedTimestamp
+        break
+        
+        case SelectedPollFieldType.pollMaxJoinTime:
+        pollsData[pollField.poll].latestMembershipJoinTime = selectedTimestamp
         break
       }
       break
