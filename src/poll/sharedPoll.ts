@@ -2,6 +2,9 @@ import { User, GuildMember, Message, Client, TextChannel } from "discord.js"
 import { ActionMessage } from "../actionMessage"
 import { Firestore, Timestamp } from "firebase-admin/firestore"
 import { BotCommand, BotCommandError, BotCommandRequirement } from "../botCommand"
+import { getRolesByID } from "../util"
+
+import { CronJob } from "cron"
 
 export const pollsCollectionID = "pollConfigurations"
 export const pollResponsesCollectionID = "responses"
@@ -20,6 +23,8 @@ export var pollResponses: { [k: string]: { [k: string]: { [k: string]: string } 
 
 export var pollsActionMessages: { [k: string]: { [k: string]: { [k: string]: ActionMessage<PollQuestion> } | ActionMessage<PollQuestion> } } = {}
 export var pollVoteActionMessages: { [k: string]: ActionMessage<PollConfiguration> } = {}
+
+export var pollUpdateCronJobs: { [k: string]: CronJob } = {}
 
 export class PollConfiguration
 {
@@ -63,6 +68,7 @@ export class PollVoteMessageConfiguration
   channelID: string
   messageID?: string
   messageText: string
+  shouldPost: boolean
 }
 
 export class PollExportAccessConfiguration
@@ -118,6 +124,34 @@ export function checkVoteRequirements(pollData: PollConfiguration, serverID: str
   }
 
   return true
+}
+
+export async function getAnnouncementMessageText(pollData: PollConfiguration, channel: TextChannel, firestoreDB: Firestore): Promise<string>
+{
+  let closeTime = Math.round(pollData.closeTime.toMillis()/1000)
+  
+  let roleObjects = pollData.roleIDs ? await getRolesByID(pollData.roleIDs, channel.guild) : [channel.guild.roles.everyone]
+  let maximumVoters = roleObjects.reduce((total, role) => total + role.members.size, 0)
+  let pollResultsCollection = await firestoreDB.collection(pollsCollectionID + "/" + pollData.id + "/" + pollResponsesCollectionID).get()
+  let currentVoters = pollResultsCollection.docChanges().map(response => response.doc.data()).filter(data => data.responseMap && Object.keys(data.responseMap).length > 0).length
+  let turnoutPercentage = Math.round(currentVoters/maximumVoters*100*100)/100
+  
+  return `:alarm_clock: Close${Date.now() > pollData.closeTime.toMillis() ? 'd' : 's'} <t:${closeTime}:R>` + "\n" + `:ballot_box: Turnout at ${turnoutPercentage}% (${currentVoters}/${maximumVoters})`
+}
+
+export function updateMessageOnClose(pollData: PollConfiguration, updatePoll: (pollID: string) => Promise<void>)
+{
+  if (Date.now() >= pollData.closeTime.toMillis()) return
+  
+  if (pollUpdateCronJobs[pollData.id]) pollUpdateCronJobs[pollData.id].stop()
+  
+  const pollUpdateJob = new CronJob(new Date(pollData.closeTime.toMillis()+300), async () => {
+    await updatePoll(pollData.id)
+    delete pollUpdateCronJobs[pollData.id]
+  })
+  pollUpdateJob.start()
+  
+  pollUpdateCronJobs[pollData.id] = pollUpdateJob
 }
 
 export function getExportPollResultsCommand(overrideCommandRequirement: BotCommandRequirement): BotCommand

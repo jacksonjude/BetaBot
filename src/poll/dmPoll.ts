@@ -2,7 +2,6 @@ import { Client, User, TextChannel, Message, GuildMember, MessageReaction } from
 import { ActionMessage, MessageReactionEventType } from "../actionMessage"
 import { Firestore } from "firebase-admin/firestore"
 import { BotCommand, BotCommandError } from "../botCommand"
-import { getRolesByID } from "../util"
 
 import {
   PollConfiguration, PollQuestion, PollResponseMap, PollResponse,
@@ -11,7 +10,7 @@ import {
   pollResponses,
   pollsActionMessages, pollVoteActionMessages,
   voteMessageEmoji, submitResponseEmote,
-  checkVoteRequirements
+  checkVoteRequirements, getAnnouncementMessageText, updateMessageOnClose
 } from "./sharedPoll"
 
 import { roleGroups } from "../roleGroup"
@@ -25,8 +24,13 @@ const yeaEmote = "<a:yea:929537247106191370>"
 export async function interpretDMPollSetting(client: Client, pollID: string, pollDataJSON: PollConfiguration, firestoreDB: Firestore)
 {
   pollsData[pollID] = pollDataJSON
+  
+  if (pollVoteActionMessages[pollID])
+  {
+    await pollVoteActionMessages[pollID].removeActionMessage(false)
+  }
 
-  if (pollDataJSON.voteMessageSettings != null && pollDataJSON.voteMessageSettings.channelID != null)
+  if (pollDataJSON.voteMessageSettings != null && pollDataJSON.voteMessageSettings.channelID != null && pollDataJSON.voteMessageSettings.shouldPost)
   {
     let liveChannel = await client.channels.fetch(pollDataJSON.voteMessageSettings.channelID) as TextChannel
     let pollVoteActionMessage = new ActionMessage<PollConfiguration>(
@@ -34,15 +38,7 @@ export async function interpretDMPollSetting(client: Client, pollID: string, pol
       pollDataJSON.voteMessageSettings.messageID,
       pollDataJSON,
       async (pollData: PollConfiguration, channel: TextChannel) => {
-        let closeTime = Math.round(pollData.closeTime.toMillis()/1000)
-
-        let roleObjects = pollData.roleIDs ? await getRolesByID(pollData.roleIDs, channel.guild) : [channel.guild.roles.everyone]
-        let maximumVoters = roleObjects.reduce((total, role) => total + role.members.size, 0)
-        let pollResultsCollection = await firestoreDB.collection(pollsCollectionID + "/" + pollData.id + "/" + pollResponsesCollectionID).get()
-        let currentVoters = pollResultsCollection.docChanges().filter(response => response.doc.data().responseMap).length
-        let turnoutPercentage = Math.round(currentVoters/maximumVoters*100*100)/100
-
-        return pollData.voteMessageSettings.messageText + "\n" + `:alarm_clock: Closes <t:${closeTime}:R>` + "\n" + `:ballot_box: Turnout at ${turnoutPercentage}% (${currentVoters}/${maximumVoters})`
+        return pollData.voteMessageSettings.messageText + "\n" + await getAnnouncementMessageText(pollData, channel, firestoreDB)
       }, async (message: Message, pollData: PollConfiguration) => {
         pollData.voteMessageSettings.messageID = message.id
         message.react(voteMessageEmoji)
@@ -54,6 +50,10 @@ export async function interpretDMPollSetting(client: Client, pollID: string, pol
     await pollVoteActionMessage.initActionMessage()
 
     pollVoteActionMessages[pollID] = pollVoteActionMessage
+    
+    updateMessageOnClose(pollDataJSON, async (pollID) => {
+      await (pollVoteActionMessages[pollID] as ActionMessage<PollConfiguration>).sendMessage()
+    })
   }
 
   return pollDataJSON
@@ -125,7 +125,7 @@ export async function cleanDMPollResponseMessages(client: Client, userID: string
   var user = await client.users.fetch(userID)
   if (!user) { return }
 
-  var dmChannel = user.dmChannel || await user.createDM()
+  var dmChannel = user.dmChannel
   if (!dmChannel) { return }
 
   for (let messageID of Object.values(pollResponseData.messageIDs))

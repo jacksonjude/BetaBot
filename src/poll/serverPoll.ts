@@ -8,7 +8,7 @@ import {
   pollsData,
   pollResponses,
   pollsActionMessages,
-  checkVoteRequirements
+  checkVoteRequirements, getAnnouncementMessageText, updateMessageOnClose
 } from "./sharedPoll"
 import { Emote } from "../util"
 
@@ -20,14 +20,26 @@ const uid = new ShortUniqueID({ length: 10 })
 export async function interpretServerPollSetting(client: Client, pollID: string, pollDataJSON: PollConfiguration, firestoreDB: Firestore)
 {
   pollsData[pollID] = pollDataJSON
+  
+  if (pollsActionMessages[pollID])
+  {
+    for (let pollActionMessage of Object.values(pollsActionMessages[pollID]) as ActionMessage<PollQuestion>[])
+    {
+      await pollActionMessage.removeActionMessage(false)
+    }
+  }
 
-  if (pollDataJSON.channelID != null && !pollsActionMessages[pollID])
+  if (pollDataJSON.channelID != null)
   {
     var uploadPollResponse = async (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => {
       await firestoreDB.doc(pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID + "/" + userID).set({responseMap: questionIDToOptionIDMap, updatedAt: Date.now()})
     }
 
-    await sendServerVoteMessage(client, pollDataJSON, uploadPollResponse)
+    await sendServerVoteMessage(client, pollDataJSON, uploadPollResponse, firestoreDB)
+    
+    updateMessageOnClose(pollDataJSON, async (pollID) => {
+      await (pollsActionMessages[pollID]["title"] as ActionMessage<any>).sendMessage()
+    })
   }
 
   return pollDataJSON
@@ -39,7 +51,7 @@ export async function removeServerPollSetting(pollID: string)
   {
     for (let pollActionMessage of Object.values(pollsActionMessages[pollID]) as ActionMessage<PollQuestion>[])
     {
-      pollActionMessage.removeActionMessage()
+      await pollActionMessage.removeActionMessage()
     }
     delete pollsActionMessages[pollID]
   }
@@ -50,7 +62,7 @@ export async function removeServerPollSetting(pollID: string)
   }
 }
 
-async function sendServerVoteMessage(client: Client, pollData: PollConfiguration, uploadPollResponse: (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => Promise<void>)
+async function sendServerVoteMessage(client: Client, pollData: PollConfiguration, uploadPollResponse: (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => Promise<void>, firestoreDB: Firestore)
 {
   var pollChannel = await client.channels.fetch(pollData.channelID) as TextChannel
   if (!pollChannel) { return }
@@ -64,7 +76,7 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
 
   let titleActionMessage = new ActionMessage(pollChannel, pollData.messageIDs["title"], null,
     async () => {
-      return "__**" + pollData.name + "**__"
+      return "__**" + pollData.name + "**__" + "\n" + await getAnnouncementMessageText(pollData, pollChannel, firestoreDB)
     }, async (message: Message) => {
       pollData.messageIDs["title"] = message.id
     },
@@ -132,6 +144,7 @@ async function handlePollMessageReaction(client: Client, reaction: MessageReacti
   {
     try
     {
+      console.log("Invalid reqs")
       await reaction.users.remove(user.id)
     }
     catch {}
@@ -183,6 +196,8 @@ async function handlePollMessageReaction(client: Client, reaction: MessageReacti
       }
     })
   }
+  
+  await (pollsActionMessages[currentPollID]["title"] as ActionMessage<PollQuestion>).sendMessage()
 }
 
 export function getCreateServerPollCommand(): BotCommand
@@ -225,8 +240,8 @@ export function getCreateServerPollCommand(): BotCommand
           }
         ],
         channelID: channelID,
-        roleID: roleID
-      }
+        roleIDs: [roleID]
+      } as PollConfiguration
 
       firestoreDB.doc(pollsCollectionID + "/" + pollID).set(pollConfig)
     }

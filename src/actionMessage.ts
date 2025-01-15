@@ -89,15 +89,18 @@ export class ActionMessage<T>
     return message
   }
 
-  async removeActionMessage(): Promise<void>
+  async removeActionMessage(deleteMessage = true): Promise<void>
   {
     this.reactionCollector.stop()
-
-    try
+    
+    if (deleteMessage)
     {
-      await this.channel.messages.delete(this.messageID)
+      try
+      {
+        await this.channel.messages.delete(this.messageID)
+      }
+      catch {}
     }
-    catch {}
   }
 }
 

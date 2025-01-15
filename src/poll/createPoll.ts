@@ -106,7 +106,7 @@ export function getCreatePollCommand(): BotCommand
       let pollID = commandArguments[1]
       let shouldExpandActions = commandArguments[2] === "true"
 
-      let pollData = pollsData[pollID] ?? {active: false, id: pollID, name: pollID, questions: [], pollType: "dm", openTime: Timestamp.fromDate(new Date()), closeTime: Timestamp.fromDate(new Date())} as PollConfiguration
+      let pollData = pollsData[pollID] ?? {active: true, id: pollID, name: pollID, questions: [], pollType: "dm", openTime: Timestamp.fromDate(new Date()), closeTime: Timestamp.fromDate(new Date())} as PollConfiguration
       pollsData[pollID] = pollData
 
       sendPollEditMessages(pollData, message.channel as TextChannel, client, shouldExpandActions)
@@ -542,7 +542,7 @@ async function handlePollEditFieldTextInput(message: Message, pollField: Selecte
       let channelID = channelMessageParts[1]
       let voteMessage = channelMessageParts[2]
 
-      pollsData[pollField.poll].voteMessageSettings = {channelID: channelID, messageText: voteMessage}
+      pollsData[pollField.poll].voteMessageSettings = {channelID: channelID, messageText: voteMessage, shouldPost: false}
     }
     break
 
@@ -665,11 +665,11 @@ export function getEditPollCommand(): BotCommand
         await (message.channel as TextChannel).send("PollEdit: " + "Creating poll '" + pollID + "'")
       }
 
-      if (pollData.active !== false)
-      {
-        pollData.active = false
-        await (message.channel as TextChannel).send("PollEdit: " + "Deactivating poll '" + pollID + "'")
-      }
+      // if (pollData.active !== false)
+      // {
+      //   pollData.active = false
+      //   await (message.channel as TextChannel).send("PollEdit: " + "Deactivating poll '" + pollID + "'")
+      // }
 
       function getNestedObjectFromKeyPath(rootObject: any, keyPath: string, getParent: boolean = false)
       {
