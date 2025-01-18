@@ -124,6 +124,11 @@ export class Emote
 
     let emojiString = emoji instanceof ReactionEmoji ? emoji.toString() : emoji as string
     
+    if (emojiString.startsWith("<"))
+    {
+      return emojiString
+    }
+    
     if (overrideEmojiToEmoteNameMap[emojiString])
     {
       return overrideEmojiToEmoteNameMap[emojiString]
