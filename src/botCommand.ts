@@ -54,7 +54,12 @@ export class BotCommand
     let parseCallback = this.parseCommandString(messageString, textChannel, this.usageMessage)
     if (parseCallback === false || parseCallback === true) { return false }
 
-    if (this.executionRequirement && !this.executionRequirement.testMessage(message)) { return false }
+    if (this.executionRequirement && !this.executionRequirement.testMessage(message))
+    {
+      await textChannel.send(`**Error: <@${message.author.username}> has invalid permissions to run ${this.name}**`)
+      console.log(`[Bot Command] Invalid permissions for ${message.author.username} to run ${this.name} in ${message.guild.name}: ${this.executionRequirement.toString()}`)
+      return false
+    }
 
     let currentArguments = parseCallback
     let commandCallback = await this.executeCommand(currentArguments, message, client, firestoreDB)
@@ -100,84 +105,129 @@ export class BotCommandRequirement
   {
     return this.requirementTest(message.author, message.member, message, message.channel as TextChannel, message.guild)
   }
+  
+  toString(): string
+  {
+    return "generic"
+  }
 }
 
 export class BotCommandUserIDRequirement extends BotCommandRequirement
 {
-  constructor(userID: string)
+  constructor(private userID: string)
   {
     super((user: User) => {
       return user.id == userID
     })
   }
+  
+  override toString(): string
+  {
+    return `userID=${this.userID}`
+  }
 }
 
 export class BotCommandRoleIDRequirement extends BotCommandRequirement
 {
-  constructor(roleID: string)
+  constructor(private roleID: string)
   {
     super((_, member: GuildMember) => {
       return member.roles.cache.some(role => role.id == roleID)
     })
   }
+  
+  override toString(): string
+  {
+    return `roleID=${this.roleID}`
+  }
 }
 
 export class BotCommandPermissionRequirement extends BotCommandRequirement
 {
-  constructor(permissions: PermissionResolvable[])
+  constructor(private permissions: PermissionResolvable[])
   {
     super((_, member: GuildMember) => {
       return permissions.every(permission => member.permissions.has(permission))
     })
   }
+  
+  override toString(): string
+  {
+    return `permissions=(${this.permissions.join(" && ")})`
+  }
 }
 
 export class BotCommandChannelIDRequirement extends BotCommandRequirement
 {
-  constructor(channelID: string)
+  constructor(private channelID: string)
   {
     super((_, __, ___, channel: TextChannel) => {
       return channel.id == channelID
     })
   }
+  
+  override toString(): string
+  {
+    return `channelID=${this.channelID}`
+  }
 }
 
 export class BotCommandServerIDRequirement extends BotCommandRequirement
 {
-  constructor(serverID: string)
+  constructor(private serverID: string)
   {
     super((_, __, ___, ____, server: Guild) => {
       return server.id == serverID
     })
   }
+  
+  override toString(): string
+  {
+    return `serverID=${this.serverID}`
+  }
 }
 
 export class BotCommandUnionRequirement extends BotCommandRequirement
 {
-  constructor(requirements: BotCommandRequirement[])
+  constructor(private requirements: BotCommandRequirement[])
   {
     super((user: User, member: GuildMember, message: Message, channel: TextChannel, server: Guild) => {
       return requirements.some(requirement => requirement.requirementTest(user, member, message, channel, server))
     })
   }
+  
+  override toString(): string
+  {
+    return `(${this.requirements.map(r => r.toString()).join(" || ")})`
+  }
 }
 
 export class BotCommandIntersectionRequirement extends BotCommandRequirement
 {
-  constructor(requirements: BotCommandRequirement[])
+  constructor(private requirements: BotCommandRequirement[])
   {
     super((user: User, member: GuildMember, message: Message, channel: TextChannel, server: Guild) => {
       return requirements.every(requirement => requirement.requirementTest(user, member, message, channel, server))
     })
   }
+  
+  override toString(): string
+  {
+    return `(${this.requirements.map(r => r.toString()).join(" && ")})`
+  }
 }
 
 export class BotCommandInverseRequirement extends BotCommandRequirement
 {
-  constructor(requirement: BotCommandRequirement)
+  constructor(private requirement: BotCommandRequirement)
   {
     super((user: User, member: GuildMember, message: Message, channel: TextChannel, server: Guild) => {
       return !requirement.requirementTest(user, member, message, channel, server)
     })
+  }
+  
+  override toString(): string
+  {
+    return `!(${this.requirement.toString()})`
   }
 }
