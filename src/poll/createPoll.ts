@@ -157,7 +157,8 @@ async function sendPollEditMessages(pollConfig: PollConfiguration, channel: Text
         }
         if (editingMaxJoinTime)
         {
-          titleString += "  (<t:" + pollsData[pollConfig.id].latestMembershipJoinTime.seconds.toString() + ":f>)"
+          let latestMembershipJoinTime = pollsData[pollConfig.id].latestMembershipJoinTime
+          titleString += latestMembershipJoinTime ? " (<t:" + pollsData[pollConfig.id].latestMembershipJoinTime.seconds.toString() + ":f>)" : " (None)"
         }
         if (editingVoteMessage)
         {
