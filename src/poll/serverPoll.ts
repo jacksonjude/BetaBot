@@ -221,6 +221,7 @@ export function getCreateServerPollCommand(): BotCommand
       let pollID = pollName + "-" + uid()
 
       let pollConfig = {
+        active: true,
         id: pollID,
         name: pollName,
         pollType: "server" as "server",
