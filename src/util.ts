@@ -138,7 +138,16 @@ export class Emote
     {
       return emojiConverter.getShortcode(emojiString)
     }
-    catch {}
+    catch (error) {}
+    
+    try
+    {
+      return emojiConverter.getShortcode(removeEmojiVariations(emojiString))
+    }
+    catch (error)
+    {
+      console.log(`[Emote] Emoji converter error while decoding ${emoji}: ${error}`)
+    }
   }
 
   private static async getEmoji(client: Client, emoteName: string, emoteID?: string): Promise<EmojiResolvable>
@@ -177,6 +186,10 @@ export class Emote
       return overrideEmoteNameToEmojiMap[":" + emoteName + ":"]
     }
   }
+}
+
+function removeEmojiVariations(str) {
+  return str.normalize('NFKD').replace(/[\uFE0F\u20E3]/g, '');
 }
 
 // Types
