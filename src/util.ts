@@ -37,7 +37,7 @@ export async function getRolesByID(roleIDs: string[], guild?: Guild, guildID?: s
 
 // Emoji Converter
 
-import emojiConverter from 'discord-emoji-converter'
+import emojiConverter from './lib/discord-emoji-converter'
 const overrideEmoteNameToEmojiMap = {
   ":white_heart:": "🤍",
   ":map:": "🗺️",
@@ -142,7 +142,7 @@ export class Emote
     
     try
     {
-      return emojiConverter.getShortcode(removeEmojiVariations(emojiString))
+      return emojiConverter.getShortcode(emojiString, true, true)
     }
     catch (error)
     {
@@ -186,10 +186,6 @@ export class Emote
       return overrideEmoteNameToEmojiMap[":" + emoteName + ":"]
     }
   }
-}
-
-function removeEmojiVariations(str) {
-  return str.normalize('NFKD').replace(/[\uFE0F\u20E3]/g, '');
 }
 
 // Types
