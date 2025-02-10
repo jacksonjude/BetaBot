@@ -133,7 +133,7 @@ export async function getAnnouncementMessageText(pollData: PollConfiguration, ch
   let isClosed = Date.now() > pollData.closeTime.toMillis()
   
   let roleObjects = pollData.roleIDs ? await getRolesByID(pollData.roleIDs, channel.guild) : [channel.guild.roles.everyone]
-  let maximumVoters = pollData.voteMessageSettings.maximumVoterCount
+  let maximumVoters = pollData.voteMessageSettings?.maximumVoterCount
   if (!isClosed || maximumVoters == null)
   {
     maximumVoters = roleObjects.reduce((total, role) => 
@@ -142,7 +142,7 @@ export async function getAnnouncementMessageText(pollData: PollConfiguration, ch
       ).size,
     0)
     
-    pollData.voteMessageSettings.maximumVoterCount = maximumVoters
+    if (pollData.voteMessageSettings) pollData.voteMessageSettings.maximumVoterCount = maximumVoters
   }
   
   let pollResultsCollection = await firestoreDB.collection(pollsCollectionID + "/" + pollData.id + "/" + pollResponsesCollectionID).get()
