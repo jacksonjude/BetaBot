@@ -229,7 +229,7 @@ async function sendVoteDM(client: Client, user: User, guildMember: GuildMember, 
 
   for (let questionData of pollData.questions)
   {
-    if (questionData.roleIDs && !questionData.roleIDs.some(roleID => guildMember.roles.cache.has(roleID) || (roleGroups[roleID] && roleGroups[roleID].hasRole(guildMember)))) { continue }
+    if (questionData.roleIDs?.length > 0 && !questionData.roleIDs.some(roleID => guildMember.roles.cache.has(roleID) || (roleGroups[roleID] && roleGroups[roleID].hasRole(guildMember)))) { continue }
 
     let questionActionMessage = new ActionMessage<PollQuestion>(dmChannel, null, questionData,
       async (questionData: PollQuestion, _, creatingMessage: boolean) => {
@@ -369,6 +369,7 @@ async function handlePollSubmitReaction(client: Client, reaction: MessageReactio
 
 async function addIVotedRole(client: Client, user: User, serverID: string, roleID: string)
 {
+  if (!serverID) { return }
   let guild = await client.guilds.fetch(serverID)
   if (!guild) { return }
 
