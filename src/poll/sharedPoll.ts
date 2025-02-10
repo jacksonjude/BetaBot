@@ -69,6 +69,7 @@ export class PollVoteMessageConfiguration
   messageID?: string
   messageText: string
   shouldPost: boolean
+  maximumVoterCount?: number
 }
 
 export class PollExportAccessConfiguration
@@ -99,7 +100,7 @@ export function checkVoteRequirements(pollData: PollConfiguration, serverID: str
 {
   var isWithinPollTimeRange = Date.now() >= pollData.openTime.toMillis() && Date.now() <= pollData.closeTime.toMillis()
   var inRequiredServer = pollData.serverID ? serverID == pollData.serverID : true
-  var meetsMembershipAge = pollData.serverID && pollData.latestMembershipJoinTime ? member.joinedTimestamp <= pollData.latestMembershipJoinTime.toMillis() : true
+  var meetsMembershipAge = pollData.latestMembershipJoinTime ? member.joinedTimestamp <= pollData.latestMembershipJoinTime.toMillis() : true
   var hasRequiredRoles = pollData.roleIDs ? member.roles.cache.some(role => pollData.roleIDs.includes(role.id)) : true
 
   if (!isWithinPollTimeRange)
@@ -129,14 +130,26 @@ export function checkVoteRequirements(pollData: PollConfiguration, serverID: str
 export async function getAnnouncementMessageText(pollData: PollConfiguration, channel: TextChannel, firestoreDB: Firestore): Promise<string>
 {
   let closeTime = Math.round(pollData.closeTime.toMillis()/1000)
+  let isClosed = Date.now() > pollData.closeTime.toMillis()
   
   let roleObjects = pollData.roleIDs ? await getRolesByID(pollData.roleIDs, channel.guild) : [channel.guild.roles.everyone]
-  let maximumVoters = roleObjects.reduce((total, role) => total + role.members.size, 0)
+  let maximumVoters = pollData.voteMessageSettings.maximumVoterCount
+  if (!isClosed || maximumVoters == null)
+  {
+    maximumVoters = roleObjects.reduce((total, role) => 
+      total + role.members.filter(m => 
+          pollData.latestMembershipJoinTime ? m.joinedTimestamp <= pollData.latestMembershipJoinTime.toMillis() : true
+      ).size,
+    0)
+    
+    pollData.voteMessageSettings.maximumVoterCount = maximumVoters
+  }
+  
   let pollResultsCollection = await firestoreDB.collection(pollsCollectionID + "/" + pollData.id + "/" + pollResponsesCollectionID).get()
   let currentVoters = pollResultsCollection.docChanges().map(response => response.doc.data()).filter(data => data.responseMap && Object.keys(data.responseMap).length > 0).length
   let turnoutPercentage = Math.round(currentVoters/maximumVoters*100*100)/100
   
-  return `:alarm_clock: Close${Date.now() > pollData.closeTime.toMillis() ? 'd' : 's'} <t:${closeTime}:R>` + "\n" + `:ballot_box: Turnout at ${turnoutPercentage}% (${currentVoters}/${maximumVoters})`
+  return `:alarm_clock: Close${isClosed ? 'd' : 's'} <t:${closeTime}:R>` + "\n" + `:ballot_box: Turnout at ${turnoutPercentage}% (${currentVoters}/${maximumVoters})`
 }
 
 export function updateMessageOnClose(pollData: PollConfiguration, updatePoll: (pollID: string) => Promise<void>)
