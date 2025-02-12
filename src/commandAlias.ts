@@ -4,7 +4,6 @@ import { HandleCommandExecution } from "./util"
 export class ServerCommandAliasConfiguration
 {
   commandAliases: CommandAlias[]
-  echoChannelWhitelist: string[]
 }
 
 class CommandAlias
@@ -17,7 +16,6 @@ class CommandAlias
 }
 
 var commandAliases: { [k: string]: CommandAlias[] } = {}
-var echoChannelWhitelists: { [k: string]: string[] } = {}
 
 export function interpretServerCommandAliasSettings(serverID: string, serverCommandAliasConfig: ServerCommandAliasConfiguration)
 {
@@ -26,7 +24,6 @@ export function interpretServerCommandAliasSettings(serverID: string, serverComm
     commandAlias.defaultArgs ??= []
   })
   commandAliases[serverID] = serverCommandAliasConfig.commandAliases
-  echoChannelWhitelists[serverID] = serverCommandAliasConfig.echoChannelWhitelist
 }
 
 export async function executeCommandAlias(messageContent: string, message: Message, handleCommandExecution: HandleCommandExecution)
@@ -40,7 +37,7 @@ export async function executeCommandAlias(messageContent: string, message: Messa
 
   let aliasArgs = messageContent.replace(new RegExp("^" + aliasToUse.name + "\\s*"), "").split(new RegExp(aliasToUse.argSeparator))
 
-  if (aliasToUse.roleIDs && !message.member.roles.cache.some(role => aliasToUse.roleIDs.some(roleID => role.id == roleID))) { return false }
+  if (aliasToUse.roleIDs?.length > 0 && !message.member.roles.cache.some(role => aliasToUse.roleIDs.some(roleID => role.id == roleID))) { return false }
   
   let formattedCommand = aliasToUse.command
   if (formattedCommand.includes("{0}"))
@@ -58,12 +55,7 @@ export async function executeCommandAlias(messageContent: string, message: Messa
 
   console.log("[Command Alias] Executing: " + formattedCommand)
 
-  await handleCommandExecution(formattedCommand, message)
+  await handleCommandExecution(formattedCommand, message, true)
 
   return true
-}
-
-export function getEchoChannelWhitelist(serverID: string)
-{
-  return echoChannelWhitelists[serverID]
 }

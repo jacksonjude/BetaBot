@@ -159,7 +159,7 @@ function createScheduledCommand(commandString: string, startAt: number, endAt: n
       return
     }
 
-    handleCommandExecutionFunction(commandString, commandMessage)
+    handleCommandExecutionFunction(commandString, commandMessage, false)
   }, null, true, "America/Los_Angeles")
 
   let newScheduledCommand: ScheduledCommand = {id: scheduledCommandIDToAdd, commandString: commandString, startAt: startAt, endAt: endAt, cronString: cronString, job: scheduledCommandJob, channelID: commandMessage.channelId, messageID: commandMessage.id, createdAt: createdAt}

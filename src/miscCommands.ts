@@ -1,7 +1,6 @@
 import { Client, Message, Collection, DMChannel, TextChannel, GuildChannel, CategoryChannel, PermissionResolvable, PermissionFlagsBits, ChannelType } from "discord.js"
-import { BotCommand, BotCommandError, BotCommandRequirement } from "./botCommand"
+import { BotCommand, BotCommandError } from "./botCommand"
 import { HandleCommandExecution, Emote } from "./util"
-import { getEchoChannelWhitelist } from "./commandAlias"
 
 const messageCommands = [
   { command: "hi", description: "say hello", responses: ["hello :wave:"] },
@@ -188,7 +187,7 @@ export function getHelpCommand(botCommands: BotCommand[]): BotCommand
     "help", "get help for commands",
     /^help(\s+(true|false))?(\s+(\w+))?$/, null,
     "help [command]",
-    async (commandArguments: string[], message: Message) => {
+    async (commandArguments: string[], message: Message, _client, _firestoreDB) => {
       let shouldDisplayCommandsWithRequirements = commandArguments[2] === "false" ? false : true
       let commandToDisplay = commandArguments[4]
 
@@ -198,7 +197,7 @@ export function getHelpCommand(botCommands: BotCommand[]): BotCommand
         for (let command of botCommands)
         {
           if (command.executionRequirement && !shouldDisplayCommandsWithRequirements) { continue }
-          if (command.executionRequirement && !command.executionRequirement.testMessage(message)) { continue }
+          if (command.executionRequirement && !command.executionRequirement.testMessage(message, false)) { continue }
           helpMessageString += "\n" + "**" + command.name + "**: *" + command.description + "*"
         }
         (message.channel as TextChannel).send(helpMessageString)
@@ -417,7 +416,7 @@ export function getClearCommand(): BotCommand
   )
 }
 
-export function getEchoCommand(permissionRequirement: BotCommandRequirement): BotCommand
+export function getEchoCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "echo", "print a message to a channel",
@@ -426,9 +425,7 @@ export function getEchoCommand(permissionRequirement: BotCommandRequirement): Bo
     async (commandArguments: string[], message: Message, client: Client) => {
       const channel = commandArguments[1] ? await client.channels.fetch(commandArguments[1]) as TextChannel : message.channel as TextChannel
       
-      const channelHasWhitelist = getEchoChannelWhitelist(channel.guildId).includes(channel.id)
-      if (!(permissionRequirement.testMessage(message) || channelHasWhitelist)) { return }
-      if (!channelHasWhitelist && message.member != null && !channel.permissionsFor(message.member).has(PermissionFlagsBits.SendMessages)) { return }
+      if (message.member != null && !channel.permissionsFor(message.member).has(PermissionFlagsBits.SendMessages)) { return }
       
       const shouldSendAttachments = commandArguments[2] === "true" ? true : false
 
@@ -643,7 +640,7 @@ export function getRerunCommand(handleCommandExecutionFunction: HandleCommandExe
 
       if (!previousCommandMessage) { return new BotCommandError("Message not found", false) }
 
-      await handleCommandExecutionFunction(previousCommandMessage.content.replace(/<@!?&?\d+?>/, "").replace(/^\s*/, "").replace(/\s*$/, ""), message)
+      await handleCommandExecutionFunction(previousCommandMessage.content.replace(/<@!?&?\d+?>/, "").replace(/^\s*/, "").replace(/\s*$/, ""), message, false)
 
       await message.delete()
     }

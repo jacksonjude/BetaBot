@@ -190,7 +190,7 @@ export class Emote
 
 // Types
 
-export type HandleCommandExecution = (messageContent: string, msg: Message) => Promise<void>
+export type HandleCommandExecution = (messageContent: string, msg: Message, fromAlias: boolean) => Promise<void>
 
 // Prototypes
 

@@ -22,6 +22,7 @@ import {
   BotCommand,
   BotCommandUserIDRequirement, BotCommandRoleIDRequirement, BotCommandPermissionRequirement,
   BotCommandChannelIDRequirement, BotCommandServerIDRequirement,
+  BotCommandFromAliasRequirement,
   BotCommandUnionRequirement, BotCommandIntersectionRequirement
 } from "./src/botCommand"
 
@@ -176,11 +177,14 @@ function initCommands()
     ]
   )
 
-  var botTesterPermissionRequirement = new BotCommandUnionRequirement([
-    new BotCommandRoleIDRequirement(TECHNICIAN_ROLE_ID),
-    new BotCommandRoleIDRequirement("982191695066177557"), // @bot tester (jacksonjude.com)
-    ownerUserRequirement
-  ])
+  var botTesterPermissionRequirement = new BotCommandUnionRequirement(
+    [
+      new BotCommandRoleIDRequirement(TECHNICIAN_ROLE_ID),
+      new BotCommandRoleIDRequirement("982191695066177557"), // @bot tester (jacksonjude.com)
+      new BotCommandFromAliasRequirement(),
+      ownerUserRequirement
+    ]
+  )
   var manageChannelsPermissionRequirement = new BotCommandUnionRequirement(
     [
       new BotCommandPermissionRequirement([PermissionFlagsBits.ManageChannels]),
@@ -193,11 +197,19 @@ function initCommands()
       ownerUserRequirement
     ]
   )
-  var botAdminPermissionRequirement = new BotCommandUnionRequirement([
-    new BotCommandRoleIDRequirement(TECHNICIAN_ROLE_ID),
-    new BotCommandRoleIDRequirement("1002116413051379813"), // @bot admin (jacksonjude.com)
-    serverAdminPermissionRequirement
-  ])
+  var botAdminPermissionRequirement = new BotCommandUnionRequirement(
+    [
+      new BotCommandRoleIDRequirement(TECHNICIAN_ROLE_ID),
+      new BotCommandRoleIDRequirement("1002116413051379813"), // @bot admin (jacksonjude.com)
+      serverAdminPermissionRequirement
+    ]
+  )
+  var botAdminOrAliasPermissionRequirement = new BotCommandUnionRequirement(
+    [
+      botAdminPermissionRequirement,
+      new BotCommandFromAliasRequirement(),
+    ]
+  )
 
   botCommands = [
     ...getMessageCommands(),
@@ -207,7 +219,7 @@ function initCommands()
     getDMVoteCommand(),
     getExportPollResultsCommand(botAdminPermissionRequirement),
     getCloseChannelsCommand().withRequirement(manageChannelsPermissionRequirement),
-    getEchoCommand(botAdminPermissionRequirement),
+    getEchoCommand().withRequirement(botAdminOrAliasPermissionRequirement),
     getScheduleCommand(handleCommandExecution).withRequirement(botAdminPermissionRequirement),
     getCreateServerPollCommand().withRequirement(botTesterPermissionRequirement),
     getEditPollCommand().withRequirement(botAdminPermissionRequirement),
@@ -259,16 +271,16 @@ client.on('messageCreate', async msg => {
 
   console.log("[App] Command from " + msg.author.username + " in " + msg.guild.name + " '" + messageContent + "'")
 
-  await handleCommandExecution(messageContent, msg)
+  await handleCommandExecution(messageContent, msg, false)
 })
 
-export async function handleCommandExecution(messageContent: string, msg: Message)
+export async function handleCommandExecution(messageContent: string, msg: Message, fromAlias: boolean)
 {
   const runBotCommands = async function(botCommands: BotCommand[]): Promise<boolean>
   {
     for (let botCommand of botCommands)
     {
-      if (await botCommand.execute(messageContent, msg, client, firestoreDB)) { return true }
+      if (await botCommand.execute(messageContent, msg, client, firestoreDB, fromAlias)) { return true }
     }
     return false
   }
