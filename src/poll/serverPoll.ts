@@ -38,7 +38,7 @@ export async function interpretServerPollSetting(client: Client, pollID: string,
     await sendServerVoteMessage(client, pollDataJSON, uploadPollResponse, firestoreDB)
     
     updateMessageOnClose(pollDataJSON, async (pollID) => {
-      await (pollsActionMessages[pollID]["title"] as ActionMessage<any>).sendMessage()
+      await sendServerVoteMessage(client, pollsData[pollID], uploadPollResponse, firestoreDB)
     })
   }
 
@@ -84,6 +84,38 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
   )
   await titleActionMessage.initActionMessage()
   pollActionMessages["title"] = titleActionMessage
+  
+  let isClosed = Date.now() >= pollData.closeTime.toMillis()
+  const noVoteID = "--no vote--"
+
+  let pollResultsData: { [k: string]: { [k: string]: number } } = null
+  if (isClosed)
+  {
+    let maximumVoterCount = pollData.maximumVoterCount
+    
+    let pollResultsCollection = await firestoreDB.collection(pollsCollectionID + "/" + pollData.id + "/" + pollResponsesCollectionID).get()
+    pollResultsData = pollResultsCollection.docChanges().map(response => response.doc.data().responseMap).filter(r => r != null).reduce((totals, response) => {
+      for (let questionID in response)
+      {
+        let optionID: string = response[questionID]
+        
+        if (!totals[questionID]) totals[questionID] = {}
+        if (!totals[questionID][optionID]) totals[questionID][optionID] = 0
+        totals[questionID][optionID] += 1
+      }
+      return totals
+    }, {})
+    
+    if (maximumVoterCount != null)
+    {
+      for (let questionID in pollResultsData)
+      {
+        let didNotVoteCount = maximumVoterCount - Object.keys(pollResultsData[questionID]).reduce((total, optionID) => total + pollResultsData[questionID][optionID], 0)
+        pollResultsData[questionID]
+        pollResultsData[questionID][noVoteID] = didNotVoteCount
+      }
+    }
+  }
 
   for (let questionData of pollData.questions)
   {
@@ -93,12 +125,13 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
       questionData,
       async (questionData: PollQuestion) => {
         let questionString = "**" + questionData.prompt + "**"
-        if (questionData.showOptionNames)
+        if (isClosed)
         {
           for (let optionData of questionData.options)
           {
-            questionString += "\n" + ":" + optionData.emote + ": \\: " + optionData.name
+            questionString += "\n" + optionData.emote + " **" + pollResultsData[questionData.id][optionData.id] + "**"
           }
+          if (pollResultsData[questionData.id][noVoteID] != null) questionString += "\nNV **" + pollResultsData[questionData.id][noVoteID] + "**"
         }
         return questionString
       }, async (message: Message, questionData: PollQuestion) => {
