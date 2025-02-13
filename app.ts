@@ -1,6 +1,6 @@
 const APP_VERSION = process.env.HEROKU_RELEASE_VERSION ?? "Local"
 const APP_BUILD_NUMBER = process.env.HEROKU_SLUG_DESCRIPTION ?? "Local"
-const APP_BUILD_DATE = process.env.HEROKU_RELEASE_CREATED_AT
+const APP_BUILD_DATE = process.env.HEROKU_RELEASE_CREATED_AT ?? Date.now()
 
 const CREATOR_USER_ID = process.env.CREATOR_USER_ID
 const DISCORD_NICKNAME = process.env.DISCORD_NICKNAME
@@ -114,37 +114,10 @@ function updateNickname(clientMember: GuildMember)
 
 // App Build Date String Parsing
 
-function getFormattedBuildDateString(rawBuildDateString: string): string
+function getFormattedBuildDateString(rawBuildDate: string | number): string
 {
-  let formattedBuildDateString = "Now"
-  if (APP_BUILD_DATE)
-  {
-    let timeSinceLastBuild = Date.now()-new Date(rawBuildDateString).getTime()
-    let timeSinceLastBuildComponents = {
-      minutes: Math.floor(timeSinceLastBuild/(1000*60)%60).toString()+"m",
-      hours: Math.floor(timeSinceLastBuild/(1000*60*60)%24).toString()+"h",
-      days: Math.floor(timeSinceLastBuild/(1000*60*60*24)).toString()+"d"
-    }
-
-    if (timeSinceLastBuild < 1000*60)
-    {
-      formattedBuildDateString = "Now"
-    }
-    else if (timeSinceLastBuild < 1000*60*60)
-    {
-      formattedBuildDateString = timeSinceLastBuildComponents.minutes
-    }
-    else if (timeSinceLastBuild < 1000*60*60*24)
-    {
-      formattedBuildDateString = timeSinceLastBuildComponents.hours
-    }
-    else
-    {
-      formattedBuildDateString = timeSinceLastBuildComponents.days
-    }
-  }
-
-  return formattedBuildDateString
+  let timestamp = Math.round(new Date(rawBuildDate).getTime()/1000)
+  return `<t:${timestamp}:R>`
 }
 
 // Setup Commands
