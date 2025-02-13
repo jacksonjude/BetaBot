@@ -129,7 +129,7 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
         {
           for (let optionData of questionData.options)
           {
-            questionString += "\n" + optionData.emote + " **" + pollResultsData[questionData.id][optionData.id] + "**"
+            questionString += "\n" + optionData.emote + " **" + (pollResultsData[questionData.id][optionData.id] ?? 0) + "**"
           }
           if (pollResultsData[questionData.id][noVoteID] != null) questionString += "\nNV **" + pollResultsData[questionData.id][noVoteID] + "**"
         }
