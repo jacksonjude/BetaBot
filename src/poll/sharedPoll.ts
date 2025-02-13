@@ -185,7 +185,7 @@ export function getExportPollResultsCommand(overrideCommandRequirement: BotComma
       let pollData = pollsData[pollID]
       let member = await message.member.fetch()
 
-      let isBotAdmin = overrideCommandRequirement.requirementTest(message.author, message.member, message, message.channel as TextChannel, message.guild)
+      let isBotAdmin = overrideCommandRequirement.requirementTest(message.author, message.member, message, message.channel as TextChannel, message.guild, false)
 
       if (!isBotAdmin && !checkExportPollResultsRequirements(pollData, member, message, showUserTags))
       {

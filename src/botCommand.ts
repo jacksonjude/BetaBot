@@ -62,7 +62,7 @@ export class BotCommand
     }
 
     let currentArguments = parseCallback
-    let commandCallback = await this.executeCommand(currentArguments, message, client, firestoreDB, fromAlias)
+    let commandCallback = await this.executeCommand(currentArguments, message, client, firestoreDB)
     if (commandCallback)
     {
       await textChannel.send("**Error: " + commandCallback.errorMessage + "**")
