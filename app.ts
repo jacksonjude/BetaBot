@@ -265,7 +265,7 @@ export async function handleCommandExecution(messageContent: string, msg: Messag
   switch (messageContent)
   {
     case "info":
-    (msg.channel as TextChannel).send(`βəταBot **${APP_VERSION}** *(${APP_BUILD_NUMBER}, ${getFormattedBuildDateString(APP_BUILD_DATE)})*\nCreated by <@${CREATOR_USER_ID}> (2020-${new Date(APP_BUILD_DATE ?? "2022-01-02").getFullYear()})\nwith inspiration from We4therman\n*\\*Possibly Powered By DELL OS\\**`)
+    (msg.channel as TextChannel).send(`βəταBot **${APP_VERSION}** *(${APP_BUILD_NUMBER.replace('Deploy ', '')}, ${getFormattedBuildDateString(APP_BUILD_DATE)})*\nCreated by <@${CREATOR_USER_ID}> (2020-${new Date(APP_BUILD_DATE ?? "2022-01-02").getFullYear()})\nwith inspiration from We4therman\n*\\*Possibly Powered By DELL OS\\**`)
     return
 
     case "ping":
