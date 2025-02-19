@@ -1,8 +1,9 @@
-import { User, GuildMember, Message, Client, TextChannel } from "discord.js"
+import { User, GuildMember, Message, Client, TextChannel, Guild } from "discord.js"
 import { ActionMessage } from "../actionMessage"
 import { Firestore, Timestamp } from "firebase-admin/firestore"
 import { BotCommand, BotCommandError, BotCommandRequirement } from "../botCommand"
 import { getRolesByID } from "../util"
+import { roleGroups } from "../roleGroup"
 
 import { CronJob } from "cron"
 
@@ -172,11 +173,12 @@ export function getExportPollResultsCommand(overrideCommandRequirement: BotComma
 {
   return BotCommand.fromRegex(
     "pollresults", "get poll results",
-    /^pollresults\s+(\w+)(?:\s+(true|false))?$/, /^pollresults(\s+.*)?$/,
+    /^pollresults\s+(\w+)(?:\s+(true|false))?((?:\s+[\w-]+)*)$/, /^pollresults(\s+.*)?$/,
     "pollresults <poll id> [show user tags]",
     async (commandArguments: string[], message: Message, client: Client, firestoreDB: Firestore) => {
       let pollID = commandArguments[1]
       let showUserTags = commandArguments[2] === "true"
+      let roleGroupIDs = commandArguments[3].trim().split(/\s+/)
 
       if (!(pollID in pollsData))
       {
@@ -193,7 +195,7 @@ export function getExportPollResultsCommand(overrideCommandRequirement: BotComma
         return new BotCommandError("Exporting requirements not met for " + pollID, false)
       }
 
-      await executeExportPollResultsCommand(message.author, pollID, showUserTags, client, firestoreDB)
+      await executeExportPollResultsCommand(message.author, pollID, showUserTags, roleGroupIDs, message.guild, client, firestoreDB)
     }
   )
 }
@@ -237,7 +239,7 @@ function checkExportPollResultsRequirements(pollData: PollConfiguration, member:
 import { Parser } from "json2csv"
 import { AttachmentBuilder } from "discord.js"
 
-export async function executeExportPollResultsCommand(user: User, pollID: string, showUserTags: boolean, client: Client, firestoreDB: Firestore)
+export async function executeExportPollResultsCommand(user: User, pollID: string, showUserTags: boolean, roleGroupIDs: string[], server: Guild, client: Client, firestoreDB: Firestore)
 {
   let dmChannel = user.dmChannel || await user.createDM()
   if (!dmChannel) { return }
@@ -264,11 +266,27 @@ export async function executeExportPollResultsCommand(user: User, pollID: string
       let resultRow = formattedPollResults[resultOn]
 
       let user = await client.users.fetch(userID)
-      resultRow.user = user.tag
+      resultRow.user = user.username
+    }
+  }
+  
+  for (let roleGroupID of roleGroupIDs)
+  {
+    if (!roleGroups[roleGroupID]) { continue }
+    
+    for (let resultOn in formattedPollResults)
+    {
+      let user = await client.users.fetch(userIDs[resultOn])
+      let resultRow = formattedPollResults[resultOn]
+      
+      let role = await roleGroups[roleGroupID].getUserRole(user, client, server)
+      if (!role) { continue }
+      
+      resultRow[roleGroupID] = role.name
     }
   }
 
-  let responseMapKeys = new Set(["timestamp", "user"])
+  let responseMapKeys = new Set(["timestamp", "user", ...roleGroupIDs])
   formattedPollResults = formattedPollResults.map((pollResponseData) => {
     Object.keys(pollResponseData.responseMap).forEach((responseMapKey) => {
       let responseValueID = pollResponseData.responseMap[responseMapKey]
