@@ -78,10 +78,15 @@ export class RoleGroup
 
   async hasRole(user: UserResolvable, client?: Client, guild?: Guild): Promise<boolean>
   {
+    return await this.getUserRole(user, client, guild) != null
+  }
+  
+  async getUserRole(user: UserResolvable, client?: Client, guild?: Guild): Promise<Role | null>
+  {
     guild ??= await client.guilds.fetch(this.serverID)
     let member = user instanceof GuildMember ? user : await guild.members.fetch(user)
     let roleObjects = await this.getRoles(client, guild)
-    return roleObjects.some(role => role.members.has(member.id))
+    return roleObjects.find(role => role.members.has(member.id))
   }
 }
 
@@ -132,10 +137,11 @@ export function getCreateRoleGroupCommand(): BotCommand
 
       if (singleRoleRegex.test(roleItem))
       {
+        let roleID = singleRoleRegex.exec(roleItem)[1]
         roleGroupConfig.roles.push({
-          roleID: singleRoleRegex.exec(roleItem)[1],
+          roleID: roleID,
           emote: rawEmoteString ?? null,
-          name: roleName ?? (await message.guild.roles.fetch(roleItem)).name
+          name: roleName ?? (await message.guild.roles.fetch(roleID)).name
         })
       }
       else if (roleGroupRegex.test(roleItem))
@@ -143,7 +149,7 @@ export function getCreateRoleGroupCommand(): BotCommand
         roleGroupConfig.roles.push(roleItem)
       }
 
-      await firestoreDB.doc(roleGroupCollectionID + "/" + id).set(roleGroupConfig);
+      await firestoreDB.doc(roleGroupCollectionID + "/" + id).set(JSON.parse(JSON.stringify(roleGroupConfig)));
 
       (message.channel as TextChannel).send(`**Role Group ${id} updated**`)
     }
