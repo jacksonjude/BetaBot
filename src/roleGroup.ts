@@ -83,10 +83,18 @@ export class RoleGroup
   
   async getUserRole(user: UserResolvable, client?: Client, guild?: Guild): Promise<Role | null>
   {
-    guild ??= await client.guilds.fetch(this.serverID)
-    let member = user instanceof GuildMember ? user : await guild.members.fetch(user)
-    let roleObjects = await this.getRoles(client, guild)
-    return roleObjects.find(role => role.members.has(member.id))
+    try
+    {
+      guild ??= await client.guilds.fetch(this.serverID)
+      let member = user instanceof GuildMember ? user : await guild.members.fetch(user)
+      let roleObjects = await this.getRoles(client, guild)
+      return roleObjects.find(role => role.members.has(member.id))
+    }
+    catch (error)
+    {
+      console.log("[RoleGroup] Error fetching user role:", error)
+      return null
+    }
   }
 }
 
