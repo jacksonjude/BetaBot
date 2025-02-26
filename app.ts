@@ -34,7 +34,8 @@ import {
   getRepeatCommand, getSpeakCommand, getCleanReactionsCommand,
   getCloseChannelsCommand,
   getRerunCommand,
-  getReactCommand
+  getReactCommand,
+  getPingCommand
 } from "./src/miscCommands"
 
 import { setupVoiceChannelEventHandler } from "./src/linkedTextChannels"
@@ -190,6 +191,7 @@ function initCommands()
     getEmoteSpellCommand().withRequirement(botChannelRequirement),
     getClearCommand(),
     getDMVoteCommand(),
+    getPingCommand(),
     getExportPollResultsCommand(botAdminPermissionRequirement),
     getCloseChannelsCommand().withRequirement(manageChannelsPermissionRequirement),
     getEchoCommand().withRequirement(botAdminOrAliasPermissionRequirement),

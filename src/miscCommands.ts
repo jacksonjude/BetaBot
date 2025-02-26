@@ -2,6 +2,8 @@ import { Client, Message, Collection, DMChannel, TextChannel, GuildChannel, Cate
 import { BotCommand, BotCommandError } from "./botCommand"
 import { HandleCommandExecution, Emote } from "./util"
 
+import { roleGroups } from "./roleGroup"
+
 const messageCommands = [
   { command: "hi", description: "say hello", responses: ["hello :wave:"] },
   { command: "cook", description: "cook food", responses: ["🍕", "🍿", "🍤", "🍣", "🍪", "🍣", "🍔", "🥐", "🥓", "🍱", "🍩", "🍰", "🍳", "🧇", "🥨", "https://i.imgur.com/LOoSSoK.jpeg", "🍉", "🥫", "🌮", "🌭", "🥪", "🍚", "🥠"] },
@@ -673,6 +675,35 @@ export function getReactCommand(): BotCommand
         let users = await reaction.users.fetch()
         if (users.has(client.user.id)) { continue }
         await referencedMessage.react(reaction.emoji)
+      }
+    }
+  )
+}
+
+export function getPingCommand(): BotCommand
+{
+  return BotCommand.fromRegex(
+    "ping", "ping the role for this channel",
+    /^ping$/, null,
+    "ping",
+    async (_, message: Message) => {
+      const serverID = message.guildId
+      const channelID = message.channelId
+      const channel = message.channel as TextChannel
+      
+      for (let roleGroup of Object.values(roleGroups))
+      {
+        if (roleGroup.serverID != serverID) { continue }
+        
+        for (let roleTuple of roleGroup.getRoleTuples())
+        {
+          if (roleTuple.channelID == channelID)
+          {
+            await channel.send(`<@&${roleTuple.roleID}>`)
+            await message.delete()
+            return
+          }
+        }
       }
     }
   )

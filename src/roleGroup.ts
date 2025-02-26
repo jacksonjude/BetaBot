@@ -43,7 +43,8 @@ export class RoleGroup
       return {
         name: roleTuple.name,
         role: await guild.roles.fetch(roleTuple.roleID),
-        emote: roleTuple.emote
+        emote: roleTuple.emote,
+        channelID: roleTuple.channelID
       }
     }))
 
@@ -103,6 +104,7 @@ export class RoleTuple
   name: string
   roleID: string
   emote?: string
+  channelID?: string
 }
 
 export class RoleObjectTuple
@@ -110,6 +112,7 @@ export class RoleObjectTuple
   name: string
   role: Role
   emote?: string
+  channelID?: string
 }
 
 const roleGroupCollectionID = "roleGroupConfigurations"
