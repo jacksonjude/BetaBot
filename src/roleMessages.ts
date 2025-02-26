@@ -73,7 +73,7 @@ async function getRoleAddMessageContent(roleDataJSON: RoleMessageConfiguration, 
   for (let roleTuple of roleTuples)
   {
     messageContent += "\n"
-    messageContent += roleTuple.emote + " \\: " + roleTuple.name
+    messageContent += roleTuple.emote + "  " + roleTuple.name
   }
   return messageContent
 }
