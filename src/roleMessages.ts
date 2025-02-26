@@ -20,6 +20,11 @@ export class RoleMessageConfiguration
 export async function interpretRoleSetting(client: Client, roleSettingID: string, roleSettingJSON: RoleMessageConfiguration)
 {
   if (roleSettingJSON.channelID == null) { return }
+  
+  if (roleActionMessages[roleSettingID])
+  {
+    await roleActionMessages[roleSettingID].removeActionMessage(false)
+  }
 
   let prevMessageID = roleSettingJSON.messageID
   let liveChannel = await client.channels.fetch(roleSettingJSON.channelID) as TextChannel
