@@ -51,7 +51,7 @@ export async function removeServerPollSetting(pollID: string)
   {
     for (let pollActionMessage of Object.values(pollsActionMessages[pollID]) as ActionMessage<PollQuestion>[])
     {
-      await pollActionMessage.removeActionMessage()
+      await pollActionMessage.removeActionMessage(false)
     }
     delete pollsActionMessages[pollID]
   }
