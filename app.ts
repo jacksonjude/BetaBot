@@ -35,7 +35,8 @@ import {
   getCloseChannelsCommand,
   getRerunCommand,
   getReactCommand,
-  getPingCommand
+  getPingCommand,
+  getClearRoleCommand
 } from "./src/miscCommands"
 
 import { setupVoiceChannelEventHandler } from "./src/linkedTextChannels"
@@ -203,6 +204,7 @@ function initCommands()
     getMessageCountsLeaderboardCommand(),
     getMessageCountsUpdateCommand().withRequirement(ownerUserRequirement),
     getCleanReactionsCommand().withRequirement(ownerUserRequirement),
+    getClearRoleCommand().withRequirement(ownerUserRequirement),
     getReactCommand().withRequirement(ownerUserRequirement),
     getRepeatCommand().withRequirement(developmentRequirement),
     getSpeakCommand().withRequirement(developmentRequirement),

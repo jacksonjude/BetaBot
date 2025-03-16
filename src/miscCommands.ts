@@ -708,3 +708,22 @@ export function getPingCommand(): BotCommand
     }
   )
 }
+
+export function getClearRoleCommand(): BotCommand
+{
+  return BotCommand.fromRegex(
+    "clearrole", "remove all users from a role",
+    /^clearrole\s+<@&(\d+)>$/, /^react(\s+.*)?$/,
+    "clearrole <role>",
+    async (commandArguments: string[], message: Message) => {
+      let roleID = commandArguments[1]
+      let roleObject = await message.guild.roles.fetch(roleID)
+      if (!roleObject) return
+      
+      Array.from(roleObject.members.values()).map((member, i) => setTimeout(() => {
+        console.log("[Clear-Role] Removing", roleObject.name, "from", member.displayName)
+        member.roles.remove(roleID)
+      }, i*500))
+    }
+  )
+}
