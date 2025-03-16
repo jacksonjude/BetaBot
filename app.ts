@@ -248,7 +248,14 @@ client.on('messageCreate', async msg => {
 
   console.log("[App] Command from " + msg.author.username + " in " + msg.guild.name + " '" + messageContent + "'")
 
-  await handleCommandExecution(messageContent, msg, false)
+  try
+  {
+    await handleCommandExecution(messageContent, msg, false)
+  }
+  catch (error)
+  {
+    console.log('[App] Unhandled command error: ', error)
+  }
 })
 
 export async function handleCommandExecution(messageContent: string, msg: Message, fromAlias: boolean)
