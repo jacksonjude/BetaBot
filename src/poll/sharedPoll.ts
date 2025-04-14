@@ -48,6 +48,8 @@ export class PollConfiguration
   exportAccess?: PollExportAccessConfiguration[]
   
   maximumVoterCount?: number
+  
+  creatorID?: string
 }
 
 export class PollQuestion

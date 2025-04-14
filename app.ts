@@ -44,7 +44,7 @@ import { setupMemberStatsEventHandlers, getMessageCountsUpdateCommand, getMessag
 
 import { getExportPollResultsCommand } from "./src/poll/sharedPoll"
 import { getDMVoteCommand } from "./src/poll/dmPoll"
-import { getCreateServerPollCommand } from "./src/poll/serverPoll"
+import { getCreateServerPollCommand, getDeleteServerPollCommand } from "./src/poll/serverPoll"
 import { getCreatePollCommand, getEditPollCommand, setupPollEditTextInputEventHandlers } from "./src/poll/createPoll"
 
 import { getScheduleCommand } from "./src/scheduledCommands"
@@ -198,6 +198,7 @@ function initCommands()
     getEchoCommand().withRequirement(botAdminOrAliasPermissionRequirement),
     getScheduleCommand(handleCommandExecution).withRequirement(botAdminPermissionRequirement),
     getCreateServerPollCommand().withRequirement(botTesterPermissionRequirement),
+    getDeleteServerPollCommand().withAdditionalRequirement(botTesterPermissionRequirement).withOverrideRequirement(botAdminPermissionRequirement),
     getEditPollCommand().withRequirement(botAdminPermissionRequirement),
     getCreatePollCommand().withRequirement(botAdminPermissionRequirement),
     getCreateRoleGroupCommand().withRequirement(botAdminPermissionRequirement),
