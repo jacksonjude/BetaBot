@@ -199,7 +199,7 @@ export function getHelpCommand(botCommands: BotCommand[]): BotCommand
         for (let command of botCommands)
         {
           if (command.executionRequirement && !shouldDisplayCommandsWithRequirements) { continue }
-          if (command.executionRequirement && !command.executionRequirement.testMessage(message, false)) { continue }
+          if (command.executionRequirement && !command.executionRequirement.testMessage(message, false, [])) { continue }
           helpMessageString += "\n" + "**" + command.name + "**: *" + command.description + "*"
         }
         (message.channel as TextChannel).send(helpMessageString)

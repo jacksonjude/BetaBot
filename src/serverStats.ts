@@ -329,7 +329,7 @@ export function getMessageCountsLeaderboardCommand(): BotCommand
         startDate.changeTimezone(messageCountsData.timeZone, -1)
         endDate.changeTimezone(messageCountsData.timeZone, -1)
 
-        if (startDate.getTime() == NaN || endDate.getTime() == NaN)
+        if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()))
         {
           return new BotCommandError("M/D/YYYY format is required", true)
         }

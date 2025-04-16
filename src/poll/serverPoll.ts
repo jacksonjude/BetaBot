@@ -323,7 +323,7 @@ export function getDeleteServerPollCommand(): BotCommand
     /^deletepoll(?:\s+(true|false))?(?:\s+(.+)\s*)?$/, /^deletepoll(\s+.*)?$/,
     "deletepoll [poll id]",
     async (commandArguments: string[], message: Message, _client, firestoreDB: Firestore) => {
-      const shouldDeleteMessages = commandArguments[1] === "true" ?? true
+      const shouldDeleteMessages = commandArguments[1] === "true"
       
       const searchResponse = await getPollIDFromArguments(commandArguments, message)
       if (searchResponse instanceof BotCommandError)

@@ -7,7 +7,7 @@ async function getPriceHistory(region: string, token: string) {
 	if (!priceHistory.ok) {
 		console.log("[Data-Polymarket] Status error for", region, priceHistory.status);
 		if (priceHistory.status == 429 && priceHistory.headers.get('retry-after') != null) {
-			const retryTime = 1000*priceHistory.headers.get('retry-after')+2000
+			const retryTime = 1000*parseFloat(priceHistory.headers.get('retry-after'))+2000
 			console.log("[Data-Polymarket] Retrying", region, "in", retryTime)
 			return await sleep(retryTime, getPriceHistory, region, token);
 		} else {
@@ -15,7 +15,7 @@ async function getPriceHistory(region: string, token: string) {
 		}
 	}
 	
-	return (await priceHistory.json()).history;
+	return (await priceHistory.json() as any).history;
 }
 
 export async function getAllPriceHistory(tokenFile: string) {

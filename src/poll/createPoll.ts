@@ -645,7 +645,7 @@ export function getEditPollCommand(): BotCommand
           if (subObject instanceof Array)
           {
             formattedKeyPath = parseInt(keyPath)
-            if (formattedKeyPath == NaN) { return null }
+            if (Number.isNaN(formattedKeyPath)) { return null }
           }
 
           if (getParent && parseInt(keyPathOn) == keyPathParts.length-1)
