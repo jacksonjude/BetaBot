@@ -193,7 +193,7 @@ function initCommands()
     getClearCommand(),
     getDMVoteCommand(),
     getPingCommand(),
-    getExportPollResultsCommand(botAdminPermissionRequirement),
+    getExportPollResultsCommand().withOverrideRequirement(botAdminPermissionRequirement),
     getCloseChannelsCommand().withRequirement(manageChannelsPermissionRequirement),
     getEchoCommand().withRequirement(botAdminOrAliasPermissionRequirement),
     getScheduleCommand(handleCommandExecution).withRequirement(botAdminPermissionRequirement),
