@@ -80,7 +80,7 @@ export class BotCommand
   {
     if (this.executionRequirement != null)
     {
-      this.executionRequirement = new BotCommandIntersectionRequirement([this.executionRequirement, requirement])
+      this.executionRequirement = new BotCommandIntersectionRequirement([requirement, this.executionRequirement])
     }
     else
     {
@@ -93,7 +93,7 @@ export class BotCommand
   {
     if (this.executionRequirement != null)
     {
-      this.executionRequirement = new BotCommandUnionRequirement([this.executionRequirement, requirement])
+      this.executionRequirement = new BotCommandUnionRequirement([requirement, this.executionRequirement])
     }
     else
     {
