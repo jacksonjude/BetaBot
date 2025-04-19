@@ -3,6 +3,7 @@ import { BotCommand, BotCommandError, BotCommandRequirement, BotCommandIntersect
 import { HandleCommandExecution, Emote } from "./util"
 
 import { roleGroups } from "./roleGroup"
+import { badWords } from "./badWords"
 
 const messageCommands = [
   { command: "hi", description: "say hello", responses: ["hello :wave:"] },
@@ -725,5 +726,65 @@ export function getClearRoleCommand(): BotCommand
         member.roles.remove(roleID)
       }, i*500))
     }
+  )
+}
+
+interface TimeoutCommandArguments
+{
+  targetMember: GuildMember
+  minutes: number
+  reason: string
+}
+
+export function getTimeoutCommand(): BotCommand<TimeoutCommandArguments>
+{
+  return BotCommand.fromRegexWithValidation(
+    "timeout", "time out a user for a specified number of minutes",
+    /^timeout\s+(?:<@!?(\d+)>|\d+)(?:\s+(\d+))?(?:\s+(.+))?$/, /^timeout(\s+.*)?$/,
+    "timeout <user/id> [minutes] [reason]",
+    async (commandArguments: string[], message: Message) => {
+      const targetMemberID = commandArguments[1]
+      const targetMember = await message.member.guild.members.fetch(targetMemberID)
+      if (!targetMember)
+      {
+        return new BotCommandError(`<@${targetMemberID}> was not found in this server`, false)
+      }
+      
+      const timeoutLength = parseInt(commandArguments[2])
+      if (timeoutLength <= 0 || Number.isNaN(timeoutLength))
+      {
+        return new BotCommandError(`invalid timeout length ${commandArguments[2]}`, false)
+      }
+      
+      return {targetMember: targetMember, minutes: timeoutLength, reason: commandArguments[3]}
+    },
+    new BotCommandIntersectionRequirement(
+      [
+        new BotCommandPermissionRequirement([PermissionFlagsBits.ModerateMembers]),
+        new BotCommandRequirement(async (timeoutArguments: TimeoutCommandArguments, _user, member: GuildMember) => {
+          return member.roles.highest.position > timeoutArguments.targetMember.roles.highest.position
+        })
+      ]
+    ),
+    async (timeoutArguments: TimeoutCommandArguments, message: Message) => {
+      const { targetMember, minutes, reason } = timeoutArguments
+      try
+      {
+        await targetMember.timeout(minutes*60*1000, reason)
+      }
+      catch (error)
+      {
+        return new BotCommandError(`<@${targetMember.id}> could not be timed out`, false)
+      }
+      
+      // TODO: move shared server config stuff to separate collection
+      // auditChannel, echoChannelWhitelist, statsConfigurations, voiceToTextConfigurations, badWordConfigurations, commandAliasConfigurations
+      const auditChannelID = badWords[message.guildId]?.config.auditChannel
+      if (auditChannelID)
+      {
+        const auditChannel = await message.guild.channels.fetch(auditChannelID) as TextChannel
+        auditChannel.send(`<@${message.author.id}> timed out for ${minutes}m by <@${message.author.id}>: ${reason}`)
+      }
+    },
   )
 }

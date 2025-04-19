@@ -12,7 +12,7 @@ export class BadWordServerConfiguration
 
 const badWordsCollectionID = "badWordConfigurations"
 
-let badWords: {[k: string]: {
+export let badWords: {[k: string]: {
 	config: BadWordServerConfiguration,
 	words: string[],
 	ref: DocumentReference
