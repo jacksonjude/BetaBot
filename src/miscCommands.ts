@@ -1,5 +1,5 @@
-import { Client, Message, Collection, DMChannel, TextChannel, GuildChannel, CategoryChannel, PermissionResolvable, PermissionFlagsBits, ChannelType } from "discord.js"
-import { BotCommand, BotCommandError } from "./botCommand"
+import { Client, Message, Collection, DMChannel, TextChannel, GuildChannel, CategoryChannel, PermissionResolvable, PermissionFlagsBits, ChannelType, GuildMember } from "discord.js"
+import { BotCommand, BotCommandError, BotCommandRequirement, BotCommandIntersectionRequirement, BotCommandPermissionRequirement } from "./botCommand"
 import { HandleCommandExecution, Emote } from "./util"
 
 import { roleGroups } from "./roleGroup"
@@ -183,15 +183,15 @@ const letterBitmaps = {
   ]
 }
 
-export function getHelpCommand(botCommands: BotCommand[]): BotCommand
+export function getHelpCommand(botCommands: BotCommand<any>[]): BotCommand
 {
   return BotCommand.fromRegex(
     "help", "get help for commands",
-    /^help(\s+(true|false))?(\s+(\w+))?$/, null,
+    /^help(?:\s+(true|false))?(?:\s+(\w+))?$/, null,
     "help [command]",
     async (commandArguments: string[], message: Message, _client, _firestoreDB) => {
-      let shouldDisplayCommandsWithRequirements = commandArguments[2] === "false" ? false : true
-      let commandToDisplay = commandArguments[4]
+      let shouldDisplayCommandsWithRequirements = commandArguments[1] === "true" ? false : true
+      let commandToDisplay = commandArguments[2]
 
       if (!commandToDisplay)
       {
@@ -199,7 +199,7 @@ export function getHelpCommand(botCommands: BotCommand[]): BotCommand
         for (let command of botCommands)
         {
           if (command.executionRequirement && !shouldDisplayCommandsWithRequirements) { continue }
-          if (command.executionRequirement && !command.executionRequirement.testMessage(message, false, [])) { continue }
+          if (command.executionRequirement && (command.validateCommand || !command.executionRequirement.testMessage(message, false, []))) { continue }
           helpMessageString += "\n" + "**" + command.name + "**: *" + command.description + "*"
         }
         (message.channel as TextChannel).send(helpMessageString)

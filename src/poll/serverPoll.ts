@@ -283,69 +283,62 @@ export function getCreateServerPollCommand(): BotCommand
   )
 }
 
-export function getDeleteServerPollCommand(): BotCommand
+interface DeleteServerPollCommandArguments
 {
-  const getPollIDFromArguments = async (commandArguments: string[], message: Message) => {
-    let pollIDToDelete = commandArguments[2]
-    const reference = message.reference
-    
-    if (!(pollIDToDelete || reference)) { return new BotCommandError("no poll provided", false) }
-    
-    if (!pollIDToDelete)
-    {
-      const messageChannel = await message.guild.channels.fetch(reference.channelId) as TextChannel
-      if (!messageChannel) { return new BotCommandError("message not found", false) }
-      
-      const referencedMessage = await messageChannel.messages.fetch(reference.messageId)
-      if (!referencedMessage) { return new BotCommandError("message not found", false) }
-      
-      messageSearch:
-      for (let pollID in pollsActionMessages)
-      {
-        for (let message of Object.values(pollsActionMessages[pollID]))
-        {
-          if (message instanceof ActionMessage && message.messageID == referencedMessage.id)
-          {
-            pollIDToDelete = pollID
-            break messageSearch
-          }
-        }
-      }
-      
-      if (!pollIDToDelete) { return new BotCommandError("referenced message is not a poll", false) }
-    }
-    
-    return pollIDToDelete
-  }
-  
-  return BotCommand.fromRegex(
+  pollID: string
+  shouldDeleteMessages: boolean
+}
+
+export function getDeleteServerPollCommand(): BotCommand<DeleteServerPollCommandArguments>
+{
+  return BotCommand.fromRegexWithValidation(
     "deletepoll", "delete a server poll using an ID or by replying",
     /^deletepoll(?:\s+(true|false))?(?:\s+(.+)\s*)?$/, /^deletepoll(\s+.*)?$/,
     "deletepoll [poll id]",
-    async (commandArguments: string[], message: Message, _client, firestoreDB: Firestore) => {
+    async (commandArguments: string[], message: Message) => {
       const shouldDeleteMessages = commandArguments[1] === "true"
       
-      const searchResponse = await getPollIDFromArguments(commandArguments, message)
-      if (searchResponse instanceof BotCommandError)
-      {
-        return searchResponse
-      }
-      const pollIDToDelete = searchResponse as string
+      let pollIDToDelete = commandArguments[2]
+      const reference = message.reference
       
-      await removeServerPollSetting(pollIDToDelete, shouldDeleteMessages)
-      await firestoreDB.collection(pollsCollectionID).doc(pollIDToDelete).delete()
+      if (!(pollIDToDelete || reference)) { return new BotCommandError("no poll provided", false) }
+      
+      if (!pollIDToDelete)
+      {
+        const messageChannel = await message.guild.channels.fetch(reference.channelId) as TextChannel
+        if (!messageChannel) { return new BotCommandError("message not found", false) }
+        
+        const referencedMessage = await messageChannel.messages.fetch(reference.messageId)
+        if (!referencedMessage) { return new BotCommandError("message not found", false) }
+        
+        messageSearch:
+        for (let pollID in pollsActionMessages)
+        {
+          for (let message of Object.values(pollsActionMessages[pollID]))
+          {
+            if (message instanceof ActionMessage && message.messageID == referencedMessage.id)
+            {
+              pollIDToDelete = pollID
+              break messageSearch
+            }
+          }
+        }
+        
+        if (!pollIDToDelete) { return new BotCommandError("referenced message is not a poll", false) }
+      }
+      
+      return {pollID: pollIDToDelete, shouldDeleteMessages: shouldDeleteMessages}
+    },
+    new BotCommandRequirement(async (commandArguments: DeleteServerPollCommandArguments, _user, _member, message: Message) => {
+      return pollsData[commandArguments.pollID].creatorID == message.author.id
+    }),
+    async (commandArguments: DeleteServerPollCommandArguments, message, _client, firestoreDB: Firestore) => {
+      const { pollID, shouldDeleteMessages } = commandArguments
+      
+      await removeServerPollSetting(pollID, shouldDeleteMessages)
+      await firestoreDB.collection(pollsCollectionID).doc(pollID).delete()
       
       await message.delete()
-    },
-    new BotCommandRequirement(async (_user, _member, message: Message, _channel, _server, _fromAlias, commandArguments: string[]) => {
-      const searchResponse = await getPollIDFromArguments(commandArguments, message)
-      if (searchResponse instanceof BotCommandError)
-      {
-        return true
-      }
-      const pollIDToDelete = searchResponse as string
-      
-      return pollsData[pollIDToDelete].creatorID == message.author.id
-    })
+    }
   )
 }

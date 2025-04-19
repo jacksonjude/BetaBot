@@ -171,46 +171,40 @@ export function updateMessageOnClose(pollData: PollConfiguration, updatePoll: (p
   pollUpdateCronJobs[pollData.id] = pollUpdateJob
 }
 
-export function getExportPollResultsCommand(): BotCommand
+interface ExportPollResultsCommandArguments
 {
-  const getPollDataFromArguments = async (commandArguments: string[]) => {
-    let pollID = commandArguments[1]
-    if (!(pollID in pollsData))
-    {
-      return new BotCommandError("Invalid poll id '" + pollID + "'", false)
-    }
-    
-    return pollsData[pollID]
-  }
-  
-  return BotCommand.fromRegex(
+  pollData: PollConfiguration
+  showUserTags: boolean
+  roleGroupIDs: string[]
+}
+
+export function getExportPollResultsCommand(): BotCommand<ExportPollResultsCommandArguments>
+{
+  return BotCommand.fromRegexWithValidation(
     "pollresults", "get poll results",
     /^pollresults\s+([\w\-’'".,;?!:@#$%^&*()\[\]\/]+)(?:\s+(true|false))?((?:\s+[\w-]+)*)$/, /^pollresults(\s+.*)?$/,
     "pollresults <poll id> [show user tags] [role group ids]",
-    async (commandArguments: string[], message: Message, client: Client, firestoreDB: Firestore) => {
-      const pollID = commandArguments[1]
+    async (commandArguments: string[]) => {
+      let pollID = commandArguments[1]
+      if (!(pollID in pollsData))
+      {
+        return new BotCommandError("Invalid poll id '" + pollID + "'", false)
+      }
+      
       const showUserTags = commandArguments[2] === "true"
       const roleGroupIDs = commandArguments[3].trim().split(/\s+/)
-
-      const searchResponse = await getPollDataFromArguments(commandArguments)
-      if (searchResponse instanceof BotCommandError)
-      {
-        return searchResponse
-      }
-
-      await executeExportPollResultsCommand(message.author, pollID, showUserTags, roleGroupIDs, message.guild, client, firestoreDB)
-    },
-    new BotCommandRequirement(async (_user, member: GuildMember, message: Message, _channel, _server, _fromAlias, commandArguments: string[]) => {
-      const searchResponse = await getPollDataFromArguments(commandArguments)
-      if (searchResponse instanceof BotCommandError)
-      {
-        return true
-      }
-      const pollData = searchResponse as PollConfiguration
-      const showUserTags = commandArguments[2] === "true"
       
+      return {pollData: pollsData[pollID], showUserTags: showUserTags, roleGroupIDs: roleGroupIDs}
+    },
+    new BotCommandRequirement(async (commandArguments: ExportPollResultsCommandArguments, _user, member: GuildMember, message: Message) => {
+      const { pollData, showUserTags } = commandArguments 
       return checkExportPollResultsRequirements(pollData, member, message, showUserTags)
-    })
+    }),
+    async (commandArguments: ExportPollResultsCommandArguments, message: Message, client: Client, firestoreDB: Firestore) => {
+      const { pollData, showUserTags, roleGroupIDs } = commandArguments 
+      
+      await executeExportPollResultsCommand(message.author, pollData.id, showUserTags, roleGroupIDs, message.guild, client, firestoreDB)
+    }
   )
 }
 

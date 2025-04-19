@@ -2,9 +2,10 @@ import { TextChannel, Message, Client, User, GuildMember, Guild, PermissionResol
 import { Firestore } from "firebase-admin/firestore"
 
 type ParseCommandStringFunction = (messageString: string, channel?: TextChannel, usageMessage?: string) => boolean | string[]
-type ExecuteCommandFunction = (commandArguments: string[], message: Message, client: Client, firestoreDB: Firestore) => Promise<BotCommandError | void>
+type ValidateCommandFunction<T> = (commandArguments: string[], message: Message, client: Client, firestoreDB: Firestore) => Promise<BotCommandError | T>
+type ExecuteCommandFunction<T> = (commandArguments: T, message: Message, client: Client, firestoreDB: Firestore) => Promise<BotCommandError | void>
 
-export class BotCommand
+export class BotCommand<T = string[]>
 {
   name: string
   description: string
@@ -12,28 +13,40 @@ export class BotCommand
   parseCommandString: ParseCommandStringFunction
   usageMessage: string | null
 
-  executeCommand: ExecuteCommandFunction
-  executionRequirement: BotCommandRequirement | null
+  validateCommand: ValidateCommandFunction<T>
+  executionRequirement: BotCommandRequirement<T> | null
+  executeCommand: ExecuteCommandFunction<T>
 
-  constructor(name: string, description: string, parseCommandStringFunction: ParseCommandStringFunction, usageMessage: string | null, executeCommand: ExecuteCommandFunction, executionRequirement?: BotCommandRequirement)
+  constructor(name: string, description: string, parseCommandStringFunction: ParseCommandStringFunction, usageMessage: string | null, validateCommand: ValidateCommandFunction<T>, executionRequirement: BotCommandRequirement<T> | null, executeCommand: ExecuteCommandFunction<T>)
   {
     this.name = name
     this.description = description
     this.parseCommandString = parseCommandStringFunction
     this.usageMessage = "**Usage: `@BetaBot " + usageMessage + "`**"
-    this.executeCommand = executeCommand
+    this.validateCommand = validateCommand
     this.executionRequirement = executionRequirement
+    this.executeCommand = executeCommand
   }
 
-  static fromRegex(name: string, description: string, fullRegex: RegExp, partialRegex: RegExp | null, usageMessage: string | null, executeCommand: ExecuteCommandFunction, executionRequirement?: BotCommandRequirement): BotCommand
+  static fromRegex(name: string, description: string, fullRegex: RegExp, partialRegex: RegExp | null, usageMessage: string | null, executeCommand: ExecuteCommandFunction<null>): BotCommand
+  {
+    return new BotCommand(name, description, BotCommand.getRegexFunction(fullRegex, partialRegex), usageMessage, (async (commandArguments: string[]) => commandArguments), null, executeCommand)
+  }
+  
+  static fromRegexWithValidation<V>(name: string, description: string, fullRegex: RegExp, partialRegex: RegExp | null, usageMessage: string | null, validateCommand: ValidateCommandFunction<V> | null, executionRequirement: BotCommandRequirement<V> | null, executeCommand: ExecuteCommandFunction<V>): BotCommand<V>
+  {
+    return new BotCommand<V>(name, description, BotCommand.getRegexFunction(fullRegex, partialRegex), usageMessage, validateCommand, executionRequirement, executeCommand)
+  }
+  
+  private static getRegexFunction(fullRegex: RegExp, partialRegex: RegExp | null): ParseCommandStringFunction
   {
     fullRegex = new RegExp(fullRegex, "i")
     partialRegex = partialRegex ? new RegExp(partialRegex, "i") : null
-
-    return new BotCommand(name, description, (messageString: string, channel?: TextChannel, usageMessage?: string) => {
+    
+    return (messageString: string, channel?: TextChannel, usageMessage?: string) => {
       let partialRegexTest = partialRegex && partialRegex.test(messageString)
       let fullRegexTest = fullRegex.test(messageString)
-
+    
       if (!fullRegexTest)
       {
         if (partialRegexTest)
@@ -43,9 +56,9 @@ export class BotCommand
         }
         return false
       }
-
+    
       return fullRegex.exec(messageString) as string[]
-    }, usageMessage, executeCommand, executionRequirement)
+    }
   }
 
   async execute(messageString: string, message: Message, client: Client, firestoreDB: Firestore, fromAlias: boolean): Promise<boolean>
@@ -53,15 +66,23 @@ export class BotCommand
     let textChannel = message.channel as TextChannel
     let parseCallback = this.parseCommandString(messageString, textChannel, this.usageMessage)
     if (parseCallback === false || parseCallback === true) { return false }
+    
+    let validateCallback = await this.validateCommand(parseCallback, message, client, firestoreDB)
+    if (validateCallback instanceof BotCommandError)
+    {
+      await textChannel.send("**Error: " + validateCallback.errorMessage + "**")
+      validateCallback.shouldShowUsage && await textChannel.send(this.usageMessage)
+      return false
+    }
 
-    if (this.executionRequirement && !await this.executionRequirement.testMessage(message, fromAlias, parseCallback))
+    if (this.executionRequirement && !await this.executionRequirement.testMessage(message, fromAlias, validateCallback))
     {
       await textChannel.send(`**Error: <@${message.author.id}> has invalid permissions to run ${this.name}**`)
       console.log(`[Bot Command] Invalid permissions for ${message.author.username} to run ${this.name} in ${message.guild.name}: ${this.executionRequirement.toString()}`)
       return false
     }
 
-    let commandCallback = await this.executeCommand(parseCallback, message, client, firestoreDB)
+    let commandCallback = await this.executeCommand(validateCallback, message, client, firestoreDB)
     if (commandCallback)
     {
       await textChannel.send("**Error: " + commandCallback.errorMessage + "**")
@@ -70,13 +91,13 @@ export class BotCommand
     return true
   }
 
-  withRequirement(requirement: BotCommandRequirement): BotCommand
+  withRequirement(requirement: BotCommandRequirement<T>): BotCommand<T>
   {
     this.executionRequirement = requirement
     return this
   }
   
-  withAdditionalRequirement(requirement: BotCommandRequirement): BotCommand
+  withAdditionalRequirement(requirement: BotCommandRequirement<T>): BotCommand<T>
   {
     if (this.executionRequirement != null)
     {
@@ -89,7 +110,7 @@ export class BotCommand
     return this
   }
   
-  withOverrideRequirement(requirement: BotCommandRequirement): BotCommand
+  withOverrideRequirement(requirement: BotCommandRequirement<T>): BotCommand<T>
   {
     if (this.executionRequirement != null)
     {
@@ -115,20 +136,20 @@ export class BotCommandError
   }
 }
 
-type RequirementTestFunction = (user: User, member: GuildMember, message: Message, channel: TextChannel, server: Guild, fromAlias: boolean, commandArguments: string[]) => Promise<boolean>
+type RequirementTestFunction<T> = (commandArguments: T, user: User, member: GuildMember, message: Message, channel: TextChannel, server: Guild, fromAlias: boolean) => Promise<boolean>
 
-export class BotCommandRequirement
+export class BotCommandRequirement<T = string[]>
 {
-  requirementTest: RequirementTestFunction
+  requirementTest: RequirementTestFunction<T>
 
-  constructor(requirementTestFunction: RequirementTestFunction)
+  constructor(requirementTestFunction: RequirementTestFunction<T>)
   {
     this.requirementTest = requirementTestFunction
   }
 
-  async testMessage(message: Message, fromAlias: boolean, commandArguments: string[]): Promise<boolean>
+  async testMessage(message: Message, fromAlias: boolean, commandArguments: T): Promise<boolean>
   {
-    return this.requirementTest(message.author, message.member, message, message.channel as TextChannel, message.guild, fromAlias, commandArguments)
+    return this.requirementTest(commandArguments, message.author, message.member, message, message.channel as TextChannel, message.guild, fromAlias)
   }
   
   toString(): string
@@ -137,11 +158,11 @@ export class BotCommandRequirement
   }
 }
 
-export class BotCommandUserIDRequirement extends BotCommandRequirement
+export class BotCommandUserIDRequirement<T> extends BotCommandRequirement<T>
 {
   constructor(private userID: string)
   {
-    super(async (user: User) => {
+    super(async (_commandArguments, user: User) => {
       return user.id == userID
     })
   }
@@ -152,11 +173,11 @@ export class BotCommandUserIDRequirement extends BotCommandRequirement
   }
 }
 
-export class BotCommandRoleIDRequirement extends BotCommandRequirement
+export class BotCommandRoleIDRequirement<T> extends BotCommandRequirement<T>
 {
   constructor(private roleID: string)
   {
-    super(async (_, member: GuildMember) => {
+    super(async (_commandArguments, _user, member: GuildMember) => {
       return member.roles.cache.some(role => role.id == roleID)
     })
   }
@@ -167,11 +188,11 @@ export class BotCommandRoleIDRequirement extends BotCommandRequirement
   }
 }
 
-export class BotCommandPermissionRequirement extends BotCommandRequirement
+export class BotCommandPermissionRequirement<T> extends BotCommandRequirement<T>
 {
   constructor(private permissions: PermissionResolvable[])
   {
-    super(async (_, member: GuildMember) => {
+    super(async (_commandArguments, _user, member: GuildMember) => {
       return permissions.every(permission => member.permissions.has(permission))
     })
   }
@@ -182,11 +203,11 @@ export class BotCommandPermissionRequirement extends BotCommandRequirement
   }
 }
 
-export class BotCommandChannelIDRequirement extends BotCommandRequirement
+export class BotCommandChannelIDRequirement<T> extends BotCommandRequirement<T>
 {
   constructor(private channelID: string)
   {
-    super(async (_, __, ___, channel: TextChannel) => {
+    super(async (_commandArguments, _user, _member, _message, channel: TextChannel) => {
       return channel.id == channelID
     })
   }
@@ -197,11 +218,11 @@ export class BotCommandChannelIDRequirement extends BotCommandRequirement
   }
 }
 
-export class BotCommandServerIDRequirement extends BotCommandRequirement
+export class BotCommandServerIDRequirement<T> extends BotCommandRequirement<T>
 {
   constructor(private serverID: string)
   {
-    super(async (_, __, ___, ____, server: Guild) => {
+    super(async (_commandArguments, _user, _member, _message, _channel, server: Guild) => {
       return server.id == serverID
     })
   }
@@ -212,11 +233,11 @@ export class BotCommandServerIDRequirement extends BotCommandRequirement
   }
 }
 
-export class BotCommandFromAliasRequirement extends BotCommandRequirement
+export class BotCommandFromAliasRequirement<T> extends BotCommandRequirement<T>
 {
   constructor()
   {
-    super(async (_, __, ___, ____, _____, fromAlias: boolean) => {
+    super(async (_commandArguments, _user, _member, _message, _channel, _server, fromAlias: boolean) => {
       return fromAlias == true
     })
   }
@@ -227,13 +248,13 @@ export class BotCommandFromAliasRequirement extends BotCommandRequirement
   }
 }
 
-export class BotCommandUnionRequirement extends BotCommandRequirement
+export class BotCommandUnionRequirement<T> extends BotCommandRequirement<T>
 {
-  constructor(private requirements: BotCommandRequirement[])
+  constructor(private requirements: BotCommandRequirement<T>[])
   {
-    super(async (user: User, member: GuildMember, message: Message, channel: TextChannel, server: Guild, fromAlias: boolean, commandArguments: string[]) => {
+    super(async (commandArguments: T, user: User, member: GuildMember, message: Message, channel: TextChannel, server: Guild, fromAlias: boolean) => {
       for (let requirement of requirements) {
-        if (await requirement.requirementTest(user, member, message, channel, server, fromAlias, commandArguments)) return true
+        if (await requirement.requirementTest(commandArguments, user, member, message, channel, server, fromAlias)) return true
       }
       return false
     })
@@ -245,13 +266,13 @@ export class BotCommandUnionRequirement extends BotCommandRequirement
   }
 }
 
-export class BotCommandIntersectionRequirement extends BotCommandRequirement
+export class BotCommandIntersectionRequirement<T> extends BotCommandRequirement<T>
 {
-  constructor(private requirements: BotCommandRequirement[])
+  constructor(private requirements: BotCommandRequirement<T>[])
   {
-    super(async (user: User, member: GuildMember, message: Message, channel: TextChannel, server: Guild, fromAlias: boolean, commandArguments: string[]) => {
+    super(async (commandArguments: T, user: User, member: GuildMember, message: Message, channel: TextChannel, server: Guild, fromAlias: boolean) => {
       for (let requirement of requirements) {
-        if (!await requirement.requirementTest(user, member, message, channel, server, fromAlias, commandArguments)) return false
+        if (!await requirement.requirementTest(commandArguments, user, member, message, channel, server, fromAlias)) return false
       }
       return true
     })
@@ -263,12 +284,12 @@ export class BotCommandIntersectionRequirement extends BotCommandRequirement
   }
 }
 
-export class BotCommandInverseRequirement extends BotCommandRequirement
+export class BotCommandInverseRequirement<T> extends BotCommandRequirement<T>
 {
-  constructor(private requirement: BotCommandRequirement)
+  constructor(private requirement: BotCommandRequirement<T>)
   {
-    super(async (user: User, member: GuildMember, message: Message, channel: TextChannel, server: Guild, fromAlias: boolean, commandArguments: string[]) => {
-      return !await requirement.requirementTest(user, member, message, channel, server, fromAlias, commandArguments)
+    super(async (commandArguments: T, user: User, member: GuildMember, message: Message, channel: TextChannel, server: Guild, fromAlias: boolean) => {
+      return !await requirement.requirementTest(commandArguments, user, member, message, channel, server, fromAlias)
     })
   }
   

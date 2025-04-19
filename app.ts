@@ -124,7 +124,7 @@ function getFormattedBuildDateString(rawBuildDate: string | number): string
 
 // Setup Commands
 
-var botCommands: BotCommand[]
+var botCommands: BotCommand<any>[]
 
 function initCommands()
 {
