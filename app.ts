@@ -36,7 +36,8 @@ import {
   getRerunCommand,
   getReactCommand,
   getPingCommand,
-  getClearRoleCommand
+  getClearRoleCommand,
+  getTimeoutCommand
 } from "./src/miscCommands"
 
 import { setupVoiceChannelEventHandler } from "./src/linkedTextChannels"
@@ -193,6 +194,7 @@ function initCommands()
     getClearCommand(),
     getDMVoteCommand(),
     getPingCommand(),
+    getTimeoutCommand(),
     getExportPollResultsCommand().withOverrideRequirement(botAdminPermissionRequirement),
     getCloseChannelsCommand().withRequirement(manageChannelsPermissionRequirement),
     getEchoCommand().withRequirement(botAdminOrAliasPermissionRequirement),

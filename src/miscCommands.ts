@@ -750,7 +750,7 @@ export function getTimeoutCommand(): BotCommand<TimeoutCommandArguments>
         return new BotCommandError(`<@${targetMemberID}> was not found in this server`, false)
       }
       
-      const timeoutLength = parseInt(commandArguments[2])
+      const timeoutLength = parseInt(commandArguments[2] ?? (60).toString())
       if (timeoutLength <= 0 || Number.isNaN(timeoutLength))
       {
         return new BotCommandError(`invalid timeout length ${commandArguments[2]}`, false)
