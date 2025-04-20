@@ -39,6 +39,11 @@ export async function interpretServerPollSetting(client: Client, pollID: string,
     
     updateMessageOnClose(pollDataJSON, async (pollID) => {
       await sendServerVoteMessage(client, pollsData[pollID], uploadPollResponse, firestoreDB)
+      if (pollsData[pollID].shouldDeleteOnClose)
+      {
+        await removeServerPollSetting(pollID, false)
+        await firestoreDB.collection(pollsCollectionID).doc(pollID).delete()
+      }
     })
   }
 
@@ -238,16 +243,17 @@ export function getCreateServerPollCommand(): BotCommand
   // TODO: Find a way of representing default emotes
   return BotCommand.fromRegex(
     "serverpoll", "create a new server poll",
-    /^serverpoll\s+([\w\s\-’'".,;?!:@#$%^&*()\[\]\/]+)(?:\s+(?:<#)?(\d+)(?:>)?)?(?:\s+<@!?&?(\d+)>)?(?:\s+(\d+(?:\.\d*)?))?((?:\s*<?a?:\w+:\d*>?)+)\s*(.+)$/, /^serverpoll(\s+.*)?$/,
-    "serverpoll <name> [channel] [role] [duration] <emotes...> <message...>",
+    /^serverpoll\s+([\w\s\-’'".,;?!:@#$%^&*()\[\]\/]+)(?:\s+(?:<#)?(\d+)(?:>)?)?(?:\s+<@!?&?(\d+)>)?(?:\s+(\d+(?:\.\d*)?))?(?:\s+(true|false))?((?:\s*<?a?:\w+:\d*>?)+)\s*(.+)$/, /^serverpoll(\s+.*)?$/,
+    "serverpoll <name> [channel] [role] [duration] [delete on close] <emotes...> <message...>",
     async (commandArguments: string[], message: Message, _, firestoreDB: Firestore) => {
       let pollName = commandArguments[1].replace(/^\s*/, "").replace(/\s*$/, "")
       let channelID = commandArguments[2] ?? message.channelId
       let roleID = commandArguments[3] ?? message.guild.roles.everyone.id
       let duration = commandArguments[4] ? parseFloat(commandArguments[4]) : 24.0
+      let shouldDeleteOnClose = commandArguments[5] === "true" ? true : false
 
-      let emotesString = commandArguments[5]
-      let pollMessage = commandArguments[6]
+      let emotesString = commandArguments[6]
+      let pollMessage = commandArguments[7]
 
       let emotes = Emote.fromStringList(emotesString)
 
@@ -275,7 +281,8 @@ export function getCreateServerPollCommand(): BotCommand
         ],
         channelID: channelID,
         roleIDs: [roleID],
-        creatorID: message.author.id
+        creatorID: message.author.id,
+        shouldDeleteOnClose: shouldDeleteOnClose
       } as PollConfiguration
 
       firestoreDB.doc(pollsCollectionID + "/" + pollID).set(pollConfig)

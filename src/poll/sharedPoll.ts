@@ -50,6 +50,8 @@ export class PollConfiguration
   maximumVoterCount?: number
   
   creatorID?: string
+  
+  shouldDeleteOnClose?: boolean
 }
 
 export class PollQuestion
