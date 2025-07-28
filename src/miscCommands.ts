@@ -714,7 +714,7 @@ export function getClearRoleCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "clearrole", "remove all users from a role",
-    /^clearrole\s+<@&(\d+)>$/, /^react(\s+.*)?$/,
+    /^clearrole\s+<@&(\d+)>$/, /^clearrole(\s+.*)?$/,
     "clearrole <role>",
     async (commandArguments: string[], message: Message) => {
       let roleID = commandArguments[1]
