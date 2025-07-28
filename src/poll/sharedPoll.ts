@@ -52,6 +52,9 @@ export class PollConfiguration
   creatorID?: string
   
   shouldDeleteOnClose?: boolean
+  
+  passingThreshold?: number
+  allowTies?: boolean
 }
 
 export class PollQuestion
@@ -68,6 +71,7 @@ class PollQuestionOption
   id: string
   name?: string
   emote: string
+  decisionType?: "yes" | "no" | "present"
 }
 
 export class PollVoteMessageConfiguration

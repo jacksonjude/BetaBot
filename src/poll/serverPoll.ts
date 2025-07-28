@@ -17,6 +17,17 @@ import { BotCommand, BotCommandError, BotCommandRequirement } from "../botComman
 import ShortUniqueID from "short-unique-id"
 const uid = new ShortUniqueID({ length: 10 })
 
+const decisionEmotes = {
+  pass: new Emote("<a:yea:929537247106191370>"),
+  fail: new Emote("<a:nay:929537309358059520>"),
+  tie: new Emote("<:present:928924944593719316>")
+}
+const decisionOutcomeMessages = {
+  pass: "Passes",
+  fail: "Fails",
+  tie: "Tied"
+}
+
 export async function interpretServerPollSetting(client: Client, pollID: string, pollDataJSON: PollConfiguration, firestoreDB: Firestore)
 {
   pollsData[pollID] = pollDataJSON
@@ -31,14 +42,10 @@ export async function interpretServerPollSetting(client: Client, pollID: string,
 
   if (pollDataJSON.channelID != null)
   {
-    var uploadPollResponse = async (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => {
-      await firestoreDB.doc(pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID + "/" + userID).set({responseMap: questionIDToOptionIDMap, updatedAt: Date.now()})
-    }
-
-    await sendServerVoteMessage(client, pollDataJSON, uploadPollResponse, firestoreDB)
+    await sendServerVoteMessage(client, pollDataJSON, firestoreDB)
     
     updateMessageOnClose(pollDataJSON, async (pollID) => {
-      await sendServerVoteMessage(client, pollsData[pollID], uploadPollResponse, firestoreDB)
+      await sendServerVoteMessage(client, pollsData[pollID], firestoreDB)
       if (pollsData[pollID].shouldDeleteOnClose)
       {
         await removeServerPollSetting(pollID, false)
@@ -52,6 +59,16 @@ export async function interpretServerPollSetting(client: Client, pollID: string,
 
 export async function removeServerPollSetting(pollID: string, deleteMessages: boolean = false)
 {
+  await removeServerPollActionMessages(pollID, deleteMessages)
+
+  if (pollsData[pollID])
+  {
+    delete pollsData[pollID]
+  }
+}
+
+async function removeServerPollActionMessages(pollID: string, deleteMessages: boolean = false)
+{
   if (pollsActionMessages[pollID])
   {
     for (let pollActionMessage of Object.values(pollsActionMessages[pollID]) as ActionMessage<PollQuestion>[])
@@ -60,28 +77,108 @@ export async function removeServerPollSetting(pollID: string, deleteMessages: bo
     }
     delete pollsActionMessages[pollID]
   }
-
-  if (pollsData[pollID])
-  {
-    delete pollsData[pollID]
-  }
 }
 
-async function sendServerVoteMessage(client: Client, pollData: PollConfiguration, uploadPollResponse: (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => Promise<void>, firestoreDB: Firestore)
+async function sendServerVoteMessage(client: Client, pollData: PollConfiguration, firestoreDB: Firestore)
 {
   var pollChannel = await client.channels.fetch(pollData.channelID) as TextChannel
   if (!pollChannel) { return }
-
+  
+  await removeServerPollActionMessages(pollData.id, false)
   var pollActionMessages = {}
 
   if (!pollData.messageIDs)
   {
     pollData.messageIDs = {}
   }
+  
+  const noVoteID = "--no vote--"
+  
+  let pollResultsData: { [k: string]: { [k: string]: number } } = null
+  let maximumVoterCount = pollData.maximumVoterCount
+  
+  let pollResultsCollection = await firestoreDB.collection(pollsCollectionID + "/" + pollData.id + "/" + pollResponsesCollectionID).get()
+  pollResultsData = pollResultsCollection.docChanges().map(response => response.doc.data().responseMap).filter(r => r != null).reduce((totals, response) => {
+    for (let questionID in response)
+    {
+      let optionID: string = response[questionID]
+      
+      if (!totals[questionID]) totals[questionID] = {}
+      if (!totals[questionID][optionID]) totals[questionID][optionID] = 0
+      totals[questionID][optionID] += 1
+    }
+    return totals
+  }, {})
+  
+  for (let questionData of pollData.questions)
+  {
+    if (!pollResultsData[questionData.id])
+    {
+      pollResultsData[questionData.id] = {}
+    }
+  }
+  
+  if (maximumVoterCount != null)
+  {
+    for (let questionID in pollResultsData)
+    {
+      let didNotVoteCount = maximumVoterCount - Object.keys(pollResultsData[questionID]).reduce((total, optionID) => total + pollResultsData[questionID][optionID], 0)
+      pollResultsData[questionID][noVoteID] = didNotVoteCount
+    }
+  }
+  
+  const calculateVoteDenominator = (decisionQuestion: PollQuestion) => {
+    const presentOptionID = decisionQuestion.options.find(o => o.decisionType == "present")?.id
+    const voteDenominator = pollData.passingThreshold != null ? pollData.maximumVoterCount - (presentOptionID ? pollResultsData[decisionQuestion.id][presentOptionID] ?? 0 : 0) : null
+    return voteDenominator
+  }
+  
+  let decisionOutcome: "pass" | "fail" | "tie" = null
+  
+  if (pollData.passingThreshold != null && pollData.questions.length == 1)
+  {
+    const decisionQuestion = pollData.questions[0]
+    
+    const voteDenominator = calculateVoteDenominator(decisionQuestion)
+    const passingThreshold = pollData.passingThreshold
+    
+    const yesOptionID = decisionQuestion.options.find(o => o.decisionType == "yes")?.id
+    const noOptionID = decisionQuestion.options.find(o => o.decisionType == "no")?.id
+    
+    const yesVotes = yesOptionID ? pollResultsData[decisionQuestion.id][yesOptionID] ?? 0 : 0
+    const noVotes = noOptionID ? pollResultsData[decisionQuestion.id][noOptionID] ?? 0 : 0
+    
+    const yesRatio = yesVotes/voteDenominator
+    const noRatio = noVotes/voteDenominator
+    
+    if (pollData.allowTies && yesVotes == noVotes && yesVotes + noVotes == voteDenominator)
+    {
+      decisionOutcome = "tie"
+    }
+    else if (
+      (passingThreshold > 0.5 && yesRatio >= passingThreshold) ||
+      (passingThreshold == 0.5 && yesRatio > 0.5)
+    )
+    {
+      decisionOutcome = "pass"
+    }
+    else if (
+      (passingThreshold > 0.5 && noRatio > 1-passingThreshold) ||
+      (passingThreshold == 0.5 &&
+        (
+          (!pollData.allowTies && noRatio >= 0.5) ||
+          (pollData.allowTies && noRatio > 0.5)
+        )
+      )
+    )
+    {
+      decisionOutcome = "fail"
+    }
+  }
 
   let titleActionMessage = new ActionMessage(pollChannel, pollData.messageIDs["title"], null,
     async () => {
-      return "__**" + pollData.name + "**__" + "\n" + await getAnnouncementMessageText(pollData, pollChannel, firestoreDB)
+      return "__**" + pollData.name + "**__" + (decisionOutcome != null ? " (" + decisionEmotes[decisionOutcome] + " " + decisionOutcomeMessages[decisionOutcome] + ")" : "") + "\n" + await getAnnouncementMessageText(pollData, pollChannel, firestoreDB)
     }, async (message: Message) => {
       pollData.messageIDs["title"] = message.id
     },
@@ -89,38 +186,6 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
   )
   await titleActionMessage.initActionMessage()
   pollActionMessages["title"] = titleActionMessage
-  
-  let isClosed = Date.now() >= pollData.closeTime.toMillis()
-  const noVoteID = "--no vote--"
-
-  let pollResultsData: { [k: string]: { [k: string]: number } } = null
-  if (isClosed)
-  {
-    let maximumVoterCount = pollData.maximumVoterCount
-    
-    let pollResultsCollection = await firestoreDB.collection(pollsCollectionID + "/" + pollData.id + "/" + pollResponsesCollectionID).get()
-    pollResultsData = pollResultsCollection.docChanges().map(response => response.doc.data().responseMap).filter(r => r != null).reduce((totals, response) => {
-      for (let questionID in response)
-      {
-        let optionID: string = response[questionID]
-        
-        if (!totals[questionID]) totals[questionID] = {}
-        if (!totals[questionID][optionID]) totals[questionID][optionID] = 0
-        totals[questionID][optionID] += 1
-      }
-      return totals
-    }, {})
-    
-    if (maximumVoterCount != null)
-    {
-      for (let questionID in pollResultsData)
-      {
-        let didNotVoteCount = maximumVoterCount - Object.keys(pollResultsData[questionID]).reduce((total, optionID) => total + pollResultsData[questionID][optionID], 0)
-        pollResultsData[questionID]
-        pollResultsData[questionID][noVoteID] = didNotVoteCount
-      }
-    }
-  }
 
   for (let questionData of pollData.questions)
   {
@@ -130,11 +195,14 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
       questionData,
       async (questionData: PollQuestion) => {
         let questionString = "**" + questionData.prompt + "**"
-        if (isClosed)
+        if (pollResultsData[questionData.id] != null)
         {
+          const voteDenominator = calculateVoteDenominator(questionData)
+          
           for (let optionData of questionData.options)
           {
-            questionString += "\n" + optionData.emote + " **" + (pollResultsData[questionData.id][optionData.id] ?? 0) + "**"
+            const optionCount = pollResultsData[questionData.id][optionData.id] ?? 0
+            questionString += "\n" + optionData.emote + " **" + optionCount + (voteDenominator > 0 && optionData.decisionType != "present" ? " (" + (Math.round(optionCount/voteDenominator*100*100)/100) + "%)" : "") + "**"
           }
           if (pollResultsData[questionData.id][noVoteID] != null) questionString += "\nNV **" + pollResultsData[questionData.id][noVoteID] + "**"
         }
@@ -148,7 +216,7 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
           await message.react(emoji)
         }
       }, (reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, questionData: PollQuestion) => {
-        handlePollMessageReaction(client, reaction, user, reactionEventType, questionData, pollData.id, uploadPollResponse)
+        handlePollMessageReaction(client, reaction, user, reactionEventType, questionData, pollData.id, firestoreDB)
       }
     )
     await pollQuestionActionMessage.initActionMessage()
@@ -158,7 +226,7 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
   pollsActionMessages[pollData.id] = pollActionMessages
 }
 
-async function handlePollMessageReaction(client: Client, reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, questionData: PollQuestion, currentPollID: string, uploadPollResponse: (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => Promise<void>)
+async function handlePollMessageReaction(client: Client, reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, questionData: PollQuestion, currentPollID: string, firestoreDB: Firestore)
 {
   if (user.id == client.user.id) { return }
 
@@ -214,7 +282,7 @@ async function handlePollMessageReaction(client: Client, reaction: MessageReacti
     break
   }
 
-  await uploadPollResponse(currentPollID, user.id, pollResponses[currentPollID][user.id])
+  await uploadPollResponse(currentPollID, user.id, pollResponses[currentPollID][user.id], firestoreDB)
 
   if (reactionEventType == "added")
   {
@@ -235,7 +303,12 @@ async function handlePollMessageReaction(client: Client, reaction: MessageReacti
     })
   }
   
-  await (pollsActionMessages[currentPollID]["title"] as ActionMessage<PollQuestion>).sendMessage()
+  await sendServerVoteMessage(client, pollsData[currentPollID], firestoreDB)
+}
+
+async function uploadPollResponse(pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap, firestoreDB: Firestore)
+{
+  await firestoreDB.doc(pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID + "/" + userID).set({responseMap: questionIDToOptionIDMap, updatedAt: Date.now()})
 }
 
 export function getCreateServerPollCommand(): BotCommand
@@ -263,7 +336,7 @@ export function getCreateServerPollCommand(): BotCommand
         active: true,
         id: pollID,
         name: pollName,
-        pollType: "server" as "server",
+        pollType: "server",
         openTime: Timestamp.fromMillis(Date.now()),
         closeTime: Timestamp.fromMillis(Date.now()+duration*1000*60*60),
         questions: [
@@ -285,6 +358,86 @@ export function getCreateServerPollCommand(): BotCommand
         shouldDeleteOnClose: shouldDeleteOnClose
       } as PollConfiguration
 
+      firestoreDB.doc(pollsCollectionID + "/" + pollID).set(pollConfig)
+    }
+  )
+}
+
+export function getCreateDecisionPollCommand(): BotCommand
+{
+  return BotCommand.fromRegex(
+    "decisionpoll", "create a new decision poll (yes/no/present), which auto-closes upon pass or fail",
+    /^decisionpoll\s+([\w\s\-’'".,;?!:@#$%^&*()\[\]\/]+)(?:\s*(?:<#)?(\d+)(?:>)?)?(?:\s*<@!?&?(\d+)>)?(?:\s+(\d+(?:\.\d*)?))?(?:\s+(normal|full|super))?\s*(.+)$/, /^decisionpoll(\s+.*)?$/,
+    "decisionpoll <name> [channel] [role] [duration] [normal|full|super] <message...>",
+    async (commandArguments: string[], message: Message, _, firestoreDB: Firestore) => {
+      let pollName = commandArguments[1].replace(/^\s*/, "").replace(/\s*$/, "")
+      let channelID = commandArguments[2] ?? message.channelId
+      let roleID = commandArguments[3] ?? message.guild.roles.everyone.id
+      let duration = commandArguments[4] ? parseFloat(commandArguments[4]) : 24.0
+  
+      let voteType = commandArguments[5] as "normal" | "full" | "super" ?? "normal"
+      // normal = 50% + 1 to pass, allow present votes, allow ties
+      // full = 50% + 1 to pass, no present votes, no ties
+      // super = 2/3rds to pass, no present votes, no ties
+      
+      let pollMessage = commandArguments[6]
+      
+      let pollEmotes: {"yes": Emote, "no": Emote, "present"?: Emote}
+      let passingThreshold: number
+      let allowTies: boolean
+      
+      switch (voteType)
+      {
+        case "normal":
+        pollEmotes = {"yes": decisionEmotes.pass, "no": decisionEmotes.fail, "present": decisionEmotes.tie}
+        passingThreshold = 1/2
+        allowTies = true
+        break
+        
+        case "full":
+        pollEmotes = {"yes": decisionEmotes.pass, "no": decisionEmotes.fail}
+        passingThreshold = 1/2
+        allowTies = false
+        break
+        
+        case "super":
+        pollEmotes = {"yes": decisionEmotes.pass, "no": decisionEmotes.fail}
+        passingThreshold = 2/3
+        allowTies = false
+        break
+      }
+  
+      let pollID = pollName + "-" + uid()
+  
+      let pollConfig = {
+        active: true,
+        id: pollID,
+        name: pollName,
+        pollType: "server",
+        openTime: Timestamp.fromMillis(Date.now()),
+        closeTime: Timestamp.fromMillis(Date.now()+duration*1000*60*60),
+        questions: [
+          {
+            id: uid(),
+            prompt: pollMessage,
+            showOptionNames: false,
+            options: Object.keys(pollEmotes).map(decision => {
+              return {
+                id: uid(),
+                emote: pollEmotes[decision].toString(),
+                decisionType: decision
+              }
+            })
+          }
+        ],
+        channelID: channelID,
+        roleIDs: [roleID],
+        creatorID: message.author.id,
+        shouldDeleteOnClose: true,
+        passingThreshold: passingThreshold,
+        allowTies: allowTies,
+      } as PollConfiguration
+  
       firestoreDB.doc(pollsCollectionID + "/" + pollID).set(pollConfig)
     }
   )
