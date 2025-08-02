@@ -92,7 +92,8 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
     pollData.messageIDs = {}
   }
   
-  const noVoteID = "--no vote--"
+  const notVotingID = "--no vote--"
+  const isClosed = Date.now() >= pollData.closeTime.toMillis()
   
   let pollResultsData: { [k: string]: { [k: string]: number } } = null
   let maximumVoterCount = pollData.maximumVoterCount
@@ -123,7 +124,7 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
     for (let questionID in pollResultsData)
     {
       let didNotVoteCount = maximumVoterCount - Object.keys(pollResultsData[questionID]).reduce((total, optionID) => total + pollResultsData[questionID][optionID], 0)
-      pollResultsData[questionID][noVoteID] = didNotVoteCount
+      pollResultsData[questionID][notVotingID] = didNotVoteCount
     }
   }
   
@@ -144,14 +145,24 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
     
     const yesOptionID = decisionQuestion.options.find(o => o.decisionType == "yes")?.id
     const noOptionID = decisionQuestion.options.find(o => o.decisionType == "no")?.id
+    const presentOptionID = decisionQuestion.options.find(o => o.decisionType == "present")?.id
     
     const yesVotes = yesOptionID ? pollResultsData[decisionQuestion.id][yesOptionID] ?? 0 : 0
     const noVotes = noOptionID ? pollResultsData[decisionQuestion.id][noOptionID] ?? 0 : 0
+    const presentVotes = presentOptionID ? pollResultsData[decisionQuestion.id][presentOptionID] ?? 0 : 0
+    const notVotingCount = pollResultsData[decisionQuestion.id][notVotingID] ?? 0
     
     const yesRatio = yesVotes/voteDenominator
     const noRatio = noVotes/voteDenominator
-    
-    if (pollData.allowTies && yesVotes == noVotes && yesVotes + noVotes == voteDenominator)
+      
+    if (
+      (!isClosed && presentVotes > maximumVoterCount/2) ||
+      (isClosed && presentVotes + notVotingCount > maximumVoterCount/2)
+    )
+    {
+      decisionOutcome = "fail"
+    }
+    else if (pollData.allowTies && yesVotes == noVotes && yesVotes + noVotes == voteDenominator)
     {
       decisionOutcome = "tie"
     }
@@ -204,7 +215,7 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
             const optionCount = pollResultsData[questionData.id][optionData.id] ?? 0
             questionString += "\n" + optionData.emote + " **" + optionCount + (voteDenominator > 0 && optionData.decisionType != "present" ? " (" + (Math.round(optionCount/voteDenominator*100*100)/100) + "%)" : "") + "**"
           }
-          if (pollResultsData[questionData.id][noVoteID] != null) questionString += "\nNV **" + pollResultsData[questionData.id][noVoteID] + "**"
+          if (pollResultsData[questionData.id][notVotingID] != null) questionString += "\nNV **" + pollResultsData[questionData.id][notVotingID] + "**"
         }
         return questionString
       }, async (message: Message, questionData: PollQuestion) => {
