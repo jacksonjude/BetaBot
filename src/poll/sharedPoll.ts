@@ -143,6 +143,7 @@ export async function getAnnouncementMessageText(pollData: PollConfiguration, ch
   let isClosed = Date.now() > pollData.closeTime.toMillis()
   
   let roleObjects = pollData.roleIDs ? await getRolesByID(pollData.roleIDs, channel.guild) : [channel.guild.roles.everyone]
+  console.log(pollData.id, roleObjects)
   let maximumVoters = pollData.maximumVoterCount
   if (!isClosed || maximumVoters == null)
   {
