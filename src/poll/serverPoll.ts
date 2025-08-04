@@ -267,6 +267,25 @@ async function handlePollMessageReaction(client: Client, reaction: MessageReacti
     catch {}
     return
   }
+  
+  if (reactionEventType == "added")
+  {
+    await reaction.message.fetch()
+  
+    reaction.message.reactions.cache.forEach(async (otherReaction) => {
+      if (otherReaction.emoji.name == reaction.emoji.name) { return }
+  
+      await otherReaction.users.fetch()
+      if (otherReaction.users.cache.has(user.id))
+      {
+        try
+        {
+          await otherReaction.users.remove(user.id)
+        }
+        catch {}
+      }
+    })
+  }
 
   let currentOptionID = currentOptionData.id
 
@@ -282,6 +301,11 @@ async function handlePollMessageReaction(client: Client, reaction: MessageReacti
   switch (reactionEventType)
   {
     case "added":
+    if (pollResponses[currentPollID][user.id][questionData.id] == currentOptionID)
+    {
+      console.log(`[Server Poll] ${currentPollID}/${user.id}/${questionData.id} already has ${currentOptionID}`)
+      return
+    }
     pollResponses[currentPollID][user.id][questionData.id] = currentOptionID
     break
 
@@ -290,29 +314,15 @@ async function handlePollMessageReaction(client: Client, reaction: MessageReacti
     {
       delete pollResponses[currentPollID][user.id][questionData.id]
     }
+    else
+    {
+      console.log(`[Server Poll] ${currentPollID}/${user.id}/${questionData.id} is not ${currentOptionID}`)
+      return
+    }
     break
   }
 
   await uploadPollResponse(currentPollID, user.id, pollResponses[currentPollID][user.id], firestoreDB)
-
-  if (reactionEventType == "added")
-  {
-    await reaction.message.fetch()
-
-    reaction.message.reactions.cache.forEach(async (otherReaction) => {
-      if (otherReaction.emoji.name == reaction.emoji.name) { return }
-
-      await otherReaction.users.fetch()
-      if (otherReaction.users.cache.has(user.id))
-      {
-        try
-        {
-          await otherReaction.users.remove(user.id)
-        }
-        catch {}
-      }
-    })
-  }
   
   await sendServerVoteMessage(client, pollsData[currentPollID], firestoreDB)
 }
