@@ -404,7 +404,7 @@ export function getCreateDecisionPollCommand(): BotCommand
       let voteType = commandArguments[5] as "normal" | "full" | "super" ?? "normal"
       // normal = 50% + 1 to pass, allow present votes, allow ties
       // full = 50% + 1 to pass, no present votes, no ties
-      // super = 2/3rds to pass, no present votes, no ties
+      // super = 3/4ths to pass, no present votes, no ties
       
       let pollMessage = commandArguments[6]
       
@@ -428,7 +428,7 @@ export function getCreateDecisionPollCommand(): BotCommand
         
         case "super":
         pollEmotes = {"yes": decisionEmotes.pass, "no": decisionEmotes.fail}
-        passingThreshold = 2/3
+        passingThreshold = 3/4
         allowTies = false
         break
       }
