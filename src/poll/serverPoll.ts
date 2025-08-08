@@ -154,10 +154,26 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
     
     const yesRatio = yesVotes/voteDenominator
     const noRatio = noVotes/voteDenominator
+    
+    const meetsPassingThreshold = (
+      (passingThreshold != 0.5 && yesRatio >= passingThreshold) ||
+      (passingThreshold == 0.5 && yesRatio > 0.5)
+    )
+    
+    const meetsFailingThreshold = (
+      (passingThreshold != 0.5 && noRatio > 1-passingThreshold) ||
+      (passingThreshold == 0.5 &&
+        (
+          (!pollData.allowTies && noRatio >= 0.5) ||
+          (pollData.allowTies && noRatio > 0.5)
+        )
+      )
+    )
       
     if (
       (!isClosed && presentVotes > maximumVoterCount/2) ||
-      (isClosed && presentVotes + notVotingCount > maximumVoterCount/2)
+      (isClosed && presentVotes + notVotingCount > maximumVoterCount/2) ||
+      (isClosed && !meetsPassingThreshold)
     )
     {
       decisionOutcome = "fail"
@@ -166,22 +182,11 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
     {
       decisionOutcome = "tie"
     }
-    else if (
-      (passingThreshold > 0.5 && yesRatio >= passingThreshold) ||
-      (passingThreshold == 0.5 && yesRatio > 0.5)
-    )
+    else if (meetsPassingThreshold)
     {
       decisionOutcome = "pass"
     }
-    else if (
-      (passingThreshold > 0.5 && noRatio > 1-passingThreshold) ||
-      (passingThreshold == 0.5 &&
-        (
-          (!pollData.allowTies && noRatio >= 0.5) ||
-          (pollData.allowTies && noRatio > 0.5)
-        )
-      )
-    )
+    else if (meetsFailingThreshold)
     {
       decisionOutcome = "fail"
     }
