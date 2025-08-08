@@ -356,7 +356,8 @@ export function getCreateServerPollCommand(): BotCommand
 
       let emotes = Emote.fromStringList(emotesString)
 
-      let pollID = pollName + "-" + uid()
+      const alphanumericRegex = /\w/
+      let pollID = (pollName.split('').map(c => alphanumericRegex.test(c) ? c : '_').join('')) + "-" + uid()
 
       let pollConfig = {
         active: true,
@@ -433,7 +434,8 @@ export function getCreateDecisionPollCommand(): BotCommand
         break
       }
   
-      let pollID = pollName + "-" + uid()
+      const alphanumericRegex = /\w/
+      let pollID = (pollName.split('').map(c => alphanumericRegex.test(c) ? c : '_').join('')) + "-" + uid()
   
       let pollConfig = {
         active: true,
