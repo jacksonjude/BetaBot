@@ -394,7 +394,7 @@ export function getCreateDecisionPollCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "decisionpoll", "create a new decision poll (yes/no/present), which auto-closes upon pass or fail",
-    /^decisionpoll\s+([\w\s\-’'".,;?!:@#$%^&*()\[\]\/]+)(?:\s*(?:<#)?(\d+)(?:>)?)?(?:\s*<@!?&?(\d+)>)?(?:\s+(\d+(?:\.\d*)?))?(?:\s+(normal|full|super))?\s*(.+)$/, /^decisionpoll(\s+.*)?$/,
+    /^decisionpoll\s+([\w\s\-’'".,;?!:@#$%^&*()\[\]\/]+)(?:\s*(?:<#)?(\d+)(?:>)?)?(?:\s*<@!?&?(\d+)>)?(?:\s+(\d+(?:\.\d*)?))?(?:\s+(normal|full|super|custom)(\d+))?\s*(.+)$/, /^decisionpoll(\s+.*)?$/,
     "decisionpoll <name> [channel] [role] [duration] [normal|full|super] <message...>",
     async (commandArguments: string[], message: Message, _, firestoreDB: Firestore) => {
       let pollName = commandArguments[1].replace(/^\s*/, "").replace(/\s*$/, "")
@@ -402,12 +402,14 @@ export function getCreateDecisionPollCommand(): BotCommand
       let roleID = commandArguments[3] ?? message.guild.roles.everyone.id
       let duration = commandArguments[4] ? parseFloat(commandArguments[4]) : 24.0
   
-      let voteType = commandArguments[5] as "normal" | "full" | "super" ?? "normal"
+      let voteType = commandArguments[5] as "normal" | "full" | "super" | "custom" ?? "normal"
+      let customPassPercentage = commandArguments[6] ? parseInt(commandArguments[6]) : null
       // normal = 50% + 1 to pass, allow present votes, allow ties
       // full = 50% + 1 to pass, no present votes, no ties
       // super = 3/4ths to pass, no present votes, no ties
+      // custom = custom% to pass, no present votes, no ties
       
-      let pollMessage = commandArguments[6]
+      let pollMessage = commandArguments[7]
       
       let pollEmotes: {"yes": Emote, "no": Emote, "present"?: Emote}
       let passingThreshold: number
@@ -432,6 +434,11 @@ export function getCreateDecisionPollCommand(): BotCommand
         passingThreshold = 3/4
         allowTies = false
         break
+        
+        case "custom":
+        pollEmotes = {"yes": decisionEmotes.pass, "no": decisionEmotes.fail}
+        passingThreshold = (customPassPercentage ?? 50)/100
+        allowTies = false
       }
   
       const alphanumericRegex = /\w/
