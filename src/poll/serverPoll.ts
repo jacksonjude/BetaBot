@@ -394,7 +394,7 @@ export function getCreateDecisionPollCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "decisionpoll", "create a new decision poll (yes/no/present), which auto-closes upon pass or fail",
-    /^decisionpoll\s+([\w\s\-’'".,;?!:@#$%^&*()\[\]\/]+)(?:\s*(?:<#)?(\d+)(?:>)?)?(?:\s*<@!?&?(\d+)>)?(?:\s+(\d+(?:\.\d*)?))?(?:\s+(normal|full|super|custom)(\d+))?\s*(.+)$/, /^decisionpoll(\s+.*)?$/,
+    /^decisionpoll\s+([\w\s\-’'".,;?!:@#$%^&*()\[\]\/]+)(?:\s*(?:<#)?(\d+)(?:>)?)?(?:\s*<@!?&?(\d+)>)?(?:\s+(\d+(?:\.\d*)?))?(?:\s+(normal|full|super|custom)(\d+)?)?\s*(.+)$/, /^decisionpoll(\s+.*)?$/,
     "decisionpoll <name> [channel] [role] [duration] [normal|full|super] <message...>",
     async (commandArguments: string[], message: Message, _, firestoreDB: Firestore) => {
       let pollName = commandArguments[1].replace(/^\s*/, "").replace(/\s*$/, "")
