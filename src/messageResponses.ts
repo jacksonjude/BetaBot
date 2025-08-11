@@ -2,7 +2,8 @@ import { Message, TextChannel } from "discord.js"
 
 const messageResponses = [
   { pattern: "(\\W|\\s+|^)[bruh]{4,}(\\W|\\s+|$)", serverIDBlacklist: ["777244230154059846"], responses: ["bruh"] },
-  { pattern: "i hope u choke", responses: ["kinky"] }
+  { pattern: "i hope u choke", responses: ["kinky"] },
+  { pattern: "(\\W|\\s+|^)lol\\.(\\W|\\s+|$)" }
 ]
 
 export function sendMessageResponses(msg: Message)
@@ -14,7 +15,7 @@ export function sendMessageResponses(msg: Message)
     if (response.serverIDBlacklist && response.serverIDBlacklist.includes(msg.guildId)) { continue } // a necessary sacrifice
 
     let pattern = response.pattern
-    let regex = new RegExp(pattern)
+    let regex = new RegExp(pattern, "i")
     if (regex.test(messageContent))
     {
       let index = Math.floor((Math.random() * response.responses.length));
