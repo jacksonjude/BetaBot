@@ -3,7 +3,7 @@ import { Message, TextChannel } from "discord.js"
 const messageResponses = [
   { pattern: "(\\W|\\s+|^)[bruh]{4,}(\\W|\\s+|$)", serverIDBlacklist: ["777244230154059846"], responses: ["bruh"] },
   { pattern: "i hope u choke", responses: ["kinky"] },
-  { pattern: "(\\W|\\s+|^)lol\\.(\\W|\\s+|$)" }
+  { pattern: "(\\W|\\s+|^)lol\\.(\\W|\\s+|$)", responses: ["lol."] }
 ]
 
 export function sendMessageResponses(msg: Message)
