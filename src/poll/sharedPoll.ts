@@ -137,7 +137,7 @@ export function checkVoteRequirements(pollData: PollConfiguration, serverID: str
   return true
 }
 
-export async function getAnnouncementMessageText(pollData: PollConfiguration, channel: TextChannel, firestoreDB: Firestore): Promise<string>
+export async function getAnnouncementMessageText(pollData: PollConfiguration, channel: TextChannel, firestoreDB: Firestore, shouldClose: boolean = false): Promise<string>
 {
   let closeTime = Math.round(pollData.closeTime.toMillis()/1000)
   let isClosed = Date.now() > pollData.closeTime.toMillis()
@@ -159,7 +159,7 @@ export async function getAnnouncementMessageText(pollData: PollConfiguration, ch
   let currentVoters = pollResultsCollection.docChanges().map(response => response.doc.data()).filter(data => data.responseMap && Object.keys(data.responseMap).length > 0).length
   let turnoutPercentage = Math.round(currentVoters/maximumVoters*100*100)/100
   
-  return `:alarm_clock: Close${isClosed ? 'd' : 's'} <t:${closeTime}:R>` + "\n" + `:ballot_box: Turnout at ${turnoutPercentage}% (${currentVoters}/${maximumVoters})`
+  return `:alarm_clock: Close${(isClosed || shouldClose) ? 'd' : 's'}${shouldClose && pollData.passingThreshold != null ? ' (Withdrawn)' : ''} <t:${(shouldClose ? Math.round(Date.now()/1000) : closeTime)}:R>` + "\n" + `:ballot_box: Turnout at ${turnoutPercentage}% (${currentVoters}/${maximumVoters})`
 }
 
 export function updateMessageOnClose(pollData: PollConfiguration, updatePoll: (pollID: string) => Promise<void>)

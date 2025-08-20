@@ -79,7 +79,7 @@ async function removeServerPollActionMessages(pollID: string, deleteMessages: bo
   }
 }
 
-async function sendServerVoteMessage(client: Client, pollData: PollConfiguration, firestoreDB: Firestore)
+async function sendServerVoteMessage(client: Client, pollData: PollConfiguration, firestoreDB: Firestore, shouldClose: boolean = false)
 {
   var pollChannel = await client.channels.fetch(pollData.channelID) as TextChannel
   if (!pollChannel) { return }
@@ -194,7 +194,7 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
 
   let titleActionMessage = new ActionMessage(pollChannel, pollData.messageIDs["title"], null,
     async () => {
-      return "__**" + pollData.name + "**__" + (decisionOutcome != null ? " (" + decisionEmotes[decisionOutcome] + " " + decisionOutcomeMessages[decisionOutcome] + ")" : "") + "\n" + await getAnnouncementMessageText(pollData, pollChannel, firestoreDB)
+      return "__**" + pollData.name + "**__" + (decisionOutcome != null ? " (" + decisionEmotes[decisionOutcome] + " " + decisionOutcomeMessages[decisionOutcome] + ")" : "") + "\n" + await getAnnouncementMessageText(pollData, pollChannel, firestoreDB, shouldClose)
     }, async (message: Message) => {
       pollData.messageIDs["title"] = message.id
     },
@@ -342,7 +342,7 @@ export function getCreateServerPollCommand(): BotCommand
   // TODO: Find a way of representing default emotes
   return BotCommand.fromRegex(
     "serverpoll", "create a new server poll",
-    /^serverpoll\s+([\w\s\-’'".,;?!:@#$%^&*()\[\]\/]+)(?:\s+(?:<#)?(\d+)(?:>)?)?(?:\s+<@!?&?(\d+)>)?(?:\s+(\d+(?:\.\d*)?))?(?:\s+(true|false))?((?:\s*<?a?:\w+:\d*>?)+)\s*(.+)$/, /^serverpoll(\s+.*)?$/,
+    /^serverpoll\s+([\w\s\-’'".,;?!:@#$%^&*()\[\]\/\+={}\\~`]+)(?:\s+(?:<#)?(\d+)(?:>)?)?(?:\s+<@!?&?(\d+)>)?(?:\s+(\d+(?:\.\d*)?))?(?:\s+(true|false))?((?:\s*<?a?:\w+:\d*>?)+)\s*(.+)$/, /^serverpoll(\s+.*)?$/,
     "serverpoll <name> [channel] [role] [duration] [delete on close] <emotes...> <message...>",
     async (commandArguments: string[], message: Message, _, firestoreDB: Firestore) => {
       let pollName = commandArguments[1].replace(/^\s*/, "").replace(/\s*$/, "")
@@ -394,7 +394,7 @@ export function getCreateDecisionPollCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "decisionpoll", "create a new decision poll (yes/no/present), which auto-closes upon pass or fail",
-    /^decisionpoll\s+([\w\s\-’'".,;?!:@#$%^&*()\[\]\/]+)(?:\s*(?:<#)?(\d+)(?:>)?)?(?:\s*<@!?&?(\d+)>)?(?:\s+(\d+(?:\.\d*)?))?(?:\s+(normal|full|super|custom)(\d+)?)?\s*(.+)$/, /^decisionpoll(\s+.*)?$/,
+    /^decisionpoll\s+([\w\s\-’'".,;?!:@#$%^&*()\[\]\/\+={}\\~`]+)(?:\s*(?:<#)?(\d+)(?:>)?)?(?:\s*<@!?&?(\d+)>)?(?:\s+(\d+(?:\.\d*)?))?(?:\s+(normal|full|super|custom)(\d+)?)?\s*(.+)$/, /^decisionpoll(\s+.*)?$/,
     "decisionpoll <name> [channel] [role] [duration] [normal|full|super] <message...>",
     async (commandArguments: string[], message: Message, _, firestoreDB: Firestore) => {
       let pollName = commandArguments[1].replace(/^\s*/, "").replace(/\s*$/, "")
@@ -527,9 +527,10 @@ export function getDeleteServerPollCommand(): BotCommand<DeleteServerPollCommand
     new BotCommandRequirement(async (commandArguments: DeleteServerPollCommandArguments, _user, _member, message: Message) => {
       return pollsData[commandArguments.pollID].creatorID == message.author.id
     }),
-    async (commandArguments: DeleteServerPollCommandArguments, message, _client, firestoreDB: Firestore) => {
+    async (commandArguments: DeleteServerPollCommandArguments, message: Message, client: Client, firestoreDB: Firestore) => {
       const { pollID, shouldDeleteMessages } = commandArguments
       
+      await sendServerVoteMessage(client, pollsData[pollID], firestoreDB, true)
       await removeServerPollSetting(pollID, shouldDeleteMessages)
       await firestoreDB.collection(pollsCollectionID).doc(pollID).delete()
       
