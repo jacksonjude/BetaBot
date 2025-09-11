@@ -1,8 +1,8 @@
-import { Client, Message, Collection, DMChannel, TextChannel, GuildChannel, CategoryChannel, PermissionResolvable, PermissionFlagsBits, ChannelType, GuildMember } from "discord.js"
+import { Client, Message, Collection, DMChannel, TextChannel, GuildChannel, CategoryChannel, PermissionResolvable, PermissionFlagsBits, ChannelType, GuildMember, Role } from "discord.js"
 import { BotCommand, BotCommandError, BotCommandRequirement, BotCommandIntersectionRequirement, BotCommandPermissionRequirement } from "./botCommand"
 import { HandleCommandExecution, Emote } from "./util"
 
-import { roleGroups } from "./roleGroup"
+import { roleGroups, getRolesFromString } from "./roleGroup"
 import { badWords } from "./badWords"
 
 const messageCommands = [
@@ -786,5 +786,57 @@ export function getTimeoutCommand(): BotCommand<TimeoutCommandArguments>
         auditChannel.send(`<@${message.author.id}> timed out for ${minutes}m by <@${message.author.id}>: ${reason}`)
       }
     },
+  )
+}
+
+export function getIntersectRoleCommand(): BotCommand<string[]>
+{
+  return BotCommand.fromRegexWithValidation(
+    "intersectrole", "get all users that have two or more of the provided roles",
+    /^intersectrole\s*(.*)$/, null,
+    "intersectrole <roles...>",
+    async (commandArguments: string[]) => {
+      const rolesString = commandArguments[1]
+      const roleIDs = getRolesFromString(rolesString)
+      
+      if (roleIDs.length <= 0)
+      {
+        return new BotCommandError(`invalid roles provided ${rolesString}`, true)
+      }
+      
+      return roleIDs
+    },
+    new BotCommandPermissionRequirement([PermissionFlagsBits.ManageRoles]),
+    async (roleIDs: string[], message: Message) => {
+      const serverMembers = await message.guild.members.fetch()
+      const memberIDsWithMultipleRoles: string[] = []
+      
+      const roleObjects: Role[] = []
+      for (const roleID of roleIDs)
+      {
+        roleObjects.push(await message.guild.roles.fetch(roleID))
+      }
+      const roleMemberSets = roleObjects.map(role => new Set(role.members.keys()))
+      
+      for (const [memberID] of serverMembers)
+      {
+        let hasRoleCount = 0
+        for (const roleMembers of roleMemberSets)
+        {
+          hasRoleCount += roleMembers.has(memberID) ? 1 : 0
+          if (hasRoleCount >= 2)
+          {
+            memberIDsWithMultipleRoles.push(memberID)
+            break
+          }
+        }
+      }
+      
+      const formattedRoleIDs = roleIDs.map(id => `<@&${id}>`).join(',')
+      const formattedMemberIDs = memberIDsWithMultipleRoles.map(id => `* <@${id}>`).join('\n')
+      const responseChannel = message.channel as TextChannel
+      
+      responseChannel.send(`Members with 2 or more of ${formattedRoleIDs}:\n${formattedMemberIDs}`)
+    }
   )
 }
