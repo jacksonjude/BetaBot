@@ -14,6 +14,7 @@ export class RoleMessageConfiguration
   channelID: string
   messageID: string | null
   roleMap: RoleArray
+  isDistinct?: boolean
   blacklistUserIDs: string[]
 }
 
@@ -98,6 +99,20 @@ async function handleRoleReaction(client: Client, reaction: MessageReaction, use
   }
 
   await setRole(user, reaction.message.guild, emoteRolePair.roleID, action == "added" ? true : false)
+  
+  if (action == "added" && roleMessageConfig.isDistinct)
+  {
+    const guildMember = await reaction.message.guild.members.fetch(user)
+    
+    for (const {roleID} of roleTuples)
+    {
+      if (roleID == emoteRolePair.roleID) continue
+      const role = await reaction.message.guild.roles.fetch(roleID)
+      if (!role.members.has(guildMember.id)) continue
+      
+      await guildMember.roles.remove(roleID)
+    }
+  }
 
   return true
 }
