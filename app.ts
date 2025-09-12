@@ -38,7 +38,8 @@ import {
   getPingCommand,
   getClearRoleCommand,
   getTimeoutCommand,
-  getIntersectRoleCommand
+  getIntersectRoleCommand,
+  getMassAssignCommand
 } from "./src/miscCommands"
 
 import { setupVoiceChannelEventHandler } from "./src/linkedTextChannels"
@@ -207,10 +208,11 @@ function initCommands()
     getCreatePollCommand().withRequirement(botAdminPermissionRequirement),
     getCreateRoleGroupCommand().withRequirement(botAdminPermissionRequirement),
     getIntersectRoleCommand().withAdditionalRequirement(botAdminPermissionRequirement),
+    getClearRoleCommand().withRequirement(botAdminPermissionRequirement),
+    getMassAssignCommand().withRequirement(botAdminPermissionRequirement),
     getMessageCountsLeaderboardCommand(),
     getMessageCountsUpdateCommand().withRequirement(ownerUserRequirement),
     getCleanReactionsCommand().withRequirement(ownerUserRequirement),
-    getClearRoleCommand().withRequirement(ownerUserRequirement),
     getReactCommand().withRequirement(ownerUserRequirement),
     getRepeatCommand().withRequirement(developmentRequirement),
     getSpeakCommand().withRequirement(developmentRequirement),
