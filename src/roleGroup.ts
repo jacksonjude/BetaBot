@@ -407,7 +407,10 @@ export function getMassAssignCommand(): BotCommand<MassAssignCommandArguments>
       if (membersToAssignRole.length > 0)
       {
         const formattedMemberIDs = membersToAssignRole.map(m => `* <@${m.id}>`).join('\n')
-        logChannel.send(`**Assigning <@&${roleToAssign.id}> to:**\n${formattedMemberIDs}${skippedMemberCount > 0 ? `\n*(skipped ${skippedMemberCount} due to limit)*` : ''}`)
+        logChannel.send({
+          content: `**Assigning <@&${roleToAssign.id}> to:**\n${formattedMemberIDs}${skippedMemberCount > 0 ? `\n*(skipped ${skippedMemberCount} due to limit)*` : ''}`,
+          allowedMentions: { roles: [] }
+        })
       }
       else
       {
