@@ -36,10 +36,7 @@ import {
   getRerunCommand,
   getReactCommand,
   getPingCommand,
-  getClearRoleCommand,
-  getTimeoutCommand,
-  getIntersectRoleCommand,
-  getMassAssignCommand
+  getTimeoutCommand
 } from "./src/miscCommands"
 
 import { setupVoiceChannelEventHandler } from "./src/linkedTextChannels"
@@ -52,7 +49,7 @@ import { getCreatePollCommand, getEditPollCommand, setupPollEditTextInputEventHa
 
 import { getScheduleCommand } from "./src/scheduledCommands"
 
-import { getCreateRoleGroupCommand } from "./src/roleGroup"
+import { getCreateRoleGroupCommand, getClearRoleCommand, getIntersectRoleCommand, getMassAssignCommand } from "./src/roleGroup"
 
 import { setupRoleCounterEventHandlers } from "./src/roleCounter"
 
