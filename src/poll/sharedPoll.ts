@@ -55,6 +55,8 @@ export class PollConfiguration
   
   passingThreshold?: number
   allowTies?: boolean
+  
+  shouldShowCurrentTotals?: boolean
 }
 
 export class PollQuestion

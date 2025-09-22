@@ -97,36 +97,7 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
   
   let pollResultsData: { [k: string]: { [k: string]: number } } = null
   let maximumVoterCount = pollData.maximumVoterCount
-  
-  let pollResultsCollection = await firestoreDB.collection(pollsCollectionID + "/" + pollData.id + "/" + pollResponsesCollectionID).get()
-  pollResultsData = pollResultsCollection.docChanges().map(response => response.doc.data().responseMap).filter(r => r != null).reduce((totals, response) => {
-    for (let questionID in response)
-    {
-      let optionID: string = response[questionID]
-      
-      if (!totals[questionID]) totals[questionID] = {}
-      if (!totals[questionID][optionID]) totals[questionID][optionID] = 0
-      totals[questionID][optionID] += 1
-    }
-    return totals
-  }, {})
-  
-  for (let questionData of pollData.questions)
-  {
-    if (!pollResultsData[questionData.id])
-    {
-      pollResultsData[questionData.id] = {}
-    }
-  }
-  
-  if (maximumVoterCount != null)
-  {
-    for (let questionID in pollResultsData)
-    {
-      let didNotVoteCount = maximumVoterCount - Object.keys(pollResultsData[questionID]).reduce((total, optionID) => total + pollResultsData[questionID][optionID], 0)
-      pollResultsData[questionID][notVotingID] = didNotVoteCount
-    }
-  }
+  let decisionOutcome: "pass" | "fail" | "tie" = null
   
   const calculateVoteDenominator = (decisionQuestion: PollQuestion) => {
     const presentOptionID = decisionQuestion.options.find(o => o.decisionType == "present")?.id
@@ -134,61 +105,92 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
     return voteDenominator
   }
   
-  let decisionOutcome: "pass" | "fail" | "tie" = null
-  
-  if (pollData.passingThreshold != null && pollData.questions.length == 1)
+  if (pollData.shouldShowCurrentTotals ?? true)
   {
-    const decisionQuestion = pollData.questions[0]
+    let pollResultsCollection = await firestoreDB.collection(pollsCollectionID + "/" + pollData.id + "/" + pollResponsesCollectionID).get()
+    pollResultsData = pollResultsCollection.docChanges().map(response => response.doc.data().responseMap).filter(r => r != null).reduce((totals, response) => {
+      for (let questionID in response)
+      {
+        let optionID: string = response[questionID]
+        
+        if (!totals[questionID]) totals[questionID] = {}
+        if (!totals[questionID][optionID]) totals[questionID][optionID] = 0
+        totals[questionID][optionID] += 1
+      }
+      return totals
+    }, {})
     
-    const voteDenominator = calculateVoteDenominator(decisionQuestion)
-    const passingThreshold = pollData.passingThreshold
+    for (let questionData of pollData.questions)
+    {
+      if (!pollResultsData[questionData.id])
+      {
+        pollResultsData[questionData.id] = {}
+      }
+    }
     
-    const yesOptionID = decisionQuestion.options.find(o => o.decisionType == "yes")?.id
-    const noOptionID = decisionQuestion.options.find(o => o.decisionType == "no")?.id
-    const presentOptionID = decisionQuestion.options.find(o => o.decisionType == "present")?.id
+    if (maximumVoterCount != null)
+    {
+      for (let questionID in pollResultsData)
+      {
+        let didNotVoteCount = maximumVoterCount - Object.keys(pollResultsData[questionID]).reduce((total, optionID) => total + pollResultsData[questionID][optionID], 0)
+        pollResultsData[questionID][notVotingID] = didNotVoteCount
+      }
+    }
     
-    const yesVotes = yesOptionID ? pollResultsData[decisionQuestion.id][yesOptionID] ?? 0 : 0
-    const noVotes = noOptionID ? pollResultsData[decisionQuestion.id][noOptionID] ?? 0 : 0
-    const presentVotes = presentOptionID ? pollResultsData[decisionQuestion.id][presentOptionID] ?? 0 : 0
-    const notVotingCount = pollResultsData[decisionQuestion.id][notVotingID] ?? 0
-    
-    const yesRatio = yesVotes/voteDenominator
-    const noRatio = noVotes/voteDenominator
-    
-    const meetsPassingThreshold = (
-      (passingThreshold != 0.5 && yesRatio >= passingThreshold) ||
-      (passingThreshold == 0.5 && yesRatio > 0.5)
-    )
-    
-    const meetsFailingThreshold = (
-      (passingThreshold != 0.5 && noRatio > 1-passingThreshold) ||
-      (passingThreshold == 0.5 &&
-        (
-          (!pollData.allowTies && noRatio >= 0.5) ||
-          (pollData.allowTies && noRatio > 0.5)
+    if (pollData.passingThreshold != null && pollData.questions.length == 1)
+    {
+      const decisionQuestion = pollData.questions[0]
+      
+      const voteDenominator = calculateVoteDenominator(decisionQuestion)
+      const passingThreshold = pollData.passingThreshold
+      
+      const yesOptionID = decisionQuestion.options.find(o => o.decisionType == "yes")?.id
+      const noOptionID = decisionQuestion.options.find(o => o.decisionType == "no")?.id
+      const presentOptionID = decisionQuestion.options.find(o => o.decisionType == "present")?.id
+      
+      const yesVotes = yesOptionID ? pollResultsData[decisionQuestion.id][yesOptionID] ?? 0 : 0
+      const noVotes = noOptionID ? pollResultsData[decisionQuestion.id][noOptionID] ?? 0 : 0
+      const presentVotes = presentOptionID ? pollResultsData[decisionQuestion.id][presentOptionID] ?? 0 : 0
+      const notVotingCount = pollResultsData[decisionQuestion.id][notVotingID] ?? 0
+      
+      const yesRatio = yesVotes/voteDenominator
+      const noRatio = noVotes/voteDenominator
+      
+      const meetsPassingThreshold = (
+        (passingThreshold != 0.5 && yesRatio >= passingThreshold) ||
+        (passingThreshold == 0.5 && yesRatio > 0.5)
+      )
+      
+      const meetsFailingThreshold = (
+        (passingThreshold != 0.5 && noRatio > 1-passingThreshold) ||
+        (passingThreshold == 0.5 &&
+          (
+            (!pollData.allowTies && noRatio >= 0.5) ||
+            (pollData.allowTies && noRatio > 0.5)
+          )
         )
       )
-    )
-      
-    if (
-      (!isClosed && presentVotes > maximumVoterCount/2) ||
-      (isClosed && presentVotes + notVotingCount > maximumVoterCount/2) ||
-      (isClosed && !meetsPassingThreshold)
-    )
-    {
-      decisionOutcome = "fail"
-    }
-    else if (pollData.allowTies && yesVotes == noVotes && yesVotes + noVotes == voteDenominator)
-    {
-      decisionOutcome = "tie"
-    }
-    else if (meetsPassingThreshold)
-    {
-      decisionOutcome = "pass"
-    }
-    else if (meetsFailingThreshold)
-    {
-      decisionOutcome = "fail"
+        
+      if (
+        (!isClosed && presentVotes > maximumVoterCount/2) ||
+        (isClosed && presentVotes + notVotingCount > maximumVoterCount/2) ||
+        (isClosed && !meetsPassingThreshold)
+      )
+      {
+        decisionOutcome = "fail"
+      }
+      else if (pollData.allowTies && yesVotes == noVotes && yesVotes + noVotes == voteDenominator)
+      {
+        decisionOutcome = "tie"
+      }
+      else if (meetsPassingThreshold)
+      {
+        decisionOutcome = "pass"
+      }
+      else if (meetsFailingThreshold)
+      {
+        decisionOutcome = "fail"
+      }
     }
   }
 
@@ -211,7 +213,7 @@ async function sendServerVoteMessage(client: Client, pollData: PollConfiguration
       questionData,
       async (questionData: PollQuestion) => {
         let questionString = "**" + questionData.prompt + "**"
-        if (pollResultsData[questionData.id] != null)
+        if (pollResultsData && pollResultsData[questionData.id] != null)
         {
           const voteDenominator = calculateVoteDenominator(questionData)
           
@@ -342,17 +344,18 @@ export function getCreateServerPollCommand(): BotCommand
   // TODO: Find a way of representing default emotes
   return BotCommand.fromRegex(
     "serverpoll", "create a new server poll",
-    /^serverpoll\s+([\w\s\-’'".,;?!:@#$%^&*()\[\]\/\+={}\\~`]+)(?:\s+(?:<#)?(\d+)(?:>)?)?(?:\s+<@!?&?(\d+)>)?(?:\s+(\d+(?:\.\d*)?))?(?:\s+(true|false))?((?:\s*<?a?:\w+:\d*>?)+)\s*(.+)$/is, /^serverpoll(\s+.*)?$/is,
-    "serverpoll <name> [channel] [role] [duration] [delete on close] <emotes...> <message...>",
+    /^serverpoll\s+([\w\s\-’'".,;?!:@#$%^&*()\[\]\/\+={}\\~`]+)(?:\s+(?:<#)?(\d+)(?:>)?)?(?:\s+<@!?&?(\d+)>)?(?:\s+(\d+(?:\.\d*)?))?(?:\s+(true|false))?(?:\s+(true|false))?((?:\s*<?a?:\w+:\d*>?)+)\s*(.+)$/is, /^serverpoll(\s+.*)?$/is,
+    "serverpoll <name> [channel] [role] [duration] [delete on close] [show totals] <emotes...> <message...>",
     async (commandArguments: string[], message: Message, _, firestoreDB: Firestore) => {
       let pollName = commandArguments[1].replace(/^\s*/, "").replace(/\s*$/, "")
       let channelID = commandArguments[2] ?? message.channelId
       let roleID = commandArguments[3] ?? message.guild.roles.everyone.id
       let duration = commandArguments[4] ? parseFloat(commandArguments[4]) : 24.0
       let shouldDeleteOnClose = commandArguments[5] === "true" ? true : false
+      let shouldShowCurrentTotals = commandArguments[6] === "false" ? false : true
 
-      let emotesString = commandArguments[6]
-      let pollMessage = commandArguments[7]
+      let emotesString = commandArguments[7]
+      let pollMessage = commandArguments[8]
 
       let emotes = Emote.fromStringList(emotesString)
 
@@ -382,7 +385,8 @@ export function getCreateServerPollCommand(): BotCommand
         channelID: channelID,
         roleIDs: [roleID],
         creatorID: message.author.id,
-        shouldDeleteOnClose: shouldDeleteOnClose
+        shouldDeleteOnClose: shouldDeleteOnClose,
+        shouldShowCurrentTotals: shouldShowCurrentTotals
       } as PollConfiguration
 
       firestoreDB.doc(pollsCollectionID + "/" + pollID).set(pollConfig)
