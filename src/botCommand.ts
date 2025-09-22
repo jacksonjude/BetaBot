@@ -40,8 +40,8 @@ export class BotCommand<T = string[]>
   
   private static getRegexFunction(fullRegex: RegExp, partialRegex: RegExp | null): ParseCommandStringFunction
   {
-    fullRegex = new RegExp(fullRegex, "i")
-    partialRegex = partialRegex ? new RegExp(partialRegex, "i") : null
+    fullRegex = new RegExp(fullRegex, fullRegex.flags || "i")
+    partialRegex = partialRegex ? new RegExp(partialRegex, partialRegex.flags || "i") : null
     
     return (messageString: string, channel?: TextChannel, usageMessage?: string) => {
       let partialRegexTest = partialRegex && partialRegex.test(messageString)

@@ -342,7 +342,7 @@ export function getCreateServerPollCommand(): BotCommand
   // TODO: Find a way of representing default emotes
   return BotCommand.fromRegex(
     "serverpoll", "create a new server poll",
-    /^serverpoll\s+([\w\s\-’'".,;?!:@#$%^&*()\[\]\/\+={}\\~`]+)(?:\s+(?:<#)?(\d+)(?:>)?)?(?:\s+<@!?&?(\d+)>)?(?:\s+(\d+(?:\.\d*)?))?(?:\s+(true|false))?((?:\s*<?a?:\w+:\d*>?)+)\s*(.+)$/, /^serverpoll(\s+.*)?$/,
+    /^serverpoll\s+([\w\s\-’'".,;?!:@#$%^&*()\[\]\/\+={}\\~`]+)(?:\s+(?:<#)?(\d+)(?:>)?)?(?:\s+<@!?&?(\d+)>)?(?:\s+(\d+(?:\.\d*)?))?(?:\s+(true|false))?((?:\s*<?a?:\w+:\d*>?)+)\s*(.+)$/is, /^serverpoll(\s+.*)?$/is,
     "serverpoll <name> [channel] [role] [duration] [delete on close] <emotes...> <message...>",
     async (commandArguments: string[], message: Message, _, firestoreDB: Firestore) => {
       let pollName = commandArguments[1].replace(/^\s*/, "").replace(/\s*$/, "")
