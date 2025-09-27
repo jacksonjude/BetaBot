@@ -49,7 +49,13 @@ import { getCreatePollCommand, getEditPollCommand, setupPollEditTextInputEventHa
 
 import { getScheduleCommand } from "./src/scheduledCommands"
 
-import { getCreateRoleGroupCommand, getClearRoleCommand, getIntersectRoleCommand, getMassAssignCommand } from "./src/roleGroup"
+import { 
+  getCreateRoleGroupCommand, 
+  getClearRoleCommand, 
+  getIntersectRoleCommand, 
+  getMassAssignCommand,
+  getMemberListCommand
+} from "./src/roleGroup"
 
 import { setupRoleCounterEventHandlers } from "./src/roleCounter"
 
@@ -205,6 +211,7 @@ function initCommands()
     getCreatePollCommand().withRequirement(botAdminPermissionRequirement),
     getCreateRoleGroupCommand().withRequirement(botAdminPermissionRequirement),
     getIntersectRoleCommand().withAdditionalRequirement(botAdminPermissionRequirement),
+    getMemberListCommand().withAdditionalRequirement(botAdminPermissionRequirement),
     getClearRoleCommand().withRequirement(botAdminPermissionRequirement),
     getMassAssignCommand().withRequirement(botAdminPermissionRequirement),
     getMessageCountsLeaderboardCommand(),

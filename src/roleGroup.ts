@@ -1,5 +1,6 @@
-import { Role, Client, Guild, Message, GuildMember, UserResolvable, TextChannel, PermissionFlagsBits } from "discord.js"
+import { Role, Client, Guild, Message, GuildMember, UserResolvable, TextChannel, PermissionFlagsBits, AttachmentBuilder } from "discord.js"
 import { Firestore } from "firebase-admin/firestore"
+import { Parser } from "json2csv"
 
 import { BotCommand, BotCommandError, BotCommandRequirement, BotCommandIntersectionRequirement, BotCommandPermissionRequirement } from "./botCommand"
 
@@ -94,6 +95,20 @@ export class RoleGroup
     catch (error)
     {
       console.log("[RoleGroup] Error fetching user role:", error)
+      return null
+    }
+  }
+  
+  async getMemberRole(member: GuildMember, client?: Client): Promise<Role | null>
+  {
+    try
+    {
+      const roleObjects = await this.getRoles(client, member.guild)
+      return roleObjects.find(role => role.members.has(member.id))
+    }
+    catch (error)
+    {
+      console.log("[RoleGroup] Error fetching member role:", error)
       return null
     }
   }
@@ -416,6 +431,75 @@ export function getMassAssignCommand(): BotCommand<MassAssignCommandArguments>
       {
         // logChannel.send(`No eligible members to assign <@&${roleIDToAssign}>`)
       }
+    }
+  )
+}
+
+export function getMemberListCommand()
+{
+  return BotCommand.fromRegexWithValidation(
+    "memberlist", "get a table of all users that are in each of the specified role groups",
+    /^memberlist\s*(.*)$/, null,
+    "memberlist <roles...>",
+    async (commandArguments: string[]) => {
+      const rolesString = commandArguments[1]
+      const roleGroupIDs = rolesString.trim().split(/\s+/).filter(r => roleGroups[r])
+      
+      if (roleGroupIDs.length <= 0)
+      {
+        return new BotCommandError(`invalid roles provided ${rolesString}`, true)
+      }
+      
+      return roleGroupIDs
+    },
+    new BotCommandPermissionRequirement([PermissionFlagsBits.ManageRoles]),
+    async (roleGroupIDs: string[], message: Message, client: Client) => {
+      const serverMembers = await message.guild.members.fetch()
+      const memberRoleData = []
+      
+      for (const [_, member] of serverMembers)
+      {
+        const userRow = {
+          id: member.user.id,
+          username: member.user.username
+        }
+        let hasAllRoleGroups = true
+        
+        for (const roleGroupID of roleGroupIDs)
+        {
+          const role = await roleGroups[roleGroupID].getMemberRole(member, client)
+          
+          if (!role)
+          {
+            hasAllRoleGroups = false
+            break
+          }
+          
+          userRow[roleGroupID] = role.name
+        }
+        
+        if (hasAllRoleGroups)
+        {
+          memberRoleData.push(userRow)
+        }
+      }
+      
+      const pollResultsCSVParser = new Parser({fields: [
+        "id",
+        "username",
+        ...roleGroupIDs
+      ]})
+      const pollResultsCSV = pollResultsCSVParser.parse(memberRoleData)
+      const pollResultsFilename = `${roleGroupIDs.join('-')}.csv`
+      const csvMessageAttachment = new AttachmentBuilder(Buffer.from(pollResultsCSV, 'utf-8'), { name: pollResultsFilename })
+      
+      const responseChannel = message.channel as TextChannel
+      
+      responseChannel.send({
+        content: `Members with ${roleGroupIDs.join(', ')}`,
+        allowedMentions: { roles: [] },
+        files: [csvMessageAttachment]
+      })
     }
   )
 }
