@@ -1,6 +1,8 @@
-import { Role, Client, Guild, Message, GuildMember, UserResolvable, TextChannel, PermissionFlagsBits, AttachmentBuilder } from "discord.js"
+import { Role, RoleResolvable, Client, Guild, Message, GuildMember, UserResolvable, TextChannel, PermissionFlagsBits, AttachmentBuilder } from "discord.js"
 import { Firestore } from "firebase-admin/firestore"
 import { Parser } from "json2csv"
+import fetch from "node-fetch"
+import Papa from "papaparse"
 
 import { BotCommand, BotCommandError, BotCommandRequirement, BotCommandIntersectionRequirement, BotCommandPermissionRequirement } from "./botCommand"
 
@@ -500,6 +502,170 @@ export function getMemberListCommand()
         allowedMentions: { roles: [] },
         files: [csvMessageAttachment]
       })
+    }
+  )
+}
+
+enum RoleAssignmentAction
+{
+  add = "add",
+  remove = "remove",
+  test = "test"
+}
+
+interface MemberRoleAssignment
+{
+  userID: UserResolvable
+  rolesToAssign: string[]
+  success?: boolean
+}
+
+interface CSVAssignCommandArguments
+{
+  assignments: MemberRoleAssignment[]
+  action: RoleAssignmentAction
+  highestRolePosition: number
+}
+
+export function getCSVAssignCommand()
+{
+  return BotCommand.fromRegexWithValidation<CSVAssignCommandArguments>(
+    "csvassign", "add or remove roles from a .csv list of 'userid' and 'roleid' columns",
+    /^csvassign\s+(add|remove|test)$/, /^csvassign(\s+.*)?$/,
+    "csvassign <add|remove> {.csv with 'userid' and 'roleid' columns}",
+    async (commandArguments: string[], message: Message) => {
+      const action = commandArguments[1] as RoleAssignmentAction
+      
+      const attachment = message.attachments.first()
+      if (!attachment)
+      {
+        return new BotCommandError(`no .csv attachment provided`, true)
+      }
+      if (!/^text\/csv;?.*/.test(attachment.contentType))
+      {
+        return new BotCommandError(`invalid file type provided (${attachment.contentType})`, true)
+      }
+      if (attachment.size > 100*1000)
+      {
+        return new BotCommandError(`provided file is too large (>100KB)`, false)
+      }
+      
+      const response = await fetch(attachment.url)
+      const csvString = await response.text()
+      
+      const parsedList = Papa.parse(csvString, {
+        skipEmptyLines: true
+      })?.data as string[][]
+      if (!parsedList || parsedList.length <= 0)
+      {
+        return new BotCommandError(`.csv parse error`, true)
+      }
+      
+      const listHeader = parsedList.shift()
+      
+      const userIDColumnIndex = listHeader.indexOf('userid')
+      if (userIDColumnIndex < 0)
+      {
+        return new BotCommandError(`no userid column found`, true)
+      }
+      
+      const roleIDColumns = listHeader.reduce((columnIndices, column, i) => {
+        if (column == 'roleid') columnIndices.push(i)
+        return columnIndices
+      }, [] as number[])
+      
+      if (roleIDColumns.length <= 0)
+      {
+        return new BotCommandError(`no roleid columns found`, true)
+      }
+      
+      const roleIDs = [...parsedList.reduce((roleIDs, row) => {
+        row.forEach((v, i) => {
+          v = v.trim()
+          if (v.length == 0) return
+          if (roleIDColumns.includes(i)) roleIDs.add(v)
+        })
+        return roleIDs
+      }, new Set<string>())]
+      
+      let highestRolePosition = -1
+      for (const roleID of roleIDs)
+      {
+        const role = await message.guild.roles.fetch(roleID)
+        if (!role)
+        {
+          return new BotCommandError(`invalid role id (${roleID})`, false)
+        }
+        highestRolePosition = Math.max(highestRolePosition, role.position)
+      }
+      
+      const assignments = parsedList.reduce((assignments, row) => {
+        const rolesToAssign: string[] = []
+        let userID: UserResolvable
+        row.forEach((v, i) => {
+          v = v.trim()
+          if (v.length == 0) return
+          if (roleIDColumns.includes(i)) rolesToAssign.push(v)
+          if (i == userIDColumnIndex) userID = v
+        })
+        
+        assignments.push({userID, rolesToAssign})
+        return assignments
+      }, [] as MemberRoleAssignment[])
+      
+      return {
+        assignments,
+        action,
+        highestRolePosition
+      }
+    },
+    new BotCommandIntersectionRequirement(
+      [
+        new BotCommandPermissionRequirement([PermissionFlagsBits.ManageRoles]),
+        new BotCommandRequirement(async (csvAssignArguments: CSVAssignCommandArguments, _user, member: GuildMember) => {
+          return member.roles.highest.position > csvAssignArguments.highestRolePosition
+        })
+      ]
+    ),
+    async (csvAssignArguments: CSVAssignCommandArguments, message: Message) => {
+      const textChannel = message.channel as TextChannel
+      
+      for (const assignment of csvAssignArguments.assignments)
+      {
+        try
+        {
+          const member = await message.guild.members.fetch(assignment.userID)
+          if (csvAssignArguments.action == RoleAssignmentAction.add)
+          {
+            await member.roles.add(assignment.rolesToAssign)
+          }
+          else if (csvAssignArguments.action == RoleAssignmentAction.remove)
+          {
+            await member.roles.remove(assignment.rolesToAssign)
+          }
+          assignment.success = true
+        }
+        catch
+        {
+          textChannel.send(`Warn: could not update roles for user <@${assignment.userID}> (attempted to ${csvAssignArguments.action} ${assignment.rolesToAssign.map(id => `<@&${id}>`).join(', ')})`)
+        }
+      }
+      
+      const successfulAssignments = csvAssignArguments.assignments.filter(a => a.success)
+      const assignmentLogHeader = `Successfully ${csvAssignArguments.action}ed roles for ${successfulAssignments.length}/${csvAssignArguments.assignments.length} users`
+      textChannel.send(assignmentLogHeader)
+      
+      let currentLogMessage = ""
+      for (const assignment of successfulAssignments)
+      {
+        currentLogMessage += `* <@${assignment.userID}> ${csvAssignArguments.action == RoleAssignmentAction.add ? '+' : csvAssignArguments.action == RoleAssignmentAction.remove ? '-' : '~'}= ${assignment.rolesToAssign.map(id => `<@&${id}>`).join(', ')}\n`
+        
+        if (currentLogMessage.length > 1500)
+        {
+          textChannel.send(currentLogMessage)
+          currentLogMessage = ""
+        }
+      }
     }
   )
 }

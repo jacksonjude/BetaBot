@@ -54,7 +54,8 @@ import {
   getClearRoleCommand, 
   getIntersectRoleCommand, 
   getMassAssignCommand,
-  getMemberListCommand
+  getMemberListCommand,
+  getCSVAssignCommand
 } from "./src/roleGroup"
 
 import { setupRoleCounterEventHandlers } from "./src/roleCounter"
@@ -212,8 +213,9 @@ function initCommands()
     getCreateRoleGroupCommand().withRequirement(botAdminPermissionRequirement),
     getIntersectRoleCommand().withAdditionalRequirement(botAdminPermissionRequirement),
     getMemberListCommand().withAdditionalRequirement(botAdminPermissionRequirement),
-    getClearRoleCommand().withRequirement(botAdminPermissionRequirement),
-    getMassAssignCommand().withRequirement(botAdminPermissionRequirement),
+    getClearRoleCommand().withAdditionalRequirement(botAdminPermissionRequirement),
+    getMassAssignCommand().withAdditionalRequirement(botAdminPermissionRequirement),
+    getCSVAssignCommand().withAdditionalRequirement(botAdminPermissionRequirement),
     getMessageCountsLeaderboardCommand(),
     getMessageCountsUpdateCommand().withRequirement(ownerUserRequirement),
     getCleanReactionsCommand().withRequirement(ownerUserRequirement),
