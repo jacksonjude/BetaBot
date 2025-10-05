@@ -32,7 +32,8 @@ export class ActionMessage<T>
 
   async initActionMessage(): Promise<void>
   {
-    this.liveMessage = await this.sendMessage()
+    const {message, didCreate} = await this.sendMessage()
+    this.liveMessage = message
 
     if (this.messageID != null)
     {
@@ -53,9 +54,14 @@ export class ActionMessage<T>
         this.handleMessageReaction(reaction, user, "removed", this.messageSettings)
       })
     }
+    
+    if (didCreate)
+    {
+      await this.handleMessageCreation(this.liveMessage, this.messageSettings)
+    }
   }
 
-  async sendMessage(): Promise<Message>
+  async sendMessage(): Promise<{message: Message, didCreate: boolean}>
   {
     let shouldCreateMessage = this.messageID == null
     let messageContent = await this.getMessageContent(this.messageSettings, this.channel, shouldCreateMessage)
@@ -82,11 +88,9 @@ export class ActionMessage<T>
     {
       message = await this.channel.send(messageContent)
       this.messageID = message.id
-
-      await this.handleMessageCreation(message, this.messageSettings)
     }
 
-    return message
+    return {message, didCreate: shouldCreateMessage}
   }
 
   async removeActionMessage(deleteMessage = true): Promise<void>
