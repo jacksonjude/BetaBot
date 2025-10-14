@@ -1,8 +1,8 @@
-import { Client, Message, Collection, DMChannel, TextChannel, GuildChannel, CategoryChannel, PermissionResolvable, PermissionFlagsBits, ChannelType, GuildMember, Role } from "discord.js"
+import { Client, Message, Collection, DMChannel, TextChannel, GuildChannel, CategoryChannel, PermissionResolvable, PermissionFlagsBits, ChannelType, GuildMember } from "discord.js"
 import { BotCommand, BotCommandError, BotCommandRequirement, BotCommandIntersectionRequirement, BotCommandPermissionRequirement } from "./botCommand"
 import { HandleCommandExecution, Emote } from "./util"
 
-import { roleGroups, getRolesFromString } from "./roleGroup"
+import { roleGroups } from "./roleGroup"
 import { badWords } from "./badWords"
 
 const messageCommands = [

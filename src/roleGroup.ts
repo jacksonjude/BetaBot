@@ -1,4 +1,4 @@
-import { Role, RoleResolvable, Client, Guild, Message, GuildMember, UserResolvable, TextChannel, PermissionFlagsBits, AttachmentBuilder } from "discord.js"
+import { Role, Client, Guild, Message, GuildMember, UserResolvable, TextChannel, PermissionFlagsBits, AttachmentBuilder } from "discord.js"
 import { Firestore } from "firebase-admin/firestore"
 import { Parser } from "json2csv"
 import fetch from "node-fetch"

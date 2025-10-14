@@ -1,4 +1,4 @@
-import { Client, TextChannel, Message, PermissionFlagsBits } from "discord.js"
+import { Client, TextChannel, Message } from "discord.js"
 import { Timestamp } from "firebase-admin/firestore"
 
 let formChannels: { [k: string]: FormChannel } = {}
