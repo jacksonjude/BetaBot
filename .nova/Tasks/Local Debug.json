@@ -1,0 +1,30 @@
+{
+  "actions" : {
+    "build" : {
+      "postActions" : [
+        {
+          "script" : "tsc && copyfiles -u 1 \"src\/**\/*.{js,json}\" dist\/src && tsc-alias",
+          "type" : "runScript"
+        }
+      ]
+    }
+  },
+  "buildBeforeRunning" : true,
+  "extension" : {
+    "identifier" : "panic.JavaScript",
+    "name" : "JavaScript"
+  },
+  "extensionTemplate" : "nodeDebug",
+  "extensionValues" : {
+    "launchArgs" : [
+
+    ],
+    "request" : "launch",
+    "runtimeArgs" : [
+      "--env-file=.env"
+    ],
+    "runtimeExecutable" : "node",
+    "scriptPath" : "dist\/app.js"
+  },
+  "openLogOnRun" : "fail"
+}

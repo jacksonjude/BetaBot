@@ -1,0 +1,10 @@
+{
+  "actions" : {
+    "run" : {
+      "enabled" : true,
+      "script" : "printf '\\n' | heroku logs -a jjbetabot --tail"
+    }
+  },
+  "openLogOnRun" : "start",
+  "persistent" : true
+}

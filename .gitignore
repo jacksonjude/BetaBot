@@ -1,9 +1,8 @@
-.DS_Store
 node_modules/
+dist/
 .env*
-betabot.log
-local.sh
-icon/
-test/
 
-.nova/
+.DS_Store
+
+assets/icon/
+test/
