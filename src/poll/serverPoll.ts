@@ -1,4 +1,4 @@
-import { Client, User, TextChannel, Message, MessageReaction } from "discord.js"
+import { Client, User, Guild, TextChannel, Message, MessageReaction, MessageReference } from "discord.js"
 import { ActionMessage, MessageReactionEventType } from "../actionMessage"
 import { Firestore, Timestamp } from "firebase-admin/firestore"
 
@@ -493,7 +493,7 @@ export function getDeleteServerPollCommand(): BotCommand<DeleteServerPollCommand
   return BotCommand.fromRegexWithValidation(
     "deletepoll", "delete a server poll using an ID or by replying",
     /^deletepoll(?:\s+(true|false))?(?:\s+(.+)\s*)?$/, /^deletepoll(\s+.*)?$/,
-    "deletepoll [poll id]",
+    "deletepoll [should delete messages] [poll id]",
     async (commandArguments: string[], message: Message) => {
       const shouldDeleteMessages = commandArguments[1] === "true"
       
@@ -504,26 +504,12 @@ export function getDeleteServerPollCommand(): BotCommand<DeleteServerPollCommand
       
       if (!pollIDToDelete)
       {
-        const messageChannel = await message.guild.channels.fetch(reference.channelId) as TextChannel
-        if (!messageChannel) { return new BotCommandError("message not found", false) }
-        
-        const referencedMessage = await messageChannel.messages.fetch(reference.messageId)
-        if (!referencedMessage) { return new BotCommandError("message not found", false) }
-        
-        messageSearch:
-        for (let pollID in pollsActionMessages)
+        const pollSearchResult = await findPollIDFromReference(message.guild, reference)
+        if (pollSearchResult instanceof BotCommandError)
         {
-          for (let message of Object.values(pollsActionMessages[pollID]))
-          {
-            if (message instanceof ActionMessage && message.messageID == referencedMessage.id)
-            {
-              pollIDToDelete = pollID
-              break messageSearch
-            }
-          }
+          return pollSearchResult
         }
-        
-        if (!pollIDToDelete) { return new BotCommandError("referenced message is not a poll", false) }
+        pollIDToDelete = pollSearchResult
       }
       
       return {pollID: pollIDToDelete, shouldDeleteMessages: shouldDeleteMessages}
@@ -541,4 +527,128 @@ export function getDeleteServerPollCommand(): BotCommand<DeleteServerPollCommand
       await message.delete()
     }
   )
+}
+
+export function getRecountPollCommand(): BotCommand<PollConfiguration>
+{
+  return BotCommand.fromRegexWithValidation(
+    "recountpoll", "recount poll results based on current reaction totals",
+    /^recountpoll(?:\s+(.+)\s*)?$/, /^recountpoll(\s+.*)?$/,
+    "recountpoll [poll id]",
+    async (commandArguments: string[], message: Message) => {
+      let pollIDToDelete = commandArguments[1]
+      const reference = message.reference
+      
+      if (!(pollIDToDelete || reference)) { return new BotCommandError("no poll provided", false) }
+      
+      if (!pollIDToDelete)
+      {
+        const pollSearchResult = await findPollIDFromReference(message.guild, reference)
+        if (pollSearchResult instanceof BotCommandError)
+        {
+          return pollSearchResult
+        }
+        pollIDToDelete = pollSearchResult
+      }
+      
+      const pollData = pollsData[pollIDToDelete]
+      if (pollData.pollType != 'server')
+      {
+        return new BotCommandError("provided poll must be a server poll", false)
+      }
+      
+      return pollsData[pollIDToDelete]
+    },
+    new BotCommandRequirement(async (pollData: PollConfiguration, _user, _member, message: Message) => {
+      return pollData.creatorID == message.author.id
+    }),
+    async (pollData: PollConfiguration, message: Message, client: Client, firestoreDB: Firestore) => {
+      const pollResultsCollection = await firestoreDB.collection(pollsCollectionID + "/" + pollData.id + "/" + pollResponsesCollectionID).get()
+      
+      let formattedPollResults: Record<string, Record<string, string>> = {}
+      
+      pollResultsCollection.forEach((pollResultDoc) => {
+        const pollResultJSON = pollResultDoc.data()
+        
+        if (!pollResultJSON.responseMap) { return }
+        
+        for (const questionID in pollResultJSON.responseMap)
+        {
+          if (!formattedPollResults[questionID])
+          {
+            formattedPollResults[questionID] = {}
+          }
+          formattedPollResults[questionID][pollResultDoc.id] = pollResultJSON.responseMap[questionID]
+        }
+      })
+      
+      for (const questionData of pollData.questions)
+      {
+        const questionActionMessage = pollsActionMessages[pollData.id][questionData.id] as ActionMessage<PollQuestion>
+        const questionMessage = await questionActionMessage.liveMessage.fetch(true)
+        const questionReactions = questionMessage.reactions.cache
+        
+        let usersWithoutReactions: string[] = Object.keys(formattedPollResults[questionData.id])
+        
+        const reactionOptions = questionReactions.map(reaction => {
+          const option = questionData.options.find(optionData => {
+            const emoteName = Emote.fromEmoji(reaction.emoji).toString()
+            return optionData.emote == emoteName
+          })
+          
+          return {reaction, option}
+        }).filter(({option}) => option)
+        
+        for (const {reaction, option} of reactionOptions)
+        {
+          const reactionUsers = await reaction.users.fetch()
+          for (const [_, user] of reactionUsers)
+          {
+            if (user.id == client.user.id) { continue }
+            if (formattedPollResults[questionData.id][user.id] != option.id)
+            {
+              await handlePollMessageReaction(client, reaction, user, 'added', questionData, pollData.id, firestoreDB)
+            }
+            usersWithoutReactions = usersWithoutReactions.filter(u => u != user.id)
+          }
+        }
+        
+        for (const {reaction, option} of reactionOptions)
+        {
+          for (const userID of usersWithoutReactions)
+          {
+            if (formattedPollResults[questionData.id][userID] == option.id)
+            {
+              const user = await client.users.fetch(userID)
+              await handlePollMessageReaction(client, reaction, user, 'removed', questionData, pollData.id, firestoreDB)
+            }
+          }
+        }
+      }
+      
+      await message.delete()
+    }
+  )
+}
+
+async function findPollIDFromReference(server: Guild, reference: MessageReference)
+{
+  const messageChannel = await server.channels.fetch(reference.channelId) as TextChannel
+  if (!messageChannel) { return new BotCommandError("message not found", false) }
+  
+  const referencedMessage = await messageChannel.messages.fetch(reference.messageId)
+  if (!referencedMessage) { return new BotCommandError("message not found", false) }
+  
+  for (let pollID in pollsActionMessages)
+  {
+    for (let message of Object.values(pollsActionMessages[pollID]))
+    {
+      if (message instanceof ActionMessage && message.messageID == referencedMessage.id)
+      {
+        return pollID
+      }
+    }
+  }
+  
+  return new BotCommandError("referenced message is not a poll", false)
 }
