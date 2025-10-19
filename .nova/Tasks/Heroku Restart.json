@@ -1,0 +1,8 @@
+{
+  "actions" : {
+    "run" : {
+      "enabled" : true,
+      "script" : "printf '\\n' | heroku restart -a jjbetabot"
+    }
+  }
+}
