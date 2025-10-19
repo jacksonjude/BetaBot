@@ -343,8 +343,10 @@ async function handlePollSubmitReaction(client: Client, reaction: MessageReactio
   if (user.id == client.user.id) { return }
   if (Emote.fromEmoji(reaction.emoji).toString() != submitResponseEmote) { return }
   if (pollResponses[currentPollID] == null || pollResponses[currentPollID][user.id] == null) { return }
+  
+  const userPollResponse = pollResponses[currentPollID][user.id]
 
-  await uploadPollResponse(currentPollID, user.id, pollResponses[currentPollID][user.id])
+  await uploadPollResponse(currentPollID, user.id, userPollResponse)
 
   for (let [questionID, pollActionMessage] of Object.entries(pollsActionMessages[currentPollID][user.id]) as [string, ActionMessage<PollQuestion>][])
   {
@@ -352,8 +354,20 @@ async function handlePollSubmitReaction(client: Client, reaction: MessageReactio
     {
       pollActionMessage.reactionCollector.stop()
 
-      let submitMessage = await pollActionMessage.channel.messages.fetch(pollActionMessage.messageID)
-      submitMessage.edit("**" + submitResponseEmote + " Submitted " + pollsData[currentPollID].name + "**")
+      const submitMessage = await pollActionMessage.channel.messages.fetch(pollActionMessage.messageID)
+      let submitText = "**" + submitResponseEmote + " Submitted " + pollsData[currentPollID].name + "**"
+      
+      for (const questionConfig of pollsData[currentPollID].questions)
+      {
+        const userChoiceID = userPollResponse[questionConfig.id]
+        if (!userChoiceID) continue
+        
+        const optionConfig = questionConfig.options.find(o => o.id == userChoiceID)
+        if (!optionConfig) continue
+        
+        submitText += `\n${questionConfig.prompt} ${optionConfig.emote} ${optionConfig.name}`
+      }
+      submitMessage.edit(submitText)
       continue
     }
     await pollActionMessage.removeActionMessage()
