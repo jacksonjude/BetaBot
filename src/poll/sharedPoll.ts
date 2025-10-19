@@ -132,7 +132,10 @@ export function checkVoteRequirements(pollData: PollConfiguration, serverID: str
   }
   if (!hasRequiredRoles)
   {
-    msg && (msg.channel as TextChannel).send("Cannot vote on " + pollData.name + " without one of these roles: " + pollData.roleIDs)
+    msg && (msg.channel as TextChannel).send({
+      content: "Cannot vote on " + pollData.name + " without one of these roles: " + pollData.roleIDs.map(r => `<@&${r}>`).join(','),
+      allowedMentions: { roles: [] }
+    })
     return false
   }
 
