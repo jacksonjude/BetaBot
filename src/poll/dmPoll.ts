@@ -190,7 +190,7 @@ const runningDMVotes: { [k: string]: DMVote } = {}
 let isDMVoteQueueRunning = false
 
 const maximumRecentDMVotes = 10
-const recentDMVoteThreshold = 30 * 1000
+const recentDMVoteThreshold = 60 * 1000
 
 function addToDMVoteQueue(dmVote: DMVote, client: Client, firestoreDB: Firestore)
 {
