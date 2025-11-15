@@ -201,9 +201,8 @@ function addToDMVoteQueue(dmVote: DMVote, client: Client, firestoreDB: Firestore
     Object.values(runningDMVotes).some(running => isSameUserAndPoll(dmVote, running))
   if (sameUserAndPollIsQueued) { return }
   
-  const currentDMVote = queuedDMVotes.shift()
   const voteID = uid()
-  runningDMVotes[voteID] = currentDMVote
+  runningDMVotes[voteID] = dmVote
   executeDMVoteCommand(voteID, client, firestoreDB)
   
   // queuedDMVotes.push(dmVote)
