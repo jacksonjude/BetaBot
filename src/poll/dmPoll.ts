@@ -201,8 +201,13 @@ function addToDMVoteQueue(dmVote: DMVote, client: Client, firestoreDB: Firestore
     Object.values(runningDMVotes).some(running => isSameUserAndPoll(dmVote, running))
   if (sameUserAndPollIsQueued) { return }
   
-  queuedDMVotes.push(dmVote)
-  executeDMVoteQueue(client, firestoreDB)
+  const currentDMVote = queuedDMVotes.shift()
+  const voteID = uid()
+  runningDMVotes[voteID] = currentDMVote
+  executeDMVoteCommand(voteID, client, firestoreDB)
+  
+  // queuedDMVotes.push(dmVote)
+  // executeDMVoteQueue(client, firestoreDB)
 }
 
 async function executeDMVoteQueue(client: Client, firestoreDB: Firestore)
@@ -210,7 +215,7 @@ async function executeDMVoteQueue(client: Client, firestoreDB: Firestore)
   if (isDMVoteQueueRunning) { return }
   isDMVoteQueueRunning = true
   
-  console.log(`[DM Queue] RUN q=${queuedDMVotes.length}, r=${Object.keys(runningDMVotes).length}, r*=${getRecentDMVoteCount()}`)
+  console.log(`[DM Vote/Queue] RUN q=${queuedDMVotes.length}, r=${Object.keys(runningDMVotes).length}, r*=${getRecentDMVoteCount()}`)
   
   let addedVote = false
   
@@ -221,10 +226,10 @@ async function executeDMVoteQueue(client: Client, firestoreDB: Firestore)
     runningDMVotes[voteID] = currentDMVote
     addedVote = true
     
-    await executeDMVoteCommand(voteID, client, firestoreDB)
+    executeDMVoteCommand(voteID, client, firestoreDB)
   }
   
-  console.log(`[DM Queue] END q=${queuedDMVotes.length}, r=${Object.keys(runningDMVotes).length}, r*=${getRecentDMVoteCount()}`)
+  console.log(`[DM Vote/Queue] END q=${queuedDMVotes.length}, r=${Object.keys(runningDMVotes).length}, r*=${getRecentDMVoteCount()}`)
   
   if (addedVote)
   {
@@ -247,7 +252,7 @@ async function executeDMVoteCommand(voteID: string, client: Client, firestoreDB:
 {
   const { pollID, user } = runningDMVotes[voteID]
 
-  console.log("[DM Poll] Init vote " + pollID + " for " + user.username)
+  console.log(`[DM Poll/Init] ${pollID}/${user.username} START`)
 
   var uploadPollResponse = async (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => {
     await firestoreDB.doc(pollsCollectionID + "/" + pollID + "/" + pollResponsesCollectionID + "/" + userID).set({responseMap: questionIDToOptionIDMap, updatedAt: Date.now()})
@@ -265,10 +270,12 @@ async function executeDMVoteCommand(voteID: string, client: Client, firestoreDB:
   {
     let newPollResponseMessageIDs = await sendVoteDM(voteID, client, uploadPollResponse, previousPollResponseMessageIDs)
     await firestoreDB.doc(pollResponsePath).set({messageIDs: newPollResponseMessageIDs})
+    
+    console.log(`[DM Poll/Init] ${pollID}/${user.username} END`)
   }
   catch (error)
   {
-    console.log("[DM Poll] Vote DM Error: " + error, error.stack)
+    console.log("[DM Poll/Init] Error: " + error, error.stack)
   }
 }
 
@@ -319,7 +326,7 @@ async function sendVoteDM(voteID: string, client: Client, uploadPollResponse: (p
           if (emoji == null) { console.log("[DM Poll] Emote not found", optionData.emote); continue }
           await message.react(emoji)
         }
-        await message.edit(message.content.replace(nayEmote, presentEmote))
+        message.edit(message.content.replace(nayEmote, presentEmote))
       }, (reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, questionData: PollQuestion) => {
         if (user.id == client.user.id) { return }
         handlePollQuestionReaction(voteID, reaction, reactionEventType, questionData)
@@ -413,11 +420,13 @@ async function handlePollSubmitReaction(voteID: string, client: Client, reaction
   if (Emote.fromEmoji(reaction.emoji).toString() != submitResponseEmote) { return }
   if (pollResponses[currentPollID] == null || pollResponses[currentPollID][user.id] == null) { return }
   
-  console.log(`[DM Poll] Submit vote ${currentPollID} for ${user.username}`)
+  console.log(`[DM Poll/Submit] ${currentPollID}/${user.username} START`)
   
   const userPollResponse = pollResponses[currentPollID][user.id]
 
   await uploadPollResponse(currentPollID, user.id, userPollResponse)
+  
+  console.log(`[DM Poll/Submit] ${currentPollID}/${user.username} UPLOADED`)
 
   for (let [questionID, pollActionMessage] of Object.entries(pollsActionMessages[currentPollID][user.id]) as [string, ActionMessage<PollQuestion>][])
   {
@@ -446,13 +455,15 @@ async function handlePollSubmitReaction(voteID: string, client: Client, reaction
       }
       catch (error)
       {
-        console.log("[DM Poll] Submit message edit error, using fallback: " + error, error.stack)
+        console.log("[DM Poll/Submit] Message edit error, using fallback: " + error, error.stack)
         submitMessage.edit(submitText)
       }
       continue
     }
     await pollActionMessage.removeActionMessage()
   }
+  
+  console.log(`[DM Poll/Submit] ${currentPollID}/${user.username} CLEARED`)
   
   delete runningDMVotes[voteID]
 
@@ -465,6 +476,8 @@ async function handlePollSubmitReaction(voteID: string, client: Client, reaction
   {
     await pollVoteActionMessages[currentPollID].sendMessage()
   }
+  
+  console.log(`[DM Poll/Submit] ${currentPollID}/${user.username} END`)
 }
 
 async function addIVotedRole(client: Client, user: User, serverID: string, roleID: string)
