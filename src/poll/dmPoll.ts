@@ -413,6 +413,8 @@ async function handlePollSubmitReaction(voteID: string, client: Client, reaction
   if (Emote.fromEmoji(reaction.emoji).toString() != submitResponseEmote) { return }
   if (pollResponses[currentPollID] == null || pollResponses[currentPollID][user.id] == null) { return }
   
+  console.log(`[DM Poll] Submit vote ${currentPollID} for ${user.username}`)
+  
   const userPollResponse = pollResponses[currentPollID][user.id]
 
   await uploadPollResponse(currentPollID, user.id, userPollResponse)
@@ -424,8 +426,9 @@ async function handlePollSubmitReaction(voteID: string, client: Client, reaction
       pollActionMessage.reactionCollector.stop()
 
       const submitMessage = await pollActionMessage.channel.messages.fetch(pollActionMessage.messageID)
-      let submitText = "**" + submitResponseEmote + " Submitted " + pollsData[currentPollID].name + "**"
+      const submitText = "**" + submitResponseEmote + " Submitted " + pollsData[currentPollID].name + "**"
       
+      let fullSubmitText = submitText
       for (const questionConfig of pollsData[currentPollID].questions)
       {
         const userChoiceID = userPollResponse[questionConfig.id]
@@ -434,9 +437,18 @@ async function handlePollSubmitReaction(voteID: string, client: Client, reaction
         const optionConfig = questionConfig.options.find(o => o.id == userChoiceID)
         if (!optionConfig) continue
         
-        submitText += `\n${questionConfig.prompt} ${optionConfig.emote} ${optionConfig.name}`
+        fullSubmitText += `\n${questionConfig.prompt} ${optionConfig.emote}`
       }
-      submitMessage.edit(submitText)
+      
+      try
+      {
+        submitMessage.edit(fullSubmitText)
+      }
+      catch (error)
+      {
+        console.log("[DM Poll] Submit message edit error, using fallback: " + error, error.stack)
+        submitMessage.edit(submitText)
+      }
       continue
     }
     await pollActionMessage.removeActionMessage()
