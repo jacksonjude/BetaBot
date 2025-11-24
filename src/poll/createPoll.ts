@@ -487,10 +487,14 @@ async function handlePollEditFieldTextInput(message: Message, pollField: Selecte
     case SelectedPollFieldType.pollIVotedRole:
     let pollIVotedRoleID = getRolesFromString(message.content)
     
-    if (pollIVotedRoleID.length == 1)
+    if (pollIVotedRoleID.length > 0)
     {
-      pollsData[pollField.poll].iVotedRoleID = pollIVotedRoleID[0]
       pollsData[pollField.poll].serverID = message.guildId
+      pollsData[pollField.poll].iVotedRoleID = pollIVotedRoleID[0]
+    }
+    if (pollIVotedRoleID.length == 2)
+    {
+      pollsData[pollField.poll].iHaveNotVotedRoleID = pollIVotedRoleID[1]
     }
     break
 

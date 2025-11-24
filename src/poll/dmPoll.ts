@@ -415,10 +415,7 @@ async function handlePollSubmitReaction(voteID: string, client: Client, reaction
   
   delete runningDMVotes[voteID]
 
-  if (pollsData[currentPollID].iVotedRoleID)
-  {
-    await addIVotedRole(client, user, pollsData[currentPollID].serverID, pollsData[currentPollID].iVotedRoleID)
-  }
+  await addIVotedRole(client, user, pollsData[currentPollID].serverID, pollsData[currentPollID].iVotedRoleID, pollsData[currentPollID].iHaveNotVotedRoleID)
 
   if (pollVoteActionMessages[currentPollID])
   {
@@ -428,11 +425,20 @@ async function handlePollSubmitReaction(voteID: string, client: Client, reaction
   console.log(`[DM Poll/Submit] ${currentPollID}/${user.username} END`)
 }
 
-async function addIVotedRole(client: Client, user: User, serverID: string, roleID: string)
+async function addIVotedRole(client: Client, user: User, serverID: string, roleToAdd: string, roleToRemove: string)
 {
+  if (!roleToAdd && !roleToRemove) { return }
+  
   if (!serverID) { return }
   let guild = await client.guilds.fetch(serverID)
   if (!guild) { return }
 
-  await setRole(user, guild, roleID, true)
+  if (roleToRemove)
+  {
+    await setRole(user, guild, roleToRemove, false)
+  }
+  if (roleToAdd)
+  {
+    await setRole(user, guild, roleToAdd, true)
+  }
 }

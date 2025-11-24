@@ -38,6 +38,7 @@ export class PollConfiguration
   roleIDs?: string[]
   serverID?: string
   iVotedRoleID?: string
+  iHaveNotVotedRoleID?: string
   latestMembershipJoinTime?: Timestamp
 
   channelID?: string
