@@ -185,66 +185,13 @@ interface DMVote {
   startedAt: number,
 }
 
-const queuedDMVotes: DMVote[] = []
 const runningDMVotes: { [k: string]: DMVote } = {}
-let isDMVoteQueueRunning = false
-
-const maximumRecentDMVotes = 10
-const recentDMVoteThreshold = 60 * 1000
 
 function addToDMVoteQueue(dmVote: DMVote, client: Client, firestoreDB: Firestore)
 {
-  // if there is a queued/running vote with the same user + poll
-  // then skip this request to queue
-  const isSameUserAndPoll = (a: DMVote, b: DMVote) => a.user.id == b.user.id && a.pollID == b.pollID
-  const sameUserAndPollIsQueued = queuedDMVotes.some(queued => isSameUserAndPoll(dmVote, queued)) ||
-    Object.values(runningDMVotes).some(running => isSameUserAndPoll(dmVote, running))
-  if (sameUserAndPollIsQueued) { return }
-  
   const voteID = uid()
   runningDMVotes[voteID] = dmVote
   executeDMVoteCommand(voteID, client, firestoreDB)
-  
-  // queuedDMVotes.push(dmVote)
-  // executeDMVoteQueue(client, firestoreDB)
-}
-
-async function executeDMVoteQueue(client: Client, firestoreDB: Firestore)
-{
-  if (isDMVoteQueueRunning) { return }
-  isDMVoteQueueRunning = true
-  
-  console.log(`[DM Vote/Queue] RUN q=${queuedDMVotes.length}, r=${Object.keys(runningDMVotes).length}, r*=${getRecentDMVoteCount()}`)
-  
-  let addedVote = false
-  
-  while (queuedDMVotes.length > 0 && getRecentDMVoteCount() < maximumRecentDMVotes)
-  {
-    const currentDMVote = queuedDMVotes.shift()
-    const voteID = uid()
-    runningDMVotes[voteID] = currentDMVote
-    addedVote = true
-    
-    executeDMVoteCommand(voteID, client, firestoreDB)
-  }
-  
-  console.log(`[DM Vote/Queue] END q=${queuedDMVotes.length}, r=${Object.keys(runningDMVotes).length}, r*=${getRecentDMVoteCount()}`)
-  
-  if (addedVote)
-  {
-    setTimeout(() => {
-      executeDMVoteQueue(client, firestoreDB)
-    }, recentDMVoteThreshold)
-  }
-  
-  isDMVoteQueueRunning = false
-}
-
-function getRecentDMVoteCount()
-{
-  const currentTime = Date.now()
-  return Object.values(runningDMVotes).reduce((count, vote) => 
-    count+(currentTime-(vote?.startedAt ?? 0) < recentDMVoteThreshold ? 1 : 0), 0)
 }
 
 async function executeDMVoteCommand(voteID: string, client: Client, firestoreDB: Firestore)
@@ -414,6 +361,8 @@ async function handlePollQuestionReaction(voteID: string, reaction: MessageReact
 
 async function handlePollSubmitReaction(voteID: string, client: Client, reaction: MessageReaction, uploadPollResponse: (pollID: string, userID: string, questionIDToOptionIDMap: PollResponseMap) => Promise<void>)
 {
+  if (!runningDMVotes[voteID]) { return }
+  
   const { user, pollID: currentPollID } = runningDMVotes[voteID]
   
   if (Emote.fromEmoji(reaction.emoji).toString() != submitResponseEmote) { return }
