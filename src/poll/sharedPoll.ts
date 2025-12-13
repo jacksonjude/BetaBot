@@ -153,9 +153,9 @@ export async function getAnnouncementMessageText(pollData: PollConfiguration, ch
   if (!isClosed || maximumVoters == null)
   {
     maximumVoters = roleObjects.reduce((total, role) => 
-      total + role.members.filter(m => 
+      total + (role?.members ? role.members.filter(m => 
           pollData.latestMembershipJoinTime ? m.joinedTimestamp <= pollData.latestMembershipJoinTime.toMillis() : true
-      ).size,
+      ).size : 0),
     0)
     
     pollData.maximumVoterCount = maximumVoters
