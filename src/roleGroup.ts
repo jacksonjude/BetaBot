@@ -47,6 +47,7 @@ export class RoleGroup
         name: roleTuple.name,
         role: await guild.roles.fetch(roleTuple.roleID),
         emote: roleTuple.emote,
+        reactemote: roleTuple.reactemote,
         channelID: roleTuple.channelID
       }
     }))
@@ -121,6 +122,7 @@ export class RoleTuple
   name: string
   roleID: string
   emote?: string
+  reactemote?: string
   channelID?: string
 }
 
@@ -129,6 +131,7 @@ export class RoleObjectTuple
   name: string
   role: Role
   emote?: string
+  reactemote?: string
   channelID?: string
 }
 
@@ -169,6 +172,7 @@ export function getCreateRoleGroupCommand(): BotCommand
         roleGroupConfig.roles.push({
           roleID: roleID,
           emote: rawEmoteString ?? null,
+          reactemote: rawEmoteString ?? null,
           name: roleName ?? (await message.guild.roles.fetch(roleID)).name
         })
       }

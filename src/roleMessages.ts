@@ -43,7 +43,7 @@ export async function interpretRoleSetting(client: Client, roleSettingID: string
       {
         try
         {
-          let emoji = await new Emote(roleTuple.emote).toEmoji(client)
+          let emoji = await new Emote(roleTuple.reactemote).toEmoji(client)
           message.react(emoji)
         }
         catch {}
@@ -74,7 +74,7 @@ async function getRoleAddMessageContent(roleDataJSON: RoleMessageConfiguration, 
   for (let roleTuple of roleTuples)
   {
     messageContent += "\n"
-    messageContent += roleTuple.emote + "  " + roleTuple.name
+    messageContent += roleTuple.reactemote + "  " + roleTuple.name
   }
   return messageContent
 }
@@ -86,7 +86,7 @@ async function handleRoleReaction(client: Client, reaction: MessageReaction, use
   let roleTuples = RoleGroup.getRoleTuplesFromArray(roleMessageConfig.roleMap, reaction.message.guildId)
 
   var emoteRolePair = roleTuples.find((emoteRolePair) => {
-    return Emote.fromEmoji(reaction.emoji).toString() == emoteRolePair.emote
+    return Emote.fromEmoji(reaction.emoji).toString() == emoteRolePair.reactemote
   })
 
   if (!emoteRolePair || (roleMessageConfig.blacklistUserIDs && roleMessageConfig.blacklistUserIDs.includes(user.id)))
