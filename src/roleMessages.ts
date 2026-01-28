@@ -86,7 +86,7 @@ async function handleRoleReaction(client: Client, reaction: MessageReaction, use
   let roleTuples = RoleGroup.getRoleTuplesFromArray(roleMessageConfig.roleMap, reaction.message.guildId)
 
   var emoteRolePair = roleTuples.find((emoteRolePair) => {
-    return Emote.fromEmoji(reaction.emoji).toString() == emoteRolePair.reactemote ?? emoteRolePair.emote
+    return Emote.fromEmoji(reaction.emoji).toString() == (emoteRolePair.reactemote ?? emoteRolePair.emote)
   })
 
   if (!emoteRolePair || (roleMessageConfig.blacklistUserIDs && roleMessageConfig.blacklistUserIDs.includes(user.id)))
