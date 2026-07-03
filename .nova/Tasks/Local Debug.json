@@ -26,5 +26,5 @@
     "runtimeExecutable" : "node",
     "scriptPath" : "dist\/app.js"
   },
-  "openLogOnRun" : "fail"
+  "openLogOnRun" : "start"
 }
