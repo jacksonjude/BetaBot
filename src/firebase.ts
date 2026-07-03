@@ -164,7 +164,7 @@ const firestoreCollectionSyncHandlers = [
 
       if (!shouldDelete)
       {
-        roleAssignmentSettingDocData = await interpretRoleAssignmentSetting(client, roleAssignmentSettingID, roleAssignmentSettingDocData as RoleAssignmentConfiguration)
+        roleAssignmentSettingDocData = await interpretRoleAssignmentSetting(client, roleAssignmentSettingID, roleAssignmentSettingDocData as RoleAssignmentConfiguration, firestoreDB)
         firestoreDB.doc(roleAssignmentCollectionID + "/" + roleAssignmentSettingID).set(roleAssignmentSettingDocData)
       }
     }

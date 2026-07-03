@@ -1,4 +1,5 @@
 import { Client, TextChannel, Message, GuildMember, Role, MessageReaction, User } from "discord.js"
+import { Firestore } from "firebase-admin/firestore"
 import { ActionMessage, MessageReactionEventType } from "./actionMessage"
 
 var roleAssignmentActionMessages: { [k: string]: ActionMessage<RoleAssignmentConfiguration> } = {}
@@ -14,6 +15,8 @@ export class RoleAssignmentConfiguration
   roleWeights: RoleAssignmentWeightSet[]
 
   messageSettings: RoleAssignmentMessageConfiguration
+  
+  assignmentCache?: {[k: string]: string}
 }
 
 class RoleAssignmentWeightSet
@@ -36,10 +39,17 @@ class RoleAssignmentMessageConfiguration
   messageID: string | null
 }
 
-export async function interpretRoleAssignmentSetting(client: Client, roleAssignmentID: string, roleAssignmentDataJSON: RoleAssignmentConfiguration)
+const roleAssignmentCollectionID = "roleAssignmentConfigurations"
+
+export async function interpretRoleAssignmentSetting(client: Client, roleAssignmentID: string, roleAssignmentDataJSON: RoleAssignmentConfiguration, firstoreDB: Firestore)
 {
   if (roleAssignmentDataJSON.messageSettings != null && roleAssignmentDataJSON.messageSettings.channelID != null)
   {
+    if (roleAssignmentActionMessages[roleAssignmentID])
+    {
+      await roleAssignmentActionMessages[roleAssignmentID].removeActionMessage(false)
+    }
+    
     let liveChannel = await client.channels.fetch(roleAssignmentDataJSON.messageSettings.channelID) as TextChannel
     let roleAssignmentActionMessage = new ActionMessage<RoleAssignmentConfiguration>(
       liveChannel,
@@ -52,7 +62,7 @@ export async function interpretRoleAssignmentSetting(client: Client, roleAssignm
         message.react(roleAssignmentData.messageSettings.messageEmoji)
       }, (reaction: MessageReaction, user: User, reactionEventType: MessageReactionEventType, roleAssignmentData: RoleAssignmentConfiguration) => {
         if (reactionEventType !== "added") { return }
-        handleRoleAssignmentMessageReaction(client, reaction, user, roleAssignmentData)
+        handleRoleAssignmentMessageReaction(client, reaction, user, roleAssignmentID, roleAssignmentData, firstoreDB)
       }
     )
 
@@ -64,7 +74,7 @@ export async function interpretRoleAssignmentSetting(client: Client, roleAssignm
   return roleAssignmentDataJSON
 }
 
-async function handleRoleAssignmentMessageReaction(client: Client, reaction: MessageReaction, user: User, roleAssignmentData: RoleAssignmentConfiguration)
+async function handleRoleAssignmentMessageReaction(client: Client, reaction: MessageReaction, user: User, roleAssignmentID: string, roleAssignmentData: RoleAssignmentConfiguration, firstoreDB: Firestore)
 {
   if (user.id == client.user.id) { return }
   if (reaction.emoji.name != roleAssignmentData.messageSettings.messageEmoji)
@@ -94,7 +104,7 @@ async function handleRoleAssignmentMessageReaction(client: Client, reaction: Mes
     return
   }
 
-  executeRoleAssignment(member, roleAssignmentData)
+  executeRoleAssignment(member, roleAssignmentID, roleAssignmentData, firstoreDB)
 }
 
 function checkRoleAssignmentRequirements(roleAssignmentData: RoleAssignmentConfiguration, serverID: string, member: GuildMember, msg: Message = null)
@@ -122,32 +132,42 @@ function checkRoleAssignmentRequirements(roleAssignmentData: RoleAssignmentConfi
   return true
 }
 
-async function executeRoleAssignment(member: GuildMember, roleAssignmentData: RoleAssignmentConfiguration)
+async function executeRoleAssignment(member: GuildMember, roleAssignmentID: string, roleAssignmentData: RoleAssignmentConfiguration, firstoreDB: Firestore)
 {
-  let memberBiasRoleIDs = member.roles.cache.filter(role => roleAssignmentData.weightRoleIDs.includes(role.id)).map(role => role.id)
-  if (memberBiasRoleIDs.length > 1) { return }
+  let roleIDToAssign = roleAssignmentData.assignmentCache?.[member.user.id]
 
-  let shouldUseWeights = memberBiasRoleIDs.length == 1
-  let memberBiasRoleID = memberBiasRoleIDs[0]
-
-  let totalToGenerate = roleAssignmentData.roleWeights.reduce((totalCount, roleWeightData) => {
-    return totalCount + (shouldUseWeights ? roleWeightData.weights.find(weight => weight.roleID == memberBiasRoleID).value : 1)
-  }, 0)
-
-  let generatedValue = Math.floor(Math.random()*totalToGenerate)
-  let roleIndex = 0
-  let roleIDToAssign: string
-
-  while (generatedValue >= 0 && roleIndex < roleAssignmentData.roleWeights.length)
+  if (!roleIDToAssign)
   {
-    roleIDToAssign = roleAssignmentData.roleWeights[roleIndex].roleID
-    let roleWeight = shouldUseWeights ? roleAssignmentData.roleWeights[roleIndex].weights.find(weight => weight.roleID == memberBiasRoleID) : null
-    generatedValue -= shouldUseWeights ? roleWeight.value : 1
-    roleIndex += 1
+    let memberBiasRoleIDs = member.roles.cache.filter(role => roleAssignmentData.weightRoleIDs.includes(role.id)).map(role => role.id)
+    if (memberBiasRoleIDs.length > 1) { return }
+  
+    let shouldUseWeights = memberBiasRoleIDs.length == 1
+    let memberBiasRoleID = memberBiasRoleIDs[0]
+  
+    let totalToGenerate = roleAssignmentData.roleWeights.reduce((totalCount, roleWeightData) => {
+      return totalCount + (shouldUseWeights ? roleWeightData.weights.find(weight => weight.roleID == memberBiasRoleID).value : 1)
+    }, 0)
+  
+    let generatedValue = Math.floor(Math.random()*totalToGenerate)
+    let roleIndex = 0
+    
+    while (generatedValue >= 0 && roleIndex < roleAssignmentData.roleWeights.length)
+    {
+      roleIDToAssign = roleAssignmentData.roleWeights[roleIndex].roleID
+      let roleWeight = shouldUseWeights ? roleAssignmentData.roleWeights[roleIndex].weights.find(weight => weight.roleID == memberBiasRoleID) : null
+      generatedValue -= shouldUseWeights ? roleWeight.value : 1
+      roleIndex += 1
+    }
   }
 
   let roleToAssign = await member.guild.roles.fetch(roleIDToAssign)
   console.log("[Role Assign] Assigned " + roleToAssign.name + " to " + member.user.username + " in " + member.guild.name)
 
   await member.roles.add(roleIDToAssign)
+  
+  roleAssignmentData.assignmentCache = {
+    ...roleAssignmentData.assignmentCache ?? {},
+    [member.user.id]: roleIDToAssign
+  }
+  firstoreDB.doc(roleAssignmentCollectionID + "/" + roleAssignmentID).set(roleAssignmentData)
 }
