@@ -17,7 +17,7 @@
     "child_process": "^1.0.2",
     "cron": "^1.8.2",
     "discord.js": "^14.26.4",
-    "firebase-admin": "^13.6.0",
+    "firebase-admin": "^14.1.0",
     "json2csv": "^5.0.6",
     "luxon": "^2.2.0",
     "node-fetch": "^3.3.2",
