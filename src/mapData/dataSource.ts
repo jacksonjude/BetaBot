@@ -40,13 +40,13 @@ export abstract class DataSource {
 		if (this.isFetching || (this.startTime && Date.now() < this.startTime) || (this.endTime && Date.now() > this.endTime)) { return };
 		this.isFetching = true;
 		
-		console.log("[Data-Cron] Start fetching", this.id);
+		console.log("[Data Source] Start fetching", this.id);
 		
 		const githubResponse = await this.getGitHubFile(this.outputPath);
 		const previousData = githubResponse.data;
 		
 		if (!previousData?.content) {
-			console.log("[Data-Cron] Error fetching previous data", githubResponse);
+			console.log("[Data Source] Error fetching previous data", githubResponse);
 			return;
 		}
 		
@@ -54,12 +54,12 @@ export abstract class DataSource {
 		const updatedDataContent = await this.fetch(previousDataContent);
 		
 		if (updatedDataContent) {
-			console.log("[Data-Cron] Complete fetching new", this.id);
+			console.log("[Data Source] Complete fetching new", this.id);
 			
 			await this.putGitHubFile(this.outputPath, updatedDataContent, previousData.sha, `${this.id} data ${Date.now()}`);
-			console.log("[Data-Cron] Uploaded", this.id);
+			console.log("[Data Source] Uploaded", this.id);
 		} else {
-			console.log("[Data-Cron] Skipping upload, last update identical", this.id);
+			console.log("[Data Source] Skipping upload", this.id);
 		}
 		
 		this.isFetching = false;

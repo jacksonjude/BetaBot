@@ -5,10 +5,14 @@ const fetchQueue = [];
 
 // import { polymarketSources } from './sources/polymarket';
 // import { cnnSources } from './sources/cnn';
+import { votehubForecastDataSources } from './sources/votehub-forecast';
+import { votehubPollDataSources } from './sources/votehub-polls';
 
 const sources: DataSource[] = [
 	// ...polymarketSources,
-	// ...cnnSources
+	// ...cnnSources,
+	...votehubForecastDataSources,
+	...votehubPollDataSources,
 ];
 
 export async function initDataFetch() {
@@ -30,5 +34,5 @@ async function cycleFetchQueue() {
 	
 	setTimeout(() => {
 		cycleFetchQueue();
-	}, 60*1000)
+	}, 60*1000);
 }
