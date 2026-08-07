@@ -1,0 +1,10 @@
+{
+  "actions" : {
+    "run" : {
+      "enabled" : true,
+      "script" : "npm run mapdata:manual"
+    }
+  },
+  "openLogOnRun" : "start",
+  "persistent" : true
+}

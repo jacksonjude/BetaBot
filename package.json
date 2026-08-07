@@ -4,7 +4,8 @@
   "description": "A Discord bot. Still in Beta.",
   "main": "app.ts",
   "scripts": {
-    "start": "tsx app.ts"
+    "start": "tsx app.ts",
+    "mapdata:manual": "tsx --env-file=.env src/mapData/manual.ts"
   },
   "author": "JJCooley",
   "license": "ISC",

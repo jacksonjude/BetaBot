@@ -36,9 +36,13 @@ export async function initDataFetch() {
 			const offsetMs = (BASE_OFFSET_MS + i * GAP_MS) % source.runInterval;
 			const cron = generateCronString(source.runInterval, offsetMs);
 			
-			cronJobInstances.push(new CronJob(cron, () => {
+			const cronJob = new CronJob(cron, () => {
 				fetchQueue.push(source.id);
-			}, null, true, "Etc/UTC"));
+			}, null, true, "Etc/UTC");
+			
+			cronJobInstances.push(cronJob);
+			
+			console.log(`[Map Data] Registered ${source.id} for ${cron} (next at ${cronJob.nextDate()})`)
 		}
 	}
 	
