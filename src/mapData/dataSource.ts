@@ -1,6 +1,7 @@
 import { Octokit } from '@octokit/core';
 import { OctokitResponse } from '@octokit/types';
 import fetch from "node-fetch";
+import { ExecutionInterval } from './util';
 
 const octokit = new Octokit({
 	auth: process.env.GITHUB_TOKEN,
@@ -19,16 +20,16 @@ type OctokitContentsResponseData = {
 
 export abstract class DataSource {
 	id: string;
-	cron: string;
+	runInterval: ExecutionInterval;
 	outputPath: string;
 	startTime: number;
 	endTime: number;
 	
 	isFetching: boolean;
 	
-	constructor(id: string, cron: string, outputPath: string, startTime?: number, endTime?: number) {
+	constructor(id: string, runInterval: ExecutionInterval, outputPath: string, startTime?: number, endTime?: number) {
 		this.id = id;
-		this.cron = cron;
+		this.runInterval = runInterval;
 		this.outputPath = outputPath;
 		this.startTime = startTime;
 		this.endTime = endTime;

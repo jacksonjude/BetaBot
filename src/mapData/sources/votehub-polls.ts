@@ -29,8 +29,8 @@ interface FormattedRaceTimeseries {
 }
 
 class VotehubPollDataSource extends VotehubBaseDataSource {
-	constructor(id: string, cron: string, raceType: string) {
-		super(id, cron, raceType);
+	constructor(id: string, raceType: string) {
+		super(id, raceType);
 	}
 	
 	protected override async fetch(_previousDataContent: string) {
@@ -93,12 +93,10 @@ class VotehubPollDataSource extends VotehubBaseDataSource {
 export const votehubPollDataSources: VotehubPollDataSource[] = [
 	new VotehubPollDataSource(
 		"2026-votehub-poll-senate",
-		"1 5 0 * * *",
 		"S"
 	),
 	new VotehubPollDataSource(
 		"2026-votehub-poll-governor",
-		"1 15 0 * * *",
 		"G"
 	),
 ];

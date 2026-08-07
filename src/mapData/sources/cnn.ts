@@ -1,12 +1,13 @@
 import fetch from 'node-fetch';
 import Papa from 'papaparse';
 import { DataSource } from '../dataSource';
+import { ExecutionInterval } from '../util';
 
 class CNNDataSource extends DataSource {
 	sourceURL: string;
 	
-	constructor(id: string, cron: string, outputPath: string, sourceURL: string) {
-		super(id, cron, outputPath);
+	constructor(id: string, outputPath: string, sourceURL: string) {
+		super(id, ExecutionInterval.semihourly, outputPath);
 		
 		this.sourceURL = sourceURL;
 	}
@@ -98,19 +99,16 @@ class CNNDataSource extends DataSource {
 export const cnnSources: CNNDataSource[] = [
 	new CNNDataSource(
 		"2024-cnn-senate",
-		"1 15,45 * * * *",
 		"2024-senate-cnn.csv",
 		"https://politics.api.cnn.io/results/national-races/2024-SG.json"
 	),
 	new CNNDataSource(
 		"2024-cnn-governor",
-		"1 15,45 * * * *",
 		"2024-governor-cnn.csv",
 		"https://politics.api.cnn.io/results/national-races/2024-GG.json"
 	),
 	new CNNDataSource(
 		"2024-cnn-house",
-		"1 15,45 * * * *",
 		"2024-house-cnn.csv",
 		"https://politics.api.cnn.io/results/national-races/2024-HG.json"
 	)

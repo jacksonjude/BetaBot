@@ -1,5 +1,5 @@
 import { Impit } from 'impit';
-import { timeout } from '../util';
+import { ExecutionInterval, timeout } from '../util';
 import { DataSource } from '../dataSource';
 
 const impit = new Impit({
@@ -24,8 +24,8 @@ export abstract class VotehubBaseDataSource extends DataSource {
 	
 	raceType: string;
 	
-	constructor(id: string, cron: string, raceType: string) {
-		super(id, cron, `${id}.json`);
+	constructor(id: string, raceType: string) {
+		super(id, ExecutionInterval.daily, `${id}.json`);
 		
 		this.raceType = raceType;
 	}

@@ -1,13 +1,13 @@
 import fs from 'fs';
 import fetch from 'node-fetch';
-import { sleep } from '../util';
+import { ExecutionInterval, sleep } from '../util';
 import { DataSource } from '../dataSource';
 
 class PolymarketDataSource extends DataSource {
 	tokenPath: string;
 	
-	constructor(id: string, cron: string, outputPath: string, tokenPath: string) {
-		super(id, cron, outputPath);
+	constructor(id: string, outputPath: string, tokenPath: string) {
+		super(id, ExecutionInterval.semidaily, outputPath);
 		
 		this.tokenPath = tokenPath;
 	}
@@ -59,19 +59,16 @@ class PolymarketDataSource extends DataSource {
 export const polymarketSources: PolymarketDataSource[] = [
 	new PolymarketDataSource(
 		"2024-president-polymarket",
-		"1 1 0,12 * * *",
 		"2024-president-polymarket-prices.json",
 		"2024-president-polymarket-tokens.json"
 	),
 	new PolymarketDataSource(
 		"2024-senate-polymarket",
-		"1 1 2,14 * * *",
 		"2024-senate-polymarket-prices.json",
 		"2024-senate-polymarket-tokens.json"
 	),
 	new PolymarketDataSource(
 		"2024-governor-polymarket",
-		"1 1 3,15 * * *",
 		"2024-governor-polymarket-prices.json",
 		"2024-governor-polymarket-tokens.json"
 	),

@@ -30,8 +30,8 @@ interface FormattedRaceTimeseries {
 }
 
 class VotehubForecastDataSource extends VotehubBaseDataSource {
-	constructor(id: string, cron: string, raceType: string) {
-		super(id, cron, raceType);
+	constructor(id: string, raceType: string) {
+		super(id, raceType);
 	}
 	
 	protected override async fetch(_previousDataContent: string) {
@@ -85,17 +85,14 @@ class VotehubForecastDataSource extends VotehubBaseDataSource {
 export const votehubForecastDataSources: VotehubForecastDataSource[] = [
 	new VotehubForecastDataSource(
 		"2026-votehub-forecast-senate",
-		"1 1 0 * * *",
 		"S"
 	),
 	new VotehubForecastDataSource(
 		"2026-votehub-forecast-governor",
-		"1 10 0 * * *",
 		"G"
 	),
 	new VotehubForecastDataSource(
 		"2026-votehub-forecast-house",
-		"1 20 0 * * *",
 		"H"
 	),
 ];
