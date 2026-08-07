@@ -20,7 +20,10 @@ export interface RaceInfo {
 }
 
 export abstract class VotehubBaseDataSource extends DataSource {
-	static raceInfoCache?: RaceInfo[];
+	static raceInfoCache?: {
+		data: RaceInfo[];
+		expiry: number;
+	}
 	
 	raceType: string;
 	
@@ -38,8 +41,9 @@ export abstract class VotehubBaseDataSource extends DataSource {
 	}
 	
 	async getAllRaceInfo(): Promise<RaceInfo[] | null> {
-		if (VotehubBaseDataSource.raceInfoCache) {
-			return VotehubBaseDataSource.raceInfoCache;
+		const currentCache = VotehubBaseDataSource.raceInfoCache;
+		if (currentCache && currentCache.expiry > Date.now()) {
+			return currentCache.data;
 		}
 		
 		const totalItems = [];
@@ -59,7 +63,10 @@ export abstract class VotehubBaseDataSource extends DataSource {
 			totalItems.push(...json.items);
 		} while (cursor != null);
 		
-		VotehubBaseDataSource.raceInfoCache = totalItems;
+		VotehubBaseDataSource.raceInfoCache = {
+			data: totalItems,
+			expiry: Date.now() + this.runInterval/2
+		};
 		
 		return totalItems;
 	}
