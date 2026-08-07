@@ -54,7 +54,7 @@ export abstract class VotehubBaseDataSource extends DataSource {
 			console.log(`[VoteHub Base] Fetching race info ${totalItems.length}-${totalItems.length+fetchSize}`);
 			
 			const json = await this.browserFetch(`https://2026-forecast.votehub.com/v1/races?limit=${fetchSize}&cursor=${cursor}`);
-			if (!json.items) {
+			if (!json || !json.items) {
 				console.log(json);
 				return null;
 			}
