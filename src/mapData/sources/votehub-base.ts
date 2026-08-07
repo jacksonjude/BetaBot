@@ -89,7 +89,8 @@ export abstract class VotehubBaseDataSource extends DataSource {
 		await timeout(100);
 		const response = await impit.fetch(url);
 		if (!response.ok) {
-			console.log("[VoteHub Base]", response.status, response.statusText);
+			const body = await response.text();
+			console.log("[VoteHub Base]", response.status, response.statusText, body);
 			return null;
 		}
 		
