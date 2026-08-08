@@ -51,8 +51,7 @@ class VotehubPollDataSource extends VotehubBaseDataSource {
 			candidates: raceInfo.cands.map(c => ({
 				id: c.candidate_id,
 				name: c.candidate_name,
-				party: c.caucus ?? c.party,
-				unopposed: c.unopposed
+				party: c.caucus ?? c.party
 			})),
 			timeseries: Object.entries(raceTimeseries).map(([date, candidates]) => ({
 				date: date,

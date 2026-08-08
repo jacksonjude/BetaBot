@@ -14,7 +14,6 @@ export interface RaceInfo {
 		candidate_id: string;
 		candidate_name: string;
 		party: string;
-		unopposed: boolean;
 		caucus: string;
 	}[];
 }
@@ -27,7 +26,6 @@ export interface FormattedRaceTimeseries {
 		id: string;
 		name: string;
 		party: string;
-		unopposed: boolean;
 	}[];
 	timeseries: {
 		date: string;
