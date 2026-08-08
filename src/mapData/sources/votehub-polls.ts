@@ -44,20 +44,22 @@ class VotehubPollDataSource extends VotehubBaseDataSource {
 	formatRaceTimeseries(raceInfo: RaceInfo, raceTimeseries: RawRaceTimeseries): FormattedRaceTimeseries {
 		const { state, number } = this.getRaceIDParts(raceInfo.race_id);
 		
+		const candidates = raceInfo.cands.map(c => ({
+			id: c.candidate_id,
+			name: c.candidate_name,
+			party: c.caucus ?? c.party
+		}));
+		
 		return {
 			state,
 			number: parseInt(number),
 			previousPartyWinner: raceInfo.previous_winner,
-			candidates: raceInfo.cands.map(c => ({
-				id: c.candidate_id,
-				name: c.candidate_name,
-				party: c.caucus ?? c.party
-			})),
-			timeseries: Object.entries(raceTimeseries).map(([date, candidates]) => ({
+			candidates: candidates,
+			timeseries: Object.entries(raceTimeseries).map(([date, timeseriesCandidates]) => ({
 				date: date,
-				candidates: Object.values(candidates).map(candidate => ({
-					id: candidate.vh_candidate_id,
-					voteshare: candidate.average
+				candidates: Object.entries(timeseriesCandidates).map(([name, timeseriesCandidate]) => ({
+					id: timeseriesCandidate.vh_candidate_id ?? candidates.find(c => c.name == name).id,
+					voteshare: timeseriesCandidate.average
 				}))
 			}))
 		}
