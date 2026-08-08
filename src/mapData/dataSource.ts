@@ -1,5 +1,4 @@
 import { Octokit } from '@octokit/core';
-import { OctokitResponse } from '@octokit/types';
 import fetch from "node-fetch";
 import { ExecutionInterval } from './util';
 
@@ -15,7 +14,9 @@ type OctokitContentsResponseData = {
 	name?: string;
 	path?: string;
 	content?: string;
+	download_url?: string;
 	sha?: string;
+	decoded_content?: string;
 }
 
 export abstract class DataSource {
@@ -43,15 +44,13 @@ export abstract class DataSource {
 		
 		console.log("[Data Source] Start fetching", this.id);
 		
-		const githubResponse = await this.getGitHubFile(this.outputPath);
-		const previousData = githubResponse.data;
-		
-		if (!previousData?.content) {
-			console.log("[Data Source] Error fetching previous data", githubResponse);
+		const previousData = await this.getGitHubFile(this.outputPath);		
+		if (!previousData?.decoded_content) {
+			console.log("[Data Source] Error fetching previous data", previousData);
 			return;
 		}
 		
-		const previousDataContent = Buffer.from(previousData.content, 'base64').toString('utf-8');
+		const previousDataContent = previousData?.decoded_content;
 		const updatedDataContent = await this.fetch(previousDataContent);
 		
 		if (updatedDataContent) {
@@ -68,8 +67,8 @@ export abstract class DataSource {
 	
 	protected abstract fetch(previousDataContent: string): Promise<string | null>
 	
-	async getGitHubFile(outputPath: string): Promise<OctokitResponse<OctokitContentsResponseData,number>> {
-		const githubResponse = await octokit.request(`GET /repos/jacksonjude/USA-Election-Map-Data/contents/data/${outputPath}`, {
+	async getGitHubFile(outputPath: string): Promise<OctokitContentsResponseData | null> {
+		const fileResponse = await octokit.request(`GET /repos/jacksonjude/USA-Election-Map-Data/contents/data/${outputPath}`, {
 			owner: 'OWNER',
 			repo: 'REPO',
 			path: 'PATH',
@@ -77,7 +76,21 @@ export abstract class DataSource {
 				'X-GitHub-Api-Version': '2022-11-28'
 			}
 		});
-		return githubResponse;
+		const data: OctokitContentsResponseData = fileResponse.data;
+		
+		if (data.content) {
+			data.decoded_content = Buffer.from(data.content, 'base64').toString('utf-8');
+		} else if (!data.content && data.download_url) {
+			const contentResponse = await fetch(data.download_url);
+			data.decoded_content = await contentResponse.text();
+		}
+		
+		if (!data.decoded_content) {
+			console.log("[Data Source] Error fetching GitHub file", fileResponse);
+			return null;
+		}
+		
+		return data;
 	}
 	
 	async putGitHubFile(outputPath: string, content: string, sha: string, message: string) {
