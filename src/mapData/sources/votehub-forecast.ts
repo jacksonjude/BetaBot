@@ -1,4 +1,4 @@
-import { VotehubBaseDataSource, RaceInfo } from './votehub-base';
+import { VotehubBaseDataSource, RaceInfo, FormattedRaceTimeseries } from './votehub-base';
 
 interface RawRaceTimeseries {
 	race_id: string;
@@ -8,24 +8,6 @@ interface RawRaceTimeseries {
 		date: string; // MM-DD-YYYY
 		probability: number; // % chance of R victory
 		vote_share: number; // voteshare of R candidate
-	}[];
-}
-
-interface FormattedRaceTimeseries {
-	state: string;
-	number: number;
-	previousPartyWinner: string;
-	candidates: {
-		id: string;
-		name: string;
-		party: string;
-		unopposed: boolean;
-	}[];
-	timeseries: {
-		date: string;
-		party: string;
-		probability: number;
-		voteshare: number;
 	}[];
 }
 
@@ -62,21 +44,27 @@ class VotehubForecastDataSource extends VotehubBaseDataSource {
 	formatRaceTimeseries(raceInfo: RaceInfo, raceTimeseries: RawRaceTimeseries): FormattedRaceTimeseries {
 		const { state, number } = this.getRaceIDParts(raceInfo.race_id);
 		
+		const candidates = raceInfo.cands.map(c => ({
+			id: c.candidate_id,
+			name: c.candidate_name,
+			party: c.caucus ?? c.party,
+			unopposed: c.unopposed
+		}));
+		
 		return {
 			state,
 			number: parseInt(number),
 			previousPartyWinner: raceTimeseries.previous_winner,
-			candidates: raceInfo.cands.map(c => ({
-				id: c.candidate_id,
-				name: c.candidate_name,
-				party: c.caucus ?? c.party,
-				unopposed: c.unopposed
-			})),
+			candidates: candidates,
 			timeseries: raceTimeseries.items.map(t => ({
 				date: t.date,
-				party: 'R',
-				probability: t.probability,
-				voteshare: t.vote_share
+				candidates: [
+					{
+						id: candidates.find(c => c.party == 'R')?.id,
+						probability: t.probability,
+						voteshare: t.vote_share
+					}
+				]
 			}))
 		}
 	}

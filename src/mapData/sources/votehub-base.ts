@@ -19,6 +19,26 @@ export interface RaceInfo {
 	}[];
 }
 
+export interface FormattedRaceTimeseries {
+	state: string;
+	number: number;
+	previousPartyWinner: string;
+	candidates: {
+		id: string;
+		name: string;
+		party: string;
+		unopposed: boolean;
+	}[];
+	timeseries: {
+		date: string;
+		candidates: {
+			id: string;
+			probability?: number;
+			voteshare: number;
+		}[];
+	}[];
+}
+
 export abstract class VotehubBaseDataSource extends DataSource {
 	static raceInfoCache?: {
 		data: RaceInfo[];

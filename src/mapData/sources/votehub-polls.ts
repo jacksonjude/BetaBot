@@ -1,4 +1,4 @@
-import { VotehubBaseDataSource, RaceInfo } from './votehub-base';
+import { VotehubBaseDataSource, RaceInfo, FormattedRaceTimeseries } from './votehub-base';
 
 interface RawRaceTimeseries {
 	[date: string]: {
@@ -7,25 +7,6 @@ interface RawRaceTimeseries {
 			average: number;
 		}
 	}
-}
-
-interface FormattedRaceTimeseries {
-	state: string;
-	number: number;
-	previousPartyWinner: string;
-	candidates: {
-		id: string;
-		name: string;
-		party: string;
-		unopposed: boolean;
-	}[];
-	timeseries: {
-		date: string;
-		candidates: {
-			id: string;
-			voteshare: number;
-		}[];
-	}[];
 }
 
 class VotehubPollDataSource extends VotehubBaseDataSource {
