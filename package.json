@@ -5,7 +5,7 @@
   "main": "app.ts",
   "scripts": {
     "start": "tsx app.ts",
-    "mapdata:manual": "tsx --env-file=.env src/mapData/manual.ts"
+    "mapdata:manual": "FETCH_BASE_OFFSET_MS=$(( ($(date +%s) + 50) * 1000 )) tsx --env-file=.env-data src/mapData/manual.ts"
   },
   "author": "JJCooley",
   "license": "ISC",
