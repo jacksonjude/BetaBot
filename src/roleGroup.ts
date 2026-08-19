@@ -220,7 +220,13 @@ export function getRolesFromString(rolesString: string)
   return roleIDs
 }
 
-export function getClearRoleCommand(): BotCommand<Role>
+interface ClearRoleCommandArguments
+{
+  role: Role
+  channel: TextChannel
+}
+
+export function getClearRoleCommand(): BotCommand<ClearRoleCommandArguments>
 {
   return BotCommand.fromRegexWithValidation(
     "clearrole", "remove all users from a role",
@@ -234,21 +240,43 @@ export function getClearRoleCommand(): BotCommand<Role>
         return new BotCommandError(`invalid role provided <@&${roleID}>`, true)
       }
       
-      return roleObject
+      return {
+        role: roleObject,
+        channel: message.channel as TextChannel
+      }
     },
     new BotCommandIntersectionRequirement(
       [
         new BotCommandPermissionRequirement([PermissionFlagsBits.ManageRoles]),
-        new BotCommandRequirement(async (role: Role, _user, member: GuildMember) => {
+        new BotCommandRequirement(async ({role}: ClearRoleCommandArguments, _user, member: GuildMember) => {
           return member.roles.highest.position > role.position
         })
       ]
     ),
-    async (role: Role) => {
-      Array.from(role.members.values()).map((member, i) => setTimeout(() => {
-        console.log("[Clear-Role] Removing", role.name, "from", member.displayName)
-        member.roles.remove(role.id)
-      }, i*500))
+    async ({ role, channel }: ClearRoleCommandArguments) => {
+      const membersToRemove = Array.from(role.members.values())
+      
+      let clearedCount = 0
+      let failedCount = 0
+      for (const member of membersToRemove)
+      {
+        try
+        {
+          console.log("[Clear-Role] Removing", role.name, "from", member.displayName)
+          await member.roles.remove(role.id)
+          clearedCount += 1
+        }
+        catch
+        {
+          failedCount += 1
+        }
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+      
+      channel.send({
+        content: `**Removed ${clearedCount} member${clearedCount != 1 ? 's' : ''} from <@&${role.id}>${failedCount > 0 ? ` (${failedCount} failed)` : ''}**`,
+        allowedMentions: { roles: [] }
+      })
     }
   )
 }
