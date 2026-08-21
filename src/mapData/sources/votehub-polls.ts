@@ -47,7 +47,8 @@ class VotehubPollDataSource extends VotehubBaseDataSource {
 		const candidates = raceInfo.cands.map(c => ({
 			id: c.candidate_id,
 			name: c.candidate_name,
-			party: c.caucus ?? c.party
+			party: c.party,
+			caucus: c.caucus
 		}));
 		
 		return {

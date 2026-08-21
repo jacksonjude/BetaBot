@@ -8,6 +8,7 @@ interface RawRaceTimeseries {
 		date: string; // MM-DD-YYYY
 		probability: number; // % chance of R victory
 		vote_share: number; // voteshare of R candidate
+		margin: number; // margin between R vs second-place candidate
 	}[];
 }
 
@@ -47,7 +48,8 @@ class VotehubForecastDataSource extends VotehubBaseDataSource {
 		const candidates = raceInfo.cands.map(c => ({
 			id: c.candidate_id,
 			name: c.candidate_name,
-			party: c.caucus ?? c.party
+			party: c.party,
+			caucus: c.caucus
 		}));
 		
 		return {
@@ -61,7 +63,8 @@ class VotehubForecastDataSource extends VotehubBaseDataSource {
 					{
 						id: candidates.find(c => c.party == 'R')?.id,
 						probability: t.probability,
-						voteshare: t.vote_share
+						voteshare: t.vote_share,
+						margin: t.margin
 					}
 				]
 			}))

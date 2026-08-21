@@ -26,6 +26,7 @@ export interface FormattedRaceTimeseries {
 		id: string;
 		name: string;
 		party: string;
+		caucus: string;
 	}[];
 	timeseries: {
 		date: string;
@@ -33,6 +34,7 @@ export interface FormattedRaceTimeseries {
 			id: string;
 			probability?: number;
 			voteshare: number;
+			margin?: number;
 		}[];
 	}[];
 }
