@@ -61,7 +61,7 @@ class VotehubForecastDataSource extends VotehubBaseDataSource {
 				date: t.date,
 				candidates: [
 					{
-						id: candidates.find(c => c.party == 'R')?.id,
+						id: (candidates.find(c => c.party == 'R') ?? candidates.find(c => c.party == 'I'))?.id,
 						probability: t.probability,
 						voteshare: t.vote_share,
 						margin: t.margin
