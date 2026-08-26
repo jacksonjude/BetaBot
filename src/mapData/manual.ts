@@ -1,3 +1,4 @@
 import { initDataFetch } from "./mapData";
 
-initDataFetch();
+const runOnce = process.argv.includes("--once");
+initDataFetch(runOnce);

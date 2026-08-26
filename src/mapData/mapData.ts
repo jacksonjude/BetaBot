@@ -4,6 +4,7 @@ import { ExecutionInterval, HOUR_MS, MINUTE_MS, SECOND_MS } from './util';
 
 const cronJobInstances = [];
 const fetchQueue = [];
+const executedSourceIds: string[] = [];
 
 import { polymarketSources } from './sources/polymarket';
 import { cnnSources } from './sources/cnn';
@@ -28,7 +29,11 @@ const ACTIVE_SOURCE_GROUPS: string[] = (() => {
 const BASE_OFFSET_MS = parseInt(process.env.FETCH_BASE_OFFSET_MS) || 0;
 const GAP_MS = parseInt(process.env.FETCH_GAP_MS) || 5*MINUTE_MS;
 
-export async function initDataFetch() {
+const ACTIVE_SOURCE_COUNT = sourceGroups
+	.filter(g => ACTIVE_SOURCE_GROUPS.includes(g.id))
+	.reduce((sum, g) => sum + g.sources.length, 0);
+
+export async function initDataFetch(runOnce?: boolean) {
 	for (const sourceGroup of sourceGroups) {
 		if (!ACTIVE_SOURCE_GROUPS.includes(sourceGroup.id)) { continue; }
 		
@@ -38,6 +43,7 @@ export async function initDataFetch() {
 			
 			const cronJob = new CronJob(cron, () => {
 				fetchQueue.push(source.id);
+				if (runOnce) { cronJob.stop(); }
 			}, null, true, "Etc/UTC");
 			
 			cronJobInstances.push(cronJob);
@@ -46,7 +52,7 @@ export async function initDataFetch() {
 		}
 	}
 	
-	cycleFetchQueue();
+	cycleFetchQueue(runOnce);
 }
 
 function generateCronString(runInterval: ExecutionInterval, offsetMs: number) {
@@ -69,14 +75,20 @@ function generateCronString(runInterval: ExecutionInterval, offsetMs: number) {
 	}
 }
 
-async function cycleFetchQueue() {
+async function cycleFetchQueue(runOnce?: boolean) {
 	while (fetchQueue.length > 0) {
 		const source = sourceGroups.map(g => g.sources).flat().find(s => s.id == fetchQueue[0]);
 		await source.executeSync();
-		fetchQueue.shift();
+		const sourceId = fetchQueue.shift();
+		if (runOnce) { executedSourceIds.push(sourceId); }
+	}
+	
+	if (runOnce && executedSourceIds.length >= ACTIVE_SOURCE_COUNT) {
+		console.log("[Map Data] All sources completed once, exiting");
+		process.exit(0);
 	}
 	
 	setTimeout(() => {
-		cycleFetchQueue();
+		cycleFetchQueue(runOnce);
 	}, 60*1000);
 }
