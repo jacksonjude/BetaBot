@@ -59,7 +59,7 @@ class VotehubPollDataSource extends VotehubBaseDataSource {
 			timeseries: Object.entries(raceTimeseries).map(([date, timeseriesCandidates]) => ({
 				date: date,
 				candidates: Object.entries(timeseriesCandidates).map(([name, timeseriesCandidate]) => ({
-					id: timeseriesCandidate.vh_candidate_id ?? candidates.find(c => c.name == name).id,
+					id: timeseriesCandidate.vh_candidate_id ?? candidates.find(c => c.name == name)?.id,
 					voteshare: timeseriesCandidate.average
 				}))
 			}))
