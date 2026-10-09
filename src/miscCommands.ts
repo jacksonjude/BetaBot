@@ -428,7 +428,7 @@ export function getEchoCommand(): BotCommand
     async (commandArguments: string[], message: Message, client: Client) => {
       const channel = commandArguments[1] ? await client.channels.fetch(commandArguments[1]) as TextChannel : message.channel as TextChannel
       
-      if (message.member != null && !channel.permissionsFor(message.member).has(PermissionFlagsBits.SendMessages)) { return }
+      // if (message.member != null && !channel.permissionsFor(message.member).has(PermissionFlagsBits.SendMessages)) { return }
       
       const shouldSendAttachments = commandArguments[2] === "true" ? true : false
 
