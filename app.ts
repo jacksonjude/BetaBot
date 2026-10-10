@@ -82,7 +82,7 @@ loginBot(client)
 
 // Client Init
 
-client.on('ready', async () => {
+client.on('clientReady', async () => {
   console.log(`[App] Logged in as ${client.user.tag}!`)
 
   client.user.setPresence({status: "online"})
