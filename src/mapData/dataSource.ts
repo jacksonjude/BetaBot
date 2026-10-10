@@ -1,4 +1,5 @@
 import { Octokit } from '@octokit/core';
+import { Client } from 'discord.js';
 import fetch from "node-fetch";
 import { ExecutionInterval } from './util';
 
@@ -38,7 +39,7 @@ export abstract class DataSource {
 		this.isFetching = false;
 	}
 	
-	async executeSync() {
+	async executeSync(client: Client) {
 		if (this.isFetching || (this.startTime && Date.now() < this.startTime) || (this.endTime && Date.now() > this.endTime)) { return };
 		this.isFetching = true;
 		
@@ -51,7 +52,7 @@ export abstract class DataSource {
 		}
 		
 		const previousDataContent = previousData?.decoded_content;
-		const updatedDataContent = await this.fetch(previousDataContent);
+		const updatedDataContent = await this.fetch(previousDataContent, client);
 		
 		if (updatedDataContent) {
 			console.log("[Data Source] Complete fetching new", this.id);
@@ -65,7 +66,7 @@ export abstract class DataSource {
 		this.isFetching = false;
 	}
 	
-	protected abstract fetch(previousDataContent: string): Promise<string | null>
+	protected abstract fetch(previousDataContent: string, client: Client): Promise<string | null>
 	
 	async getGitHubFile(outputPath: string): Promise<OctokitContentsResponseData | null> {
 		const fileResponse = await octokit.request(`GET /repos/jacksonjude/USA-Election-Map-Data/contents/data/${outputPath}`, {

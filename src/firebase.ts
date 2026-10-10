@@ -1,15 +1,15 @@
 import { initializeApp, cert } from 'firebase-admin/app'
 import { getFirestore, Firestore, QueryDocumentSnapshot } from 'firebase-admin/firestore'
 
-export function initFirestore()
+export function initFirestore(serviceKeyJSON: string, appName?: string)
 {
-  const serviceAccount = JSON.parse(process.env.FIRESTORE_KEY_JSON)
+  const serviceAccount = JSON.parse(serviceKeyJSON)
 
-  initializeApp({
+  const app = initializeApp({
     credential: cert(serviceAccount)
-  })
+  }, appName)
 
-  return getFirestore()
+  return getFirestore(app)
 }
 
 import { Client } from "discord.js"

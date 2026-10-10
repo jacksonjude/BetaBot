@@ -1,4 +1,4 @@
-import { User, Guild, Role, RoleResolvable, Client, GuildEmoji, ReactionEmoji, EmojiResolvable, Message } from 'discord.js'
+import { User, Guild, Role, RoleResolvable, Client, GuildEmoji, ReactionEmoji, EmojiResolvable, Message, Collection, TextChannel } from 'discord.js'
 
 // Update Roles
 
@@ -33,6 +33,32 @@ export async function getRolesByID(roleIDs: string[], guild?: Guild, guildID?: s
   }
 
   return roleObjects
+}
+
+// Fetch Messages
+
+export async function fetchAllMessages(channel: TextChannel)
+{
+  let channelMessages: Message[] = []
+  let latestMessages: Collection<string, Message<true>>
+  
+  do
+  {
+    const lastMessage = latestMessages ? latestMessages.last().id : undefined
+    
+    try
+    {
+      latestMessages = await channel.messages.fetch({before: lastMessage, limit: 100})
+    }
+    catch (error)
+    {
+      break
+    }
+    
+    channelMessages.push(...latestMessages.values())
+  } while (latestMessages.size > 0)
+  
+  return channelMessages
 }
 
 // Emoji Converter

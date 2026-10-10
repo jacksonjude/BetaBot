@@ -91,7 +91,7 @@ client.on('ready', async () => {
     guild.members.fetch(client.user).then(member => updateNickname(member))
   })
 
-  firestoreDB = initFirestore()
+  firestoreDB = initFirestore(process.env.FIRESTORE_KEY_JSON)
   initFirestoreCollectionListeners(firestoreDB, client)
 
   setupVoiceChannelEventHandler(client)
@@ -101,6 +101,8 @@ client.on('ready', async () => {
   setupFormMessageEventHandlers(client)
 
   initCommands()
+  
+  initDataFetch(client)
 })
 
 // Nickname Enforcement
@@ -299,8 +301,6 @@ export async function handleCommandExecution(messageContent: string, msg: Messag
     return
   }
 }
-
-initDataFetch();
 
 process.on('unhandledRejection', error => {
   console.log('[App] Unhandled error: ', error)

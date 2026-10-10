@@ -1,4 +1,5 @@
 import { CronJob } from 'cron';
+import { Client } from 'discord.js';
 import { DataSource } from './dataSource';
 import { ExecutionInterval, HOUR_MS, MINUTE_MS, SECOND_MS } from './util';
 
@@ -10,12 +11,14 @@ import { polymarketSources } from './sources/polymarket';
 import { cnnSources } from './sources/cnn';
 import { votehubForecastDataSources } from './sources/votehub-forecast';
 import { votehubPollDataSources } from './sources/votehub-polls';
+import { discordContestSources } from './sources/discord-contest';
 
 const sourceGroups: { id: string; sources: DataSource[] }[] = [
 	{ id: 'polymarket', sources: polymarketSources }, 
 	{ id: 'cnn', sources: cnnSources },
 	{ id: 'votehub-forecast', sources: votehubForecastDataSources },
 	{ id: 'votehub-poll', sources: votehubPollDataSources },
+	{ id: 'discord-contest', sources: discordContestSources }
 ];
 
 const ACTIVE_SOURCE_GROUPS: string[] = (() => {
@@ -33,7 +36,7 @@ const ACTIVE_SOURCE_COUNT = sourceGroups
 	.filter(g => ACTIVE_SOURCE_GROUPS.includes(g.id))
 	.reduce((sum, g) => sum + g.sources.length, 0);
 
-export async function initDataFetch(runOnce?: boolean) {
+export async function initDataFetch(client: Client, runOnce?: boolean) {
 	for (const sourceGroup of sourceGroups) {
 		if (!ACTIVE_SOURCE_GROUPS.includes(sourceGroup.id)) { continue; }
 		
@@ -52,7 +55,7 @@ export async function initDataFetch(runOnce?: boolean) {
 		}
 	}
 	
-	cycleFetchQueue(runOnce);
+	cycleFetchQueue(client, runOnce);
 }
 
 function generateCronString(runInterval: ExecutionInterval, offsetMs: number) {
@@ -75,10 +78,10 @@ function generateCronString(runInterval: ExecutionInterval, offsetMs: number) {
 	}
 }
 
-async function cycleFetchQueue(runOnce?: boolean) {
+async function cycleFetchQueue(client: Client, runOnce?: boolean) {
 	while (fetchQueue.length > 0) {
 		const source = sourceGroups.map(g => g.sources).flat().find(s => s.id == fetchQueue[0]);
-		await source.executeSync();
+		await source.executeSync(client);
 		const sourceId = fetchQueue.shift();
 		if (runOnce) { executedSourceIds.push(sourceId); }
 	}
@@ -89,6 +92,6 @@ async function cycleFetchQueue(runOnce?: boolean) {
 	}
 	
 	setTimeout(() => {
-		cycleFetchQueue(runOnce);
+		cycleFetchQueue(client, runOnce);
 	}, 60*1000);
 }
