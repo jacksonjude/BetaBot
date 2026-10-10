@@ -1,4 +1,4 @@
-import { Message, TextChannel } from "discord.js"
+import { Message } from "discord.js"
 import { HandleCommandExecution } from "./util"
 
 export class ServerCommandAliasConfiguration
