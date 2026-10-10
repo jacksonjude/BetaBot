@@ -78,8 +78,8 @@ class DiscordContestSource extends DataSource {
 		const messages = await fetchAllMessages(channel);
 		
 		const mapIDs = messages.map(m => m.content).filter(c => this.submissionRegex.test(c)).flatMap(c => {
-			const matches = this.mapIDRegex.exec(c);
-			return matches ? matches.slice(1) : [];
+			const matches = c.matchAll(this.mapIDRegex);
+			return [...matches].map(m => m[1]);
 		});
 		
 		return mapIDs;
@@ -229,7 +229,7 @@ class DiscordContestSource extends DataSource {
 
 const JJ_DISCORD_2026_CONTEST_CHANNEL_ID = "1556438961428103278";
 const JJ_DISCORD_SUBMISSION_REGEX = /^<@\d+>'s submission: .+/;
-const JJ_SITE_MAP_ID_REGEX = /https:\/\/map\.jacksonjude\.com\/\?id=([\w-]+)/;
+const JJ_SITE_MAP_ID_REGEX = /https:\/\/map\.jacksonjude\.com\/\?id=([\w-]+)/g;
 
 let jjMapFirestore: Firestore | undefined;
 const getJJMapFirestore = () => jjMapFirestore ??= initFirestore(process.env.JJ_MAP_FIRESTORE_KEY_JSON, "jj-map");
