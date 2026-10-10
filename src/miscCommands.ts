@@ -423,7 +423,7 @@ export function getEchoCommand(): BotCommand
 {
   return BotCommand.fromRegex(
     "echo", "print a message to a channel",
-    /^echo(?:\s+(?:<#)?(\d+)(?:>)?)?(?:\s+(true|false))?\s+(.+)$/, /^echo(\s+.*)?$/,
+    /^echo(?:\s+(?:<#)?(\d+)(?:>)?)?(?:\s+(true|false))?\s+(.+)$/is, /^echo(\s+.*)?$/is,
     "echo [channel] [doAttachments] <message>",
     async (commandArguments: string[], message: Message, client: Client) => {
       const channel = commandArguments[1] ? await client.channels.fetch(commandArguments[1]) as TextChannel : message.channel as TextChannel
