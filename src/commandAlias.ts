@@ -1,4 +1,4 @@
-import { Message } from "discord.js"
+import { Message, TextChannel } from "discord.js"
 import { HandleCommandExecution } from "./util"
 
 export class ServerCommandAliasConfiguration
@@ -11,8 +11,10 @@ class CommandAlias
   name: string
   argSeparator: string
   defaultArgs: string[]
+  argRegex?: string[]
   command: string
   roleIDs?: string[]
+  channelIDs?: string[]
 }
 
 var commandAliases: { [k: string]: CommandAlias[] } = {}
@@ -37,7 +39,30 @@ export async function executeCommandAlias(messageContent: string, message: Messa
 
   let aliasArgs = messageContent.replace(new RegExp("^" + aliasToUse.name + "\\s*"), "").split(new RegExp(aliasToUse.argSeparator))
 
-  if (aliasToUse.roleIDs?.length > 0 && !message.member.roles.cache.some(role => aliasToUse.roleIDs.some(roleID => role.id == roleID))) { return false }
+  if (aliasToUse.roleIDs?.length > 0 && !message.member.roles.cache.some(role => aliasToUse.roleIDs.some(roleID => role.id == roleID)))
+  {
+    message.reply({
+      content: `You are not allowed to run ${aliasToUse.name} (only ${aliasToUse.roleIDs.map(id => `<@&${id}>`).join(', ')})`,
+      allowedMentions: { roles: [] }
+    })
+    return false
+  }
+  if (aliasToUse.channelIDs?.length > 0 && !aliasToUse.channelIDs.includes(message.channelId))
+  {
+    message.reply(`You cannot run ${aliasToUse.name} here (only ${aliasToUse.channelIDs.map(id => `<#${id}>`).join(', ')})`)
+    return false
+  }
+  
+  for (const argIndex in aliasToUse.argRegex ?? [])
+  {
+    const argRegex = new RegExp(aliasToUse.argRegex[argIndex])
+    const argValue = aliasArgs[argIndex] ?? aliasToUse.defaultArgs[argIndex]
+    if (argValue && !argRegex.test(argValue))
+    {
+      message.reply(`Invalid arguments for ${aliasToUse.name}`)
+      return false
+    }
+  }
   
   let formattedCommand = aliasToUse.command
   if (formattedCommand.includes("{0}"))
