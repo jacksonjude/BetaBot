@@ -218,7 +218,8 @@ class DiscordContestSource extends DataSource {
 	unparseMapData(mapData: MapDataRow[]): string {
 		return Papa.unparse(mapData, {
 			header: true,
-			skipEmptyLines: true
+			skipEmptyLines: true,
+			newline: '\n'
 		});
 	}
 	
