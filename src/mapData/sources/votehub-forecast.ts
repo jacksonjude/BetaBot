@@ -13,8 +13,12 @@ interface RawRaceTimeseries {
 }
 
 class VotehubForecastDataSource extends VotehubBaseDataSource {
-	constructor(id: string, raceType: string) {
+	baseURL: string;
+	
+	constructor(id: string, raceType: string, baseURL: string) {
 		super(id, raceType);
+		
+		this.baseURL = baseURL;
 	}
 	
 	protected override async fetch(_previousDataContent: string) {
@@ -31,7 +35,7 @@ class VotehubForecastDataSource extends VotehubBaseDataSource {
 		const allTimeseries: FormattedRaceTimeseries[] = [];
 		for (const [i, raceInfo] of raceTypeInfoList.entries()) {
 			console.log(`[VoteHub Forecast] Fetching ${raceInfo.race_id} (${i+1}/${raceTypeInfoList.length})`);
-			const raceTimeseries: RawRaceTimeseries = await this.browserFetch(`https://2026-forecast.votehub.com/v1/timeseries?race_id=${raceInfo.race_id}`);
+			const raceTimeseries: RawRaceTimeseries = await this.browserFetch(`${this.baseURL}/timeseries?race_id=${raceInfo.race_id}`);
 			if (!raceTimeseries) { continue; }
 			
 			const formattedRaceTimeseries = this.formatRaceTimeseries(raceInfo, raceTimeseries);
@@ -72,17 +76,38 @@ class VotehubForecastDataSource extends VotehubBaseDataSource {
 	}
 }
 
+const completeBaseURL = "https://2026-forecast.votehub.com/v1";
+const legacyBaseURL = "https://2026-forecast.votehub.com/v1/legacy";
+
 export const votehubForecastDataSources: VotehubForecastDataSource[] = [
 	new VotehubForecastDataSource(
 		"2026-votehub-forecast-senate",
-		"S"
+		"S",
+		completeBaseURL
+	),
+	new VotehubForecastDataSource(
+		"2026-votehub-forecast-legacy-senate",
+		"S",
+		legacyBaseURL
 	),
 	new VotehubForecastDataSource(
 		"2026-votehub-forecast-governor",
-		"G"
+		"G",
+		completeBaseURL
+	),
+	new VotehubForecastDataSource(
+		"2026-votehub-forecast-legacy-governor",
+		"G",
+		legacyBaseURL
 	),
 	new VotehubForecastDataSource(
 		"2026-votehub-forecast-house",
-		"H"
+		"H",
+		completeBaseURL
+	),
+	new VotehubForecastDataSource(
+		"2026-votehub-forecast-legacy-house",
+		"H",
+		legacyBaseURL
 	),
 ];
