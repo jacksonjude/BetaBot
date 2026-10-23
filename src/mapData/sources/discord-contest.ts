@@ -156,7 +156,7 @@ class DiscordContestSource extends DataSource {
 			for (const mapDataRow of mapRows) {
 				let { region, voteshare, disabled } = mapDataRow;
 				
-				if (voteshare <= 0 || voteshare > 1 || disabled == "TRUE") {
+				if (voteshare <= 0 || voteshare > 1 || disabled == "TRUE" || region == "National Popular Vote") {
 					continue;
 				}
 				
