@@ -98,18 +98,18 @@ class CNNDataSource extends DataSource {
 
 export const cnnSources: CNNDataSource[] = [
 	new CNNDataSource(
-		"2024-cnn-senate",
-		"2024-senate-cnn.csv",
-		"https://politics.api.cnn.io/results/national-races/2024-SG.json"
+		"2026-cnn-senate",
+		"2026-senate-cnn.csv",
+		"https://politics.api.cnn.io/results/national-races/2026-SG.json"
 	),
 	new CNNDataSource(
-		"2024-cnn-governor",
-		"2024-governor-cnn.csv",
-		"https://politics.api.cnn.io/results/national-races/2024-GG.json"
+		"2026-cnn-governor",
+		"2026-governor-cnn.csv",
+		"https://politics.api.cnn.io/results/national-races/2026-GG.json"
 	),
 	new CNNDataSource(
-		"2024-cnn-house",
-		"2024-house-cnn.csv",
-		"https://politics.api.cnn.io/results/national-races/2024-HG.json"
+		"2026-cnn-house",
+		"2026-house-cnn.csv",
+		"https://politics.api.cnn.io/results/national-races/2026-HG.json"
 	)
 ];
