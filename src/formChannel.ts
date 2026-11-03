@@ -56,7 +56,9 @@ async function filterFormChannelMessages(textChannel: TextChannel)
     const filteredChannelMessages = []
     for (const message of channelMessages)
     {
-      if (!/^<@\d+>.+/.test(message.content)) {
+      const mentionMatch = message.content.match(/^<@(\d+)>[\s\S]+/)
+      if (!mentionMatch)
+      {
         // console.log("Skipping", message.createdTimestamp, message.content)
         filteredChannelMessages.push(message)
         continue
@@ -64,7 +66,7 @@ async function filterFormChannelMessages(textChannel: TextChannel)
       
       // console.log("Checking", message.createdTimestamp, message.content)
       
-      const userID = message.content.replace(/>.+/, '').replace(/<@/, '')
+      const userID = mentionMatch[1]
       if (usersWithMessages.includes(userID))
       {
         try
