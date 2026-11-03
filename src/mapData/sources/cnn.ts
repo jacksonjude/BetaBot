@@ -88,7 +88,8 @@ class CNNDataSource extends DataSource {
 	}
 	
 	getHeader(csvData: string): string {
-		return csvData.substring(0, csvData.indexOf('\n'));
+  const newlineIndex = csvData.indexOf('\n');
+  return newlineIndex === -1 ? csvData : csvData.substring(0, newlineIndex);
 	}
 	
 	stripHeader(csvData: string): string {
