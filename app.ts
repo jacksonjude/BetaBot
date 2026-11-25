@@ -185,6 +185,7 @@ function initCommands()
     [
       new BotCommandRoleIDRequirement(TECHNICIAN_ROLE_ID),
       new BotCommandRoleIDRequirement("1002116413051379813"), // @bot admin (jacksonjude.com)
+      new BotCommandRoleIDRequirement("1574960516512874617"), // @Bot Admin (Klimenia)
       serverAdminPermissionRequirement
     ]
   )
